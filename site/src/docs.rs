@@ -9,7 +9,7 @@ pub struct DocPage {
     pub order: u32,
     pub title: &'static str,
     pub summary: &'static str,
-    /// Content-hashed URL of the rendered HTML body.
+    /// Content-hashed path (relative to the site base) of the HTML body.
     pub url: &'static str,
     pub toc: &'static [(&'static str, &'static str, u8)],
     pub search: &'static str,
@@ -85,14 +85,20 @@ pub async fn body(page: &'static DocPage) -> Result<std::rc::Rc<str>, String> {
     if let Some(hit) = CACHE.with(|c| c.borrow().get(page.url).cloned()) {
         return Ok(hit);
     }
-    let res = gloo::net::http::Request::get(page.url)
+    let res = gloo::net::http::Request::get(&crate::asset(page.url))
         .send()
         .await
         .map_err(|e| e.to_string())?;
     if !res.ok() {
         return Err(format!("HTTP {}", res.status()));
     }
-    let html: std::rc::Rc<str> = res.text().await.map_err(|e| e.to_string())?.into();
+    let mut html = res.text().await.map_err(|e| e.to_string())?;
+    // Internal links are written `/docs/<slug>`: keep them valid when the
+    // site lives under a sub-path (GitHub Pages).
+    if crate::BASE != "/" {
+        html = html.replace("href=\"/docs/", &format!("href=\"{}docs/", crate::BASE));
+    }
+    let html: std::rc::Rc<str> = html.into();
     CACHE.with(|c| c.borrow_mut().insert(page.url, html.clone()));
     Ok(html)
 }

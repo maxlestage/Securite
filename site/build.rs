@@ -48,7 +48,7 @@ fn main() {
             let order: u32 = get("order").parse().unwrap_or(99);
             let file = format!("{slug}.{:016x}.html", fnv1a(html.as_bytes()));
             fs::write(content_dir.join(lang).join(&file), &html).unwrap();
-            let url = format!("/content/{lang}/{file}");
+            let url = format!("content/{lang}/{file}");
             let mut toc_code = String::from("&[");
             for (id, text, level) in &toc {
                 let _ = write!(toc_code, "({id:?}, {text:?}, {level}),");

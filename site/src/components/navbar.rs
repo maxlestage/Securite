@@ -75,10 +75,10 @@ pub fn Navbar() -> Html {
                 </Link<Route>>
                 <div class="nav-links" onclick={close.clone()}>
                     <Link<Route> to={Route::Home} classes={classes!("nav-link", is(Route::Home))}>{ t.nav_home }</Link<Route>>
-                    <a href="/#features" class="nav-link" onclick={goto_section("features")}>{ t.nav_features }</a>
+                    <a href={crate::asset("#features")} class="nav-link" onclick={goto_section("features")}>{ t.nav_features }</a>
                     <Link<Route> to={Route::Docs} classes={classes!("nav-link", docs_active)}>{ t.nav_docs }</Link<Route>>
                     <Link<Route> to={Route::Playground} classes={classes!("nav-link", is(Route::Playground))}>{ t.nav_playground }</Link<Route>>
-                    <a href="/#deploy" class="nav-link" onclick={goto_section("deploy")}>{ t.nav_deploy }</a>
+                    <a href={crate::asset("#deploy")} class="nav-link" onclick={goto_section("deploy")}>{ t.nav_deploy }</a>
                 </div>
                 <div class="nav-actions">
                     <LangSwitcher />
