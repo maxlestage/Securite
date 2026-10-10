@@ -1,0 +1,54 @@
+# Every branch pushed to GitHub (except master, wip/** and dependabot/**) is
+# tested with the CI workflow and, when everything is green, merged into
+# master automatically. The deploy workflow then ships master to Heroku.
+#
+# Opt out for a branch by naming it `wip/...`.
+name: Auto-merge
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - main
+      - "wip/**"
+      - "dependabot/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-merge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  merge:
+    name: Merge into master
+    needs: ci
+    runs-on: ubuntu-latest
+    concurrency:
+      group: merge-into-master
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Merge ${{ github.ref_name }}
+        env:
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git merge-base --is-ancestor "$SHA" HEAD; then
+            echo "$BRANCH is already merged into master."
+            exit 0
+          fi
+          git merge --no-ff --no-edit "$SHA" -m "Merge branch '$BRANCH' into master (auto-merge)"
+          git push origin HEAD:master
+          echo "::notice title=Auto-merge::$BRANCH merged into master"

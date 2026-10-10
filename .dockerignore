@@ -1,0 +1,9 @@
+.git
+.github
+target
+site/target
+site/dist
+**/node_modules
+*.md
+!docs/**/*.md
+!crates/securite/README.md
