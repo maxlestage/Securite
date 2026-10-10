@@ -1,0 +1,41 @@
+# Dependabot pull requests are merged into master automatically as soon as
+# the CI is green on them (branch pushes are handled by auto-merge.yml).
+#
+# Security: this runs in the context of master (workflow_run), never checks
+# out the pull request code, only acts on PRs opened by dependabot[bot] and
+# merges exactly the commit the CI tested (--match-head-commit).
+name: Dependabot auto-merge
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge the tested Dependabot pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$HEAD_BRANCH" \
+            --json number,author,headRefOid \
+            --jq ".[] | select(.author.login == \"app/dependabot\" or .author.login == \"dependabot[bot]\") | select(.headRefOid == \"$HEAD_SHA\") | .number")
+          if [ -z "$PR" ]; then
+            echo "No open Dependabot PR at $HEAD_BRANCH@$HEAD_SHA (already merged or updated)."
+            exit 0
+          fi
+          gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --merge --match-head-commit "$HEAD_SHA"
+          echo "::notice title=Auto-merge::Dependabot PR #$PR merged into master"
