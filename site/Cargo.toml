@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-gloo = { version = "0.11", features = ["futures"] }
+gloo = { version = "0.12", features = ["futures"] }
 js-sys = "0.3"
 wasm-bindgen = "=0.2.129"
 wasm-bindgen-futures = "0.4"
