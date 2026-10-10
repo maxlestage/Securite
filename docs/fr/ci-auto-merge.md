@@ -67,13 +67,15 @@ Quand `master` a modifié les mêmes lignes, `git merge` s'arrête, le job écho
 
 ## Dependabot
 
-`.github/dependabot.yml` cherche des mises à jour chaque semaine à trois endroits : l'espace de travail Cargo (`/`), le site (`/site`) et les versions des GitHub Actions. Chaque mise à jour ouvre une pull request sur une branche `dependabot/...`, ignorée par la fusion automatique : vous gardez la main.
+`.github/dependabot.yml` cherche des mises à jour chaque semaine à trois endroits : l'espace de travail Cargo (`/`), le site (`/site`) et les versions des GitHub Actions. Chaque mise à jour ouvre une pull request sur une branche `dependabot/...`, **elle aussi fusionnée automatiquement sur `master`** :
 
-1. Application GitHub → **Pull requests** → ouvrez la pull request de Dependabot.
-2. Attendez que les vérifications de CI soient au vert et parcourez les notes de version qu'elle cite.
-3. Touchez **Merge pull request** et confirmez. La fusion est un push sur `master` : la CI et le déploiement Heroku suivent.
+1. La CI s'exécute sur la pull request.
+2. Quand elle est verte, `.github/workflows/dependabot-auto-merge.yml` fusionne exactement le commit testé (`gh pr merge --match-head-commit`). Il ne récupère jamais le code de la pull request et n'agit que sur les pull requests ouvertes par `dependabot[bot]`.
+3. Le déploiement Heroku suit, après un nouveau passage de la CI sur `master`.
 
-`wasm-bindgen` est épinglé avec `=0.2.129`, car son outil en ligne de commande doit correspondre exactement à la crate. Si Dependabot propose une nouvelle version, le job du site échoue tant que les autres emplacements épinglés ne correspondent pas, voir [Image Docker](/docs/docker).
+Une CI rouge laisse la pull request ouverte : lisez la vérification en échec depuis l'application GitHub, puis fermez la pull request ou corrigez `master`. Les pull requests venant de forks ne sont jamais fusionnées automatiquement : personne d'extérieur au dépôt ne peut pousser du code sur `master`.
+
+`wasm-bindgen` et `gloo` sont volontairement exclus de Dependabot : `wasm-bindgen` doit correspondre exactement à son outil en ligne de commande et `gloo` suit la version utilisée par Yew, voir [Image Docker](/docs/docker).
 
 ## Pages associées
 

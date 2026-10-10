@@ -78,8 +78,10 @@ Guide complet : [docs/fr/heroku-from-phone.md](docs/fr/heroku-from-phone.md).
 Chaque branche poussée sur GitHub lance la CI (fmt, clippy, tests, docs,
 MSRV, build WebAssembly) puis est **fusionnée automatiquement sur `master` si
 tout est vert** ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), ce
-qui déclenche ensuite le déploiement Heroku. Nommez une branche `wip/...`
-pour l'exclure.
+qui déclenche ensuite le déploiement Heroku. Les pull requests Dependabot
+sont fusionnées de la même façon dès que leur CI est verte
+([`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml)).
+Nommez une branche `wip/...` pour l'exclure.
 
 ## Publier la crate sur crates.io (depuis le téléphone)
 

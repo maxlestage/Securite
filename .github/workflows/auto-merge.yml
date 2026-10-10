@@ -2,7 +2,8 @@
 # tested with the CI workflow and, when everything is green, merged into
 # master automatically. The deploy workflow then ships master to Heroku.
 #
-# Opt out for a branch by naming it `wip/...`.
+# Opt out for a branch by naming it `wip/...`. Dependabot branches are merged
+# by dependabot-auto-merge.yml once their pull request CI is green.
 name: Auto-merge
 
 on:
