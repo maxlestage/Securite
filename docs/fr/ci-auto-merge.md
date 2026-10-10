@@ -2,7 +2,7 @@
 title: CI et fusion automatique
 summary: Ce que vérifie le workflow de CI, comment chaque branche au vert est fusionnée dans master puis déployée automatiquement, et comment gérer exclusions, conflits et mises à jour Dependabot depuis un téléphone.
 category: deploy
-order: 4
+order: 5
 ---
 
 Trois workflows s'enchaînent pour qu'une branche poussée depuis n'importe où, téléphone compris, soit testée, fusionnée et déployée sans le moindre clic :

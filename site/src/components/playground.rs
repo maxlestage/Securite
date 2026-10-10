@@ -45,7 +45,8 @@ struct HistoryItem {
 async fn send(payload: String) -> Outcome {
     let started = js_sys::Date::now();
     let url = format!(
-        "/api/demo?payload={}",
+        "{}?payload={}",
+        crate::asset("api/demo"),
         String::from(js_sys::encode_uri_component(&payload))
     );
     match Request::get(&url).send().await {
@@ -280,12 +281,19 @@ pub fn LiveStats() -> Html {
     {
         let stats = stats.clone();
         use_effect_with((), move |_| {
+            // On static hosting (GitHub Pages) there is no API: stop polling
+            // after the first miss instead of logging a 404 every 4 s.
+            let offline = std::rc::Rc::new(std::cell::Cell::new(false));
             let load = {
                 let stats = stats.clone();
                 move || {
+                    if offline.get() {
+                        return;
+                    }
                     let stats = stats.clone();
+                    let offline = offline.clone();
                     wasm_bindgen_futures::spawn_local(async move {
-                        if let Ok(res) = Request::get("/api/stats").send().await
+                        if let Ok(res) = Request::get(&crate::asset("api/stats")).send().await
                             && res
                                 .headers()
                                 .get("content-type")
@@ -294,6 +302,8 @@ pub fn LiveStats() -> Html {
                             && let Ok(body) = res.text().await
                         {
                             stats.set(parse_stats(&body));
+                        } else {
+                            offline.set(true);
                         }
                     });
                 }

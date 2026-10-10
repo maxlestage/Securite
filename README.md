@@ -24,7 +24,7 @@ This repository contains:
 | [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for tower / axum / hyper / tonic |
 | [`site`](site) | The **website**: Yew + WebAssembly, animated, FR / EN / ES, documentation hub by category, live attack playground |
 | [`server`](server) | The axum server hosting the website — protected by `securite` itself |
-| [`docs`](docs) | The **documentation** (32 pages × 3 languages), compiled into the website |
+| [`docs`](docs) | The **documentation** (33 pages × 3 languages), compiled into the website |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Container image and **one-tap Heroku deployment** |
 | [`.github/workflows`](.github/workflows) | CI, **auto-merge into master**, Heroku deploy, crates.io publishing |
 
@@ -71,6 +71,16 @@ name, tap *Deploy app*. Heroku builds the Docker image from `heroku.yml`
    *Run workflow*.
 
 Full guide: [docs/en/heroku-from-phone.md](docs/en/heroku-from-phone.md).
+
+## GitHub Pages (free static hosting)
+
+[`pages.yml`](.github/workflows/pages.yml) publishes the website on
+**https://maxlestage.github.io/Securite/** after every merge into `master`,
+with a strict CSP injected as a `<meta>` tag (inline script allowed by hash).
+One-time setup from a phone: repository → *Settings* → *Pages* → *Source*:
+**GitHub Actions**, then *Actions* → *Deploy to GitHub Pages* → *Run workflow*.
+The live attack playground needs the server (Heroku or Docker).
+Guide: [docs/en/github-pages.md](docs/en/github-pages.md).
 
 ## Always merged into master
 

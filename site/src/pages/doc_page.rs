@@ -99,7 +99,13 @@ pub fn DocPageView(props: &DocPageProps) -> Html {
                 if href.starts_with('/')
                     && !href.starts_with("//")
                     && let (Some(route), Some(nav)) = (
-                        Route::recognize(href.split('#').next().unwrap_or("/")),
+                        Route::recognize(
+                            href.strip_prefix(crate::BASE.trim_end_matches('/'))
+                                .unwrap_or(&href)
+                                .split('#')
+                                .next()
+                                .unwrap_or("/"),
+                        ),
                         &navigator,
                     )
                 {

@@ -1,0 +1,103 @@
+# Deploys the website (Yew + WebAssembly) to GitHub Pages:
+#   https://<owner>.github.io/<repository>/
+#
+# One-time setup, from a phone browser: GitHub → repository → Settings →
+# Pages → Build and deployment → Source: "GitHub Actions". Until then this
+# workflow only builds the site and leaves a notice (it does not fail).
+#
+# GitHub Pages is static: the documentation, animations and navigation work,
+# the live attack playground needs the axum server (Heroku, Docker…).
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  # Pushes made by the auto-merge bots do not trigger `push` workflows.
+  workflow_run:
+    workflows: ["Auto-merge", "Dependabot auto-merge"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the website
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Is GitHub Pages enabled with the "GitHub Actions" source?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BUILD_TYPE=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type 2>/dev/null || true)
+          if [ "$BUILD_TYPE" = "workflow" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=GitHub Pages not enabled::Settings → Pages → Build and deployment → Source: GitHub Actions, then run this workflow again (Actions → Deploy to GitHub Pages → Run workflow). The site is still built below to check it."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: site
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.21.14,wasm-bindgen@0.2.129
+
+      - name: Base path
+        id: base
+        env:
+          ENABLED: ${{ steps.check.outputs.enabled }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Custom domain → "/", otherwise "/<repository>/".
+          CNAME=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.cname // ""' 2>/dev/null || true)
+          if [ -n "$CNAME" ]; then BASE="/"; else BASE="/$REPO_NAME/"; fi
+          echo "Site base: $BASE"
+          echo "path=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: trunk build
+        working-directory: site
+        env:
+          SITE_BASE: ${{ steps.base.outputs.path }}
+        run: trunk build --release --public-url "$SITE_BASE"
+
+      - name: Prepare for GitHub Pages (CSP meta, 404.html, .nojekyll)
+        run: python3 .github/scripts/pages-postprocess.py site/dist
+
+      - name: Upload the site
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    if: needs.build.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

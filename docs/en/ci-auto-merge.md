@@ -2,7 +2,7 @@
 title: CI and auto-merge
 summary: What the CI workflow checks, how every green branch is merged into master and deployed automatically, and how to handle opt-outs, conflicts and Dependabot updates from a phone.
 category: deploy
-order: 4
+order: 5
 ---
 
 Three workflows chain together so that a branch pushed from anywhere, a phone included, ends up tested, merged and deployed without a single click:
