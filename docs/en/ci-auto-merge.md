@@ -22,7 +22,7 @@ push to feature/x
 |---|---|
 | Crate · fmt, clippy, tests, docs, package | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo doc -p securite --no-deps` with `RUSTDOCFLAGS=-D warnings`, `cargo publish -p securite --dry-run` |
 | Crate · MSRV 1.85 | `cargo check -p securite --all-features` with Rust 1.85 |
-| Website · Yew + WebAssembly | In `site/`, `cargo fmt -- --check`, `cargo clippy --target wasm32-unknown-unknown -- -D warnings` and `trunk build --release` with Trunk 0.21.14 and wasm-bindgen 0.2.129 |
+| Website · active + WebAssembly | `cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings`, the browser bundle (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, then `wasm-bindgen`, the prebuilt tool of the version locked in `Cargo.lock`), the release server and the static export for GitHub Pages (`securite-server export dist` with `BASE_PATH=/Securite`) |
 
 Warnings are errors: a clippy lint or a broken doc link fails the run. The same checks on a computer:
 
@@ -32,6 +32,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 RUSTDOCFLAGS="-D warnings" cargo doc -p securite --no-deps
 cargo publish -p securite --dry-run
+cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings
+cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+BASE_PATH=/Securite cargo run --release -p securite-server -- export dist
 ```
 
 ## The auto-merge workflow
@@ -67,7 +71,7 @@ When `master` changed the same lines, `git merge` stops, the job fails and nothi
 
 ## Dependabot
 
-`.github/dependabot.yml` looks for updates every week in three places: the Cargo workspace (`/`), the website (`/site`) and the GitHub Actions versions. Each update opens a pull request on a `dependabot/...` branch, and **it is merged into `master` automatically** too:
+`.github/dependabot.yml` looks for updates every week in two places: the Cargo workspace (`/`, the website included) and the GitHub Actions versions. Each update opens a pull request on a `dependabot/...` branch, and **it is merged into `master` automatically** too:
 
 1. The CI runs on the pull request.
 2. When it is green, `.github/workflows/dependabot-auto-merge.yml` merges exactly the commit that was tested (`gh pr merge --match-head-commit`). It never checks out the pull request code and only acts on pull requests opened by `dependabot[bot]`.
@@ -75,7 +79,7 @@ When `master` changed the same lines, `git merge` stops, the job fails and nothi
 
 A red CI leaves the pull request open: read the failing check from the GitHub app, then close the pull request or fix `master`. Pull requests from forks are never merged automatically, so nobody outside the repository can push code to `master`.
 
-`wasm-bindgen` and `gloo` are excluded from Dependabot on purpose: `wasm-bindgen` must match its command-line tool exactly and `gloo` follows the version used by Yew, see [Docker image](/docs/docker).
+`wasm-bindgen` is excluded from Dependabot on purpose: it must match its command-line tool exactly, see [Docker image](/docs/docker).
 
 ## Related pages
 

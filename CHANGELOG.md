@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Website rewritten with [active](https://github.com/maxlestage/Active) instead of
+  Yew and Trunk: the axum server (still protected by securite) renders every page
+  with complete SEO tags (canonical address, `hreflang` alternates, Open Graph,
+  JSON-LD, sitemap) under `/{fr,en,es}/…`, and only the interactive parts
+  (typewriter, middleware filter, code tabs, live attack playground, live shield
+  statistics, documentation search) are WebAssembly islands; the animations run in a
+  small Rust motion module. The documentation is compiled into the server. Addresses
+  of the previous version (`/docs/…`, `/playground`) are redirected.
+- The website is an installable Progressive Web App: web app manifest, icons and an
+  offline service worker (the playground API always goes to the network).
+- GitHub Pages: `securite-server export` writes the static copy (strict CSP `<meta>`
+  tag with the hashes of the inline scripts and style, manifest, service worker,
+  sitemap); CI, the Dockerfile and the Pages workflow build the browser bundle with
+  `cargo` and the prebuilt `wasm-bindgen` instead of Trunk.
+
 ## [0.1.0] — 2026-10-10
 
 ### Added

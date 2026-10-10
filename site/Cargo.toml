@@ -1,35 +1,56 @@
 [package]
 name = "securite-site"
 version = "0.1.0"
-edition = "2024"
-license = "MIT OR Apache-2.0"
+description = "Pages, islands and browser bundle of the securite website, written with active."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 publish = false
 
+# The library holds the texts, routes and islands shared by both sides. Natively it also
+# renders every page (used by `securite-server`); compiled to WebAssembly it is the
+# browser bundle that hydrates the islands and runs the page motion.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-gloo = { version = "0.11", features = ["futures"] }
-js-sys = "0.3"
+active = { git = "https://github.com/maxlestage/Active" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+active = { git = "https://github.com/maxlestage/Active", features = ["client"] }
+# Pinned exactly: must match the wasm-bindgen CLI (Dockerfile, ci.yml, pages.yml read
+# the version from Cargo.lock).
 wasm-bindgen = "=0.2.129"
 wasm-bindgen-futures = "0.4"
-yew = { version = "0.23", features = ["csr"] }
-yew-router = "0.20"
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-  "CanvasRenderingContext2d", "Document", "DomRect", "DomTokenList", "Element", "Event",
-  "EventTarget", "HtmlCanvasElement", "HtmlElement", "HtmlInputElement", "HtmlAnchorElement",
-  "IntersectionObserver", "IntersectionObserverEntry", "IntersectionObserverInit",
-  "KeyboardEvent", "Location", "MediaQueryList", "MouseEvent", "Navigator", "NodeList",
-  "Request", "RequestInit", "Response", "Headers", "ScrollBehavior", "ScrollToOptions",
-  "Storage", "Window", "Clipboard", "CssStyleDeclaration",
-]
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "AddEventListenerOptions",
+  "CanvasRenderingContext2d",
+  "Clipboard",
+  "CssStyleDeclaration",
+  "Document",
+  "DomRect",
+  "DomStringMap",
+  "DomTokenList",
+  "Element",
+  "EventTarget",
+  "Headers",
+  "HtmlCanvasElement",
+  "HtmlElement",
+  "IntersectionObserver",
+  "IntersectionObserverEntry",
+  "IntersectionObserverInit",
+  "KeyboardEvent",
+  "MediaQueryList",
+  "MouseEvent",
+  "Navigator",
+  "NodeList",
+  "PointerEvent",
+  "Response",
+  "ScrollBehavior",
+  "ScrollToOptions",
+  "Window",
+] }
 
 [build-dependencies]
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
-
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true

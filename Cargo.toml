@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/securite", "server"]
-exclude = ["site"]
+members = ["crates/securite", "server", "site"]
 
 [workspace.package]
 edition = "2024"
@@ -14,3 +13,11 @@ authors = ["maxlestage"]
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# Browser bundle of the website:
+# `cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+panic = "abort"

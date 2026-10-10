@@ -1,7 +1,7 @@
 /target
-/site/target
-/site/dist
-/site/generated
+# Browser bundle built by wasm-bindgen, and the static export.
+/site/pkg
+/dist
 node_modules/
 .DS_Store
 *.swp
