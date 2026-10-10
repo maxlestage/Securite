@@ -235,7 +235,8 @@ impl ContentSecurityPolicy {
     /// Computes `'sha256-…'` sources for every inline `<script>` in `html`.
     ///
     /// Perfect for SPAs whose bundler injects an inline bootstrap script
-    /// (Trunk, Vite …): hash them at startup and keep a strict `script-src`.
+    /// (Vite …) or a server-rendered WebAssembly loader: hash them at startup and
+    /// keep a strict `script-src`.
     pub fn hashes_for_inline_scripts(html: &str) -> Vec<String> {
         inline_tag_contents(html, "script")
             .into_iter()

@@ -160,7 +160,7 @@ pub fn app() -> Router {
 
 ### Hashes para aplicaciones de una sola página
 
-Trunk, Vite y otros bundlers similares inyectan un script de arranque inline en `index.html`. Calcule su hash al arrancar y mantenga un `script-src` estricto:
+Vite y otros bundlers similares inyectan un script de arranque inline en `index.html`, y los front-ends Rust renderizados en el servidor escriben uno para arrancar su bundle WebAssembly (este sitio, construido con [active](https://github.com/maxlestage/Active), permite así su cargador y el registro de su service worker). Calcule su hash al arrancar y mantenga un `script-src` estricto:
 
 ```rust
 use axum::{Router, response::Html, routing::get};

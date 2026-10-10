@@ -5,29 +5,25 @@ category: deploy
 order: 3
 ---
 
-The `Dockerfile` at the repository root builds this website: a Yew + WebAssembly front-end served by an axum server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
+The `Dockerfile` at the repository root builds this website: pages rendered on the server with [active](https://github.com/maxlestage/Active) and WebAssembly islands, served by an axum server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
 
-## The three stages
+## The two stages
 
-### site
+### build
 
 Based on `rust:1-slim-bookworm` with the `wasm32-unknown-unknown` target.
 
-* Installs Trunk `0.21.14` and wasm-bindgen `0.2.129` (build args `TRUNK_VERSION` and `WASM_BINDGEN_VERSION`) from their prebuilt GitHub release binaries. If a download fails, it falls back to `cargo install --locked` of the same version, which is slower.
-* Copies `site/Cargo.toml` and `site/Cargo.lock` alone and runs `cargo fetch --locked` against a placeholder `main.rs`, so the dependency layer stays cached until the lockfile changes.
-* Copies `docs/` (the site's `build.rs` compiles these pages) and `site/`, then runs `trunk build --release --offline`: everything was fetched earlier, so no network is needed.
-
-### server
-
-Based on `rust:1-slim-bookworm`, it copies the workspace (`Cargo.toml`, `Cargo.lock`, `crates/`, `server/`) and runs `cargo build --release --locked -p securite-server`. The release profile uses thin LTO, one codegen unit and stripped symbols.
+* Installs wasm-bindgen `0.2.129` (build arg `WASM_BINDGEN_VERSION`) from its prebuilt GitHub release binary. If the download fails, it falls back to `cargo install --locked` of the same version, which is slower.
+* Copies the workspace manifests and `crates/`, with placeholder sources for `server/` and `site/`, and runs `cargo fetch --locked`: the dependency layer stays cached until `Cargo.lock` changes.
+* Copies `server/`, `site/` and `docs/` (the site's `build.rs` compiles these pages into the server), then builds the browser bundle (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, then `wasm-bindgen --target web --no-typescript --out-dir site/pkg …`) and the server (`cargo build --release --locked -p securite-server`). The release profile uses thin LTO, one codegen unit and stripped symbols; the `wasm-release` profile optimizes the bundle for size.
 
 ### runtime
 
-Based on `debian:bookworm-slim`, it only contains `/app/securite-server` and the static files in `/app/dist`. It runs as the non-root system user `app` (uid `10001`, no home, `nologin` shell), sets `DIST_DIR=/app/dist`, `RUST_LOG=info` and `PORT=8080`, and exposes port 8080.
+Based on `debian:bookworm-slim`, it only contains `/app/securite-server`, the static files in `/app/site/static` (style sheet, icons) and the browser bundle in `/app/site/pkg`. It runs as the non-root system user `app` (uid `10001`, no home, `nologin` shell), sets `SITE_DIR=/app/site`, `RUST_LOG=info` and `PORT=8080`, and exposes port 8080.
 
-`.dockerignore` keeps the build context small: `.git`, `.github`, `target`, `site/target`, `site/dist` and Markdown files are left out, except `docs/**/*.md` and `crates/securite/README.md`.
+`.dockerignore` keeps the build context small: `.git`, `.github`, `target`, `site/pkg`, `dist` and Markdown files are left out, except `docs/**/*.md` and `crates/securite/README.md`.
 
-> **Warning:** the wasm-bindgen CLI must match the `wasm-bindgen` crate exactly. To upgrade, change `0.2.129` in four places at once: `site/Cargo.toml`, `[tools]` in `site/Trunk.toml`, the `WASM_BINDGEN_VERSION` argument and the `site` job of `ci.yml`.
+> **Warning:** the wasm-bindgen CLI must match the `wasm-bindgen` crate exactly. To upgrade, change `0.2.129` in `site/Cargo.toml` and in the `WASM_BINDGEN_VERSION` argument of the `Dockerfile`, then run `cargo update -p wasm-bindgen`: the workflows read the version from `Cargo.lock`.
 
 ## Build and run
 
@@ -38,20 +34,22 @@ docker run -p 8080:8080 -e SECURITE_ENV=development securite-site
 
 Then open `http://localhost:8080`. Development mode keeps plain HTTP usable: production mode sends HSTS and `upgrade-insecure-requests`, which break `http://localhost`.
 
-> **Tip:** the downloaded Trunk and wasm-bindgen binaries are built for x86_64. If the `trunk --version` step fails on an ARM machine, add `--platform linux/amd64` to `docker build`.
+> **Tip:** the downloaded wasm-bindgen binary is built for x86_64. If the `wasm-bindgen --version` step fails on an ARM machine, add `--platform linux/amd64` to `docker build`.
 
 ## Environment variables
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `8080` | Listening port on `0.0.0.0`. Heroku, Render and Railway set it. |
-| `DIST_DIR` | `/app/dist` in the image, `dist` otherwise | Output of `trunk build`. Without `index.html`, the server logs a warning and serves a placeholder page. |
+| `SITE_DIR` | `/app/site` in the image, the `site/` folder otherwise | Holds `static/` and `pkg/`. Without `pkg/`, the server logs a warning: the pages work, without their animations and islands. |
+| `BASE_PATH` | empty | Path the site lives under behind a proxy, for example `/securite`: every link starts with it. |
+| `SITE_URL` | taken from each request | Public address, for canonical URLs, `sitemap.xml` and Open Graph. |
 | `SECURITE_ENV` | `production` when `DYNO` is set, else `development` | `production` enables the HTTPS redirect (except `/api/health`), HSTS, `upgrade-insecure-requests` and `ClientIpSource::heroku()`. Any other value means development, with `ClientIpSource::Peer`. |
 | `RUST_LOG` | `info` | `tracing` filter; security events use the `securite` target. |
 
 ## What the server runs
 
-`/api/health` answers `ok`, `/api/stats` returns the shield counters as JSON, and `/api/demo` echoes the playground payload when the WAF lets it through. Every other path serves a static file or falls back to `index.html`.
+Every page is rendered on the server with active, in English, French and Spanish: `/` redirects to `/en/`, `/fr/` or `/es/` according to `Accept-Language`, then come `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` and `/{lang}/playground/`; the addresses of the previous version (`/docs/waf`, `/playground`) are redirected. `/manifest.webmanifest` and `/sw.js` make the site an installable app that works offline, `/sitemap.xml` and `/robots.txt` help search engines, `/static/` and `/pkg/` serve the files (cached for a year when versioned). `/api/health` answers `ok`, `/api/stats` returns the shield counters as JSON, and `/api/demo` echoes the playground payload when the WAF lets it through.
 
 | Guard | Setting |
 |---|---|
@@ -60,13 +58,13 @@ Then open `http://localhost:8080`. Development mode keeps plain HTTP usable: pro
 | `RateLimit` | 30 requests per second per IP, burst 150; `/api/demo` 60 per minute, burst 20 |
 | `ConcurrencyLimit` | 64 requests in flight per IP |
 | `AutoBan` | 30 strikes, `/api/demo` ignored |
-| `SecurityHeaders` | Strict CSP allowing Trunk's inline script by hash plus `'wasm-unsafe-eval'`, COEP `require-corp`, HSTS in production |
+| `SecurityHeaders` | Strict CSP: the inline scripts (WebAssembly loader, service worker registration) and the inline style of active allowed by hash, `'wasm-unsafe-eval'`, `worker-src` and `manifest-src` limited to `'self'`; COEP `require-corp`, HSTS in production |
 | `HttpsRedirect` | Production only, `/api/health` exempt |
 | `RequestId`, `Hygiene`, `BotBlocker`, `Waf`, `Csrf`, `CookieHardening` | Defaults |
 
 ## Running it anywhere
 
-The image listens on `$PORT` and logs to stdout, so any container platform works. Behind HTTPS, set `SECURITE_ENV=production` and make sure the client IP source matches the proxy, see [Client IP](/docs/client-ip). The website uses `ClientIpSource::heroku()` in production; for another proxy, change the `.client_ip(...)` call in `server/src/main.rs`.
+The image listens on `$PORT` and logs to stdout, so any container platform works. Behind HTTPS, set `SECURITE_ENV=production` and make sure the client IP source matches the proxy, see [Client IP](/docs/client-ip). The website uses `ClientIpSource::heroku()` in production; for another proxy, change the `.client_ip(...)` call in `server/src/app.rs`.
 
 | Platform | Deployment | Client IP source |
 |---|---|---|
@@ -105,30 +103,25 @@ Install the tools once:
 
 ```bash
 rustup target add wasm32-unknown-unknown
-cargo install trunk --locked --version 0.21.14
 cargo install wasm-bindgen-cli --locked --version 0.2.129
 ```
 
-To run the site as in production, with every header of the shield:
+Build the browser bundle, then run the server as in production, with every header of the shield:
 
 ```bash
 # From the repository root
-(cd site && trunk build --release)
-DIST_DIR=site/dist cargo run -p securite-server
+cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+cargo run -p securite-server   # http://localhost:8080
 ```
 
-For live reload, keep the server running for the API and start Trunk in `site/`:
+The pages, the texts and the documentation are compiled into the server: after a change, run `cargo run -p securite-server` again. Rebuild the bundle only when the islands or the page motion change (`site/src/islands.rs`, `site/src/client/`).
+
+The static copy published on GitHub Pages comes from the same code (see [Deploy to GitHub Pages](/docs/github-pages)):
 
 ```bash
-# Terminal 1, repository root: API on http://localhost:8080
-DIST_DIR=site/dist cargo run -p securite-server
-
-# Terminal 2: site with live reload on http://127.0.0.1:8081
-cd site
-trunk serve
+BASE_PATH=/Securite SITE_URL=https://maxlestage.github.io/Securite cargo run -p securite-server -- export dist
 ```
-
-`site/Trunk.toml` proxies `/api/` to `http://127.0.0.1:8080/api/`, so the playground and the counters keep working. Pages served by `trunk serve` do not carry the shield headers: check those on port 8080.
 
 ## Related pages
 

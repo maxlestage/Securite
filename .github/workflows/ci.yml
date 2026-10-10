@@ -45,26 +45,37 @@ jobs:
       - run: cargo check -p securite --all-features
 
   site:
-    name: Website · Yew + WebAssembly
+    name: Website · active + WebAssembly
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-          components: rustfmt, clippy
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: site
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: trunk@0.21.14,wasm-bindgen@0.2.129
-      - name: fmt
-        working-directory: site
-        run: cargo fmt -- --check
-      - name: clippy
-        working-directory: site
-        run: cargo clippy --target wasm32-unknown-unknown -- -D warnings
-      - name: trunk build
-        working-directory: site
-        run: trunk build --release
+      # Prebuilt wasm-bindgen CLI, same version as the wasm-bindgen crate in Cargo.lock.
+      - name: Install wasm-bindgen
+        run: |
+          v=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          curl -fsSL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$v/wasm-bindgen-$v-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz --strip-components=1 -C "$HOME/.cargo/bin"
+          wasm-bindgen --version
+      - name: clippy (browser bundle)
+        run: cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings
+      # Same commands as the Dockerfile used by Heroku.
+      - name: Build the browser bundle
+        run: |
+          cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+          wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+          ls -l site/pkg
+      - name: Build the server
+        run: cargo build --release -p securite-server
+      # Same command as pages.yml: the static copy for GitHub Pages.
+      - name: Export the site as static files
+        env:
+          BASE_PATH: /Securite
+          SITE_URL: https://maxlestage.github.io/Securite
+        run: |
+          ./target/release/securite-server export dist
+          test -f dist/en/index.html && test -f dist/sw.js && test -f dist/manifest.webmanifest
