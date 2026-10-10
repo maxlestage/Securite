@@ -8,7 +8,16 @@ updates:
     directory: "/site"
     schedule:
       interval: weekly
+    ignore:
+      # Same major as yew's own gloo dependency (avoids two copies in the wasm).
+      - dependency-name: gloo
+      # Pinned exactly: must match the wasm-bindgen CLI used by Trunk
+      # (site/Trunk.toml, Dockerfile, ci.yml).
+      - dependency-name: wasm-bindgen
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # Its refs are toolchain names (stable, 1.85…), not versions.
+      - dependency-name: dtolnay/rust-toolchain
