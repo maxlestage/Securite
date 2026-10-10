@@ -67,13 +67,15 @@ When `master` changed the same lines, `git merge` stops, the job fails and nothi
 
 ## Dependabot
 
-`.github/dependabot.yml` looks for updates every week in three places: the Cargo workspace (`/`), the website (`/site`) and the GitHub Actions versions. Each update opens a pull request on a `dependabot/...` branch, which auto-merge ignores, so you stay in control:
+`.github/dependabot.yml` looks for updates every week in three places: the Cargo workspace (`/`), the website (`/site`) and the GitHub Actions versions. Each update opens a pull request on a `dependabot/...` branch, and **it is merged into `master` automatically** too:
 
-1. GitHub app → **Pull requests** → open the Dependabot pull request.
-2. Wait for the CI checks to be green and skim the release notes it quotes.
-3. Tap **Merge pull request** and confirm. The merge is a push to `master`, so CI and the Heroku deploy follow.
+1. The CI runs on the pull request.
+2. When it is green, `.github/workflows/dependabot-auto-merge.yml` merges exactly the commit that was tested (`gh pr merge --match-head-commit`). It never checks out the pull request code and only acts on pull requests opened by `dependabot[bot]`.
+3. The Heroku deploy follows, after the CI has run once more on `master`.
 
-`wasm-bindgen` is pinned with `=0.2.129` because its command-line tool must match the crate exactly. If Dependabot proposes a new version, the website job fails until the other pinned places match, see [Docker image](/docs/docker).
+A red CI leaves the pull request open: read the failing check from the GitHub app, then close the pull request or fix `master`. Pull requests from forks are never merged automatically, so nobody outside the repository can push code to `master`.
+
+`wasm-bindgen` and `gloo` are excluded from Dependabot on purpose: `wasm-bindgen` must match its command-line tool exactly and `gloo` follows the version used by Yew, see [Docker image](/docs/docker).
 
 ## Related pages
 
