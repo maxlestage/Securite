@@ -18,7 +18,7 @@ jobs:
     name: Crate · fmt, clippy, tests, docs, package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -36,7 +36,7 @@ jobs:
     name: Crate · MSRV 1.85
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The MSRV is an input (not the action ref) so Dependabot never bumps it.
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -48,7 +48,7 @@ jobs:
     name: Website · Yew + WebAssembly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
