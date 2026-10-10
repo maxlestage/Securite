@@ -77,7 +77,9 @@ Full guide: [docs/en/heroku-from-phone.md](docs/en/heroku-from-phone.md).
 Every branch pushed to GitHub runs the CI (fmt, clippy, tests, docs, MSRV,
 WebAssembly build) and is **merged into `master` automatically when green**
 ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), which then triggers
-the Heroku deployment. Name a branch `wip/...` to opt out.
+the Heroku deployment. Dependabot pull requests are merged the same way as
+soon as their CI is green ([`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml)).
+Name a branch `wip/...` to opt out.
 
 ## Publish the crate on crates.io (from your phone)
 

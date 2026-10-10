@@ -78,7 +78,10 @@ Guía completa: [docs/es/heroku-from-phone.md](docs/es/heroku-from-phone.md).
 Cada rama enviada a GitHub ejecuta la CI (fmt, clippy, tests, docs, MSRV,
 build WebAssembly) y se **fusiona automáticamente en `master` si todo está en
 verde** ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), lo que
-dispara el despliegue en Heroku. Llama a una rama `wip/...` para excluirla.
+dispara el despliegue en Heroku. Las pull requests de Dependabot se fusionan
+igual en cuanto su CI está en verde
+([`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml)).
+Llama a una rama `wip/...` para excluirla.
 
 ## Publicar la crate en crates.io (desde el móvil)
 
