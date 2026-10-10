@@ -1,0 +1,35 @@
+[package]
+name = "securite-site"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+gloo = { version = "0.11", features = ["futures"] }
+js-sys = "0.3"
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+yew = { version = "0.23", features = ["csr"] }
+yew-router = "0.20"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "CanvasRenderingContext2d", "Document", "DomRect", "DomTokenList", "Element", "Event",
+  "EventTarget", "HtmlCanvasElement", "HtmlElement", "HtmlInputElement", "HtmlAnchorElement",
+  "IntersectionObserver", "IntersectionObserverEntry", "IntersectionObserverInit",
+  "KeyboardEvent", "Location", "MediaQueryList", "MouseEvent", "Navigator", "NodeList",
+  "Request", "RequestInit", "Response", "Headers", "ScrollBehavior", "ScrollToOptions",
+  "Storage", "Window", "Clipboard", "CssStyleDeclaration",
+]
+
+[build-dependencies]
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
