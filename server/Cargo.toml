@@ -1,18 +1,19 @@
 [package]
 name = "securite-server"
 version = "0.1.0"
-description = "Web server of the securite website (dogfoods the securite crate)."
+description = "Web server of the securite website: pages rendered with active, live attack playground, protected by the securite crate (dogfooding)."
 edition.workspace = true
-rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
 publish = false
 
 [dependencies]
 axum = "0.8"
 securite = { path = "../crates/securite" }
+securite-site = { path = "../site" }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs"] }
-tower-http = { version = "0.7", features = ["fs", "compression-br", "compression-gzip", "set-header"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tower-http = { version = "0.7", features = ["compression-br", "compression-gzip"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 

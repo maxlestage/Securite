@@ -22,8 +22,8 @@ This repository contains:
 | Folder | What |
 |---|---|
 | [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for tower / axum / hyper / tonic |
-| [`site`](site) | The **website**: Yew + WebAssembly, animated, FR / EN / ES, documentation hub by category, live attack playground |
-| [`server`](server) | The axum server hosting the website — protected by `securite` itself |
+| [`site`](site) | The **website**, written with [active](https://github.com/maxlestage/Active): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
+| [`server`](server) | The axum server that renders and hosts the website and its playground API — protected by `securite` itself |
 | [`docs`](docs) | The **documentation** (33 pages × 3 languages), compiled into the website |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Container image and **one-tap Heroku deployment** |
 | [`.github/workflows`](.github/workflows) | CI, **auto-merge into master**, Heroku deploy, crates.io publishing |
@@ -76,7 +76,9 @@ Full guide: [docs/en/heroku-from-phone.md](docs/en/heroku-from-phone.md).
 
 [`pages.yml`](.github/workflows/pages.yml) publishes the website on
 **https://maxlestage.github.io/Securite/** after every merge into `master`,
-with a strict CSP injected as a `<meta>` tag (inline script allowed by hash).
+as static files exported by the server (`securite-server export`), with a
+strict CSP as a `<meta>` tag (inline scripts allowed by hash), a web app
+manifest and an offline service worker.
 One-time setup from a phone: repository → *Settings* → *Pages* → *Source*:
 **GitHub Actions**, then *Actions* → *Deploy to GitHub Pages* → *Run workflow*.
 The live attack playground needs the server (Heroku or Docker).
@@ -85,7 +87,7 @@ Guide: [docs/en/github-pages.md](docs/en/github-pages.md).
 ## Always merged into master
 
 Every branch pushed to GitHub runs the CI (fmt, clippy, tests, docs, MSRV,
-WebAssembly build) and is **merged into `master` automatically when green**
+WebAssembly bundle, static export) and is **merged into `master` automatically when green**
 ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), which then triggers
 the Heroku deployment. Dependabot pull requests are merged the same way as
 soon as their CI is green ([`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml)).
@@ -102,14 +104,17 @@ Name a branch `wip/...` to opt out.
 ## Local development
 
 ```bash
-# crate
+# crate, website and server
 cargo test --workspace
 
-# website (needs: rustup target add wasm32-unknown-unknown; cargo install trunk wasm-bindgen-cli)
-cd site && trunk build --release && cd ..
-DIST_DIR=site/dist cargo run -p securite-server   # http://localhost:8080
+# website: the browser bundle (needs: rustup target add wasm32-unknown-unknown;
+# cargo install wasm-bindgen-cli --version 0.2.129), then the server
+cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+cargo run -p securite-server   # http://localhost:8080
 
-# or with hot reload: run the server, then `trunk serve` in site/ (http://localhost:8081)
+# the static copy for GitHub Pages
+BASE_PATH=/Securite cargo run -p securite-server -- export dist
 ```
 
 ## License

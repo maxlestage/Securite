@@ -1,12 +1,18 @@
-# Deploys the website (Yew + WebAssembly) to GitHub Pages:
+# Deploys the website to GitHub Pages:
 #   https://<owner>.github.io/<repository>/
+#
+# `securite-server export` renders every page with the server's own code (active),
+# links behind the repository's path, plus the browser bundle (WebAssembly), the web
+# app manifest and the service worker: the static copy is an installable PWA too.
 #
 # One-time setup, from a phone browser: GitHub → repository → Settings →
 # Pages → Build and deployment → Source: "GitHub Actions". Until then this
 # workflow only builds the site and leaves a notice (it does not fail).
 #
-# GitHub Pages is static: the documentation, animations and navigation work,
-# the live attack playground needs the axum server (Heroku, Docker…).
+# GitHub Pages is static: the documentation, animations and navigation work, and the
+# security headers become a strict Content-Security-Policy <meta> tag (inline scripts
+# allowed by hash). The live attack playground needs the axum server (Heroku, Docker…):
+# the static pages say so.
 name: Deploy to GitHub Pages
 
 on:
@@ -55,40 +61,52 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: site
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: trunk@0.21.14,wasm-bindgen@0.2.129
+      # Prebuilt wasm-bindgen CLI, same version as the wasm-bindgen crate in Cargo.lock.
+      - name: Install wasm-bindgen
+        run: |
+          v=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          curl -fsSL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$v/wasm-bindgen-$v-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz --strip-components=1 -C "$HOME/.cargo/bin"
+          wasm-bindgen --version
 
-      - name: Base path
+      - name: Base path and public address
         id: base
         env:
-          ENABLED: ${{ steps.check.outputs.enabled }}
           REPO_NAME: ${{ github.event.repository.name }}
+          OWNER: ${{ github.repository_owner }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Custom domain → "/", otherwise "/<repository>/".
+          # Custom domain → served at its root, otherwise under "/<repository>".
           CNAME=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.cname // ""' 2>/dev/null || true)
-          if [ -n "$CNAME" ]; then BASE="/"; else BASE="/$REPO_NAME/"; fi
-          echo "Site base: $BASE"
+          if [ -n "$CNAME" ]; then
+            BASE=""
+            URL="https://$CNAME"
+          else
+            BASE="/$REPO_NAME"
+            URL="https://${OWNER,,}.github.io/$REPO_NAME"
+          fi
+          echo "Base path: '$BASE', public address: $URL"
           echo "path=$BASE" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: trunk build
-        working-directory: site
+      - name: Build the browser bundle
+        run: |
+          cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+          wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+
+      # Pages, manifest, service worker, sitemap, CSP <meta> tags, 404.html, .nojekyll.
+      - name: Export the site
         env:
-          SITE_BASE: ${{ steps.base.outputs.path }}
-        run: trunk build --release --public-url "$SITE_BASE"
-
-      - name: Prepare for GitHub Pages (CSP meta, 404.html, .nojekyll)
-        run: python3 .github/scripts/pages-postprocess.py site/dist
+          BASE_PATH: ${{ steps.base.outputs.path }}
+          SITE_URL: ${{ steps.base.outputs.url }}
+        run: cargo run --release -p securite-server -- export dist
 
       - name: Upload the site
         if: steps.check.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: site/dist
+          path: dist
 
   deploy:
     name: Deploy

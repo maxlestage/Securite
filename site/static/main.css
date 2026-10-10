@@ -1,6 +1,7 @@
 /* ==========================================================================
    securite — website styles
    Dark, gradient-rich, glassy, animated. Respects prefers-reduced-motion.
+   Pages are rendered by the server (active); the WebAssembly bundle adds the motion.
    ========================================================================== */
 
 @property --angle {
@@ -179,31 +180,30 @@ p {
   display: block;
 }
 
-/* ---------- Boot screen ---------- */
-.boot {
+/* ---------- Islands, hidden content, skip link ---------- */
+active-island {
+  display: contents;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.skip-link {
   position: fixed;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 14px;
-  color: var(--violet);
-  font-family: var(--font);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  font-size: 0.8rem;
+  left: 16px;
+  top: -60px;
+  z-index: 200;
+  padding: 0.6em 1em;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  transition: top 0.2s;
 }
 
-.boot svg {
-  animation: pulse-scale 1.4s ease-in-out infinite;
-  filter: drop-shadow(0 0 18px rgba(167, 139, 250, 0.6));
-}
-
-@keyframes pulse-scale {
-  50% {
-    transform: scale(1.12);
-    opacity: 0.7;
-  }
+.skip-link:focus {
+  top: 12px;
 }
 
 /* ---------- Background layers ---------- */
@@ -478,6 +478,15 @@ p {
   display: none;
 }
 
+.burger .i-x,
+.menu-open .burger .i-menu {
+  display: none;
+}
+
+.menu-open .burger .i-x {
+  display: inline-block;
+}
+
 .lang-switch {
   position: relative;
 }
@@ -533,7 +542,7 @@ p {
   pointer-events: auto;
 }
 
-.lang-menu button {
+.lang-menu a {
   width: 100%;
   display: flex;
   align-items: center;
@@ -546,8 +555,8 @@ p {
   text-align: left;
 }
 
-.lang-menu button:hover,
-.lang-menu button.active {
+.lang-menu a:hover,
+.lang-menu a.active {
   background: var(--surface-2);
   color: var(--text);
 }
@@ -621,15 +630,15 @@ p {
   animation: page-in 0.45s ease both;
 }
 
+/* Hidden only once the page motion runs (html.motion): the server-rendered page reads
+   fine before the WebAssembly bundle loads, and without it. */
 .reveal {
-  opacity: 0;
-  transform: translateY(28px);
   transition: opacity 0.8s cubic-bezier(.2, .8, .2, 1), transform 0.8s cubic-bezier(.2, .8, .2, 1);
 }
 
-.reveal.visible {
-  opacity: 1;
-  transform: none;
+.motion .reveal:not(.visible) {
+  opacity: 0;
+  transform: translateY(28px);
 }
 
 .reveal.d1 { transition-delay: 0.08s; }
@@ -821,6 +830,15 @@ p {
 .copy-btn.done {
   color: var(--emerald);
   border-color: rgba(52, 211, 153, 0.5);
+}
+
+.copy-btn .i-check,
+.copy-btn.done .i-copy {
+  display: none;
+}
+
+.copy-btn.done .i-check {
+  display: inline-block;
 }
 
 .copy-btn.small span {
@@ -1494,6 +1512,18 @@ pre code {
   border-radius: 24px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.lab-static {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.lab-static a {
+  color: var(--amber);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .lab-label {
@@ -2757,7 +2787,7 @@ pre code {
     scroll-behavior: auto !important;
   }
 
-  .reveal {
+  .motion .reveal:not(.visible) {
     opacity: 1;
     transform: none;
   }

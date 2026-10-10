@@ -92,7 +92,10 @@ jobs:
           for i in $(seq 1 30); do
             if curl -fsS "${URL}api/health" > /dev/null; then
               echo "::notice title=Deployed::$URL"
-              curl -sSI "$URL" | grep -iE "content-security-policy|strict-transport|x-request-id" || true
+              curl -sSI "${URL}en/" | grep -iE "content-security-policy|strict-transport|x-request-id" || true
+              # The website is an installable app: manifest and service worker.
+              curl -fsS -o /dev/null "${URL}manifest.webmanifest" && curl -fsS -o /dev/null "${URL}sw.js" \
+                || echo "::warning title=PWA::manifest.webmanifest or sw.js did not answer"
               exit 0
             fi
             sleep 10
