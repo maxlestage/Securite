@@ -2,7 +2,7 @@
 title: Docker image
 summary: How the multi-stage Dockerfile builds the website and its server, how to run the image locally or on any container platform, and how to develop without Docker.
 category: deploy
-order: 2
+order: 3
 ---
 
 The `Dockerfile` at the repository root builds this website: a Yew + WebAssembly front-end served by an axum server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.

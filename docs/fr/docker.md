@@ -2,7 +2,7 @@
 title: Image Docker
 summary: Comment le Dockerfile multi-étapes construit le site et son serveur, comment lancer l'image en local ou sur n'importe quelle plateforme de conteneurs, et comment développer sans Docker.
 category: deploy
-order: 2
+order: 3
 ---
 
 Le `Dockerfile` à la racine du dépôt construit ce site : un front-end Yew + WebAssembly servi par un serveur axum qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
