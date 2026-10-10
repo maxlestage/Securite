@@ -1,0 +1,101 @@
+# Deploys master to Heroku (container stack, heroku.yml).
+#
+# Setup, from a phone browser (see docs/en/heroku-from-phone.md):
+#   1. Heroku → Account settings → API Key → Reveal → copy.
+#   2. GitHub → Settings → Secrets and variables → Actions → New secret:
+#        HEROKU_API_KEY  = the key
+#        HEROKU_APP_NAME = a unique app name, e.g. securite-yourname
+# The app is created automatically if it does not exist yet.
+name: Deploy to Heroku
+
+on:
+  push:
+    branches: [master]
+  workflow_run:
+    workflows: ["Auto-merge"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-heroku
+  cancel-in-progress: false
+
+jobs:
+  # master is always re-tested before shipping (the auto-merge result
+  # included), so a bad merge never reaches production.
+  ci:
+    name: CI on master
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME || vars.HEROKU_APP_NAME }}
+    steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -z "$HEROKU_API_KEY" ] || [ -z "$HEROKU_APP_NAME" ]; then
+            echo "::notice title=Heroku deploy skipped::Add the HEROKU_API_KEY and HEROKU_APP_NAME repository secrets to deploy automatically."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Prepare the Heroku app
+        if: steps.cfg.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          api() {
+            curl -fsS -H "Authorization: Bearer $HEROKU_API_KEY" \
+              -H "Accept: application/vnd.heroku+json; version=3" \
+              -H "Content-Type: application/json" "$@"
+          }
+          if ! api "https://api.heroku.com/apps/$HEROKU_APP_NAME" > /dev/null 2>&1; then
+            echo "Creating Heroku app $HEROKU_APP_NAME"
+            api -X POST https://api.heroku.com/apps \
+              -d "{\"name\":\"$HEROKU_APP_NAME\",\"stack\":\"container\"}" > /dev/null
+          fi
+          # heroku.yml builds need the container stack.
+          api -X PATCH "https://api.heroku.com/apps/$HEROKU_APP_NAME" -d '{"build_stack":"container"}' > /dev/null
+          # Production mode unless you configured something else.
+          if ! api "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars" | jq -e '.SECURITE_ENV' > /dev/null; then
+            api -X PATCH "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars" -d '{"SECURITE_ENV":"production"}' > /dev/null
+          fi
+
+      - name: Push to Heroku (builds the Docker image with heroku.yml)
+        if: steps.cfg.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          git push --force "https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP_NAME}.git" HEAD:refs/heads/main
+
+      - name: Smoke test
+        if: steps.cfg.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          URL=$(curl -fsS -H "Authorization: Bearer $HEROKU_API_KEY" \
+            -H "Accept: application/vnd.heroku+json; version=3" \
+            "https://api.heroku.com/apps/$HEROKU_APP_NAME" | jq -r .web_url)
+          echo "App URL: $URL"
+          for i in $(seq 1 30); do
+            if curl -fsS "${URL}api/health" > /dev/null; then
+              echo "::notice title=Deployed::$URL"
+              curl -sSI "$URL" | grep -iE "content-security-policy|strict-transport|x-request-id" || true
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The app did not answer on ${URL}api/health"
+          exit 1

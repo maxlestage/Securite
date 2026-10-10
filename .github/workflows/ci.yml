@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  crate:
+    name: Crate · fmt, clippy, tests, docs, package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo doc -p securite --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - name: Package (crates.io dry run)
+        run: cargo publish -p securite --dry-run
+
+  msrv:
+    name: Crate · MSRV 1.85
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check -p securite --all-features
+
+  site:
+    name: Website · Yew + WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: site
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.21.14,wasm-bindgen@0.2.129
+      - name: fmt
+        working-directory: site
+        run: cargo fmt -- --check
+      - name: clippy
+        working-directory: site
+        run: cargo clippy --target wasm32-unknown-unknown -- -D warnings
+      - name: trunk build
+        working-directory: site
+        run: trunk build --release
