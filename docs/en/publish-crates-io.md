@@ -2,7 +2,7 @@
 title: Publish the crate on crates.io
 summary: Release a new version of the securite crate from your phone with a crates.io token, one GitHub secret and the Publish crate workflow, and manage versions safely.
 category: deploy
-order: 3
+order: 4
 ---
 
 The `securite` crate in `crates/securite` is ready for crates.io. Publishing runs in GitHub Actions (`.github/workflows/publish.yml`), so a phone is enough.

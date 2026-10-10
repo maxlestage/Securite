@@ -459,7 +459,7 @@ pub static FR: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Depuis votre téléphone",
     deploy_title: "Déployez sur Heroku sans ordinateur",
-    deploy_subtitle: "Tout est prêt : Dockerfile, heroku.yml, app.json et workflows GitHub Actions.",
+    deploy_subtitle: "Tout est prêt : Dockerfile, heroku.yml, app.json, GitHub Pages et workflows GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Touchez « Deploy to Heroku »",
@@ -787,7 +787,7 @@ pub static EN: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "From your phone",
     deploy_title: "Deploy to Heroku without a computer",
-    deploy_subtitle: "Everything is ready: Dockerfile, heroku.yml, app.json and GitHub Actions workflows.",
+    deploy_subtitle: "Everything is ready: Dockerfile, heroku.yml, app.json, GitHub Pages and GitHub Actions workflows.",
     deploy_steps: &[
         Step {
             title: "Tap “Deploy to Heroku”",
@@ -1115,7 +1115,7 @@ pub static ES: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Desde tu móvil",
     deploy_title: "Despliega en Heroku sin ordenador",
-    deploy_subtitle: "Todo está listo: Dockerfile, heroku.yml, app.json y workflows de GitHub Actions.",
+    deploy_subtitle: "Todo está listo: Dockerfile, heroku.yml, app.json, GitHub Pages y workflows de GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Pulsa «Deploy to Heroku»",

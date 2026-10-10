@@ -13,6 +13,25 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 pub const REPO: &str = "https://github.com/maxlestage/Securite";
+
+/// Path the site is served under: `/` on Heroku, `/Securite/` on GitHub
+/// Pages. Set at build time with `SITE_BASE=/Securite/ trunk build …`.
+pub const BASE: &str = match option_env!("SITE_BASE") {
+    Some(base) => base,
+    None => "/",
+};
+
+/// Prefixes a site-relative path (`api/stats`, `content/…`) with [`BASE`].
+pub fn asset(path: &str) -> String {
+    let base = BASE.trim_end_matches('/');
+    format!("{base}/{}", path.trim_start_matches('/'))
+}
+
+/// Router basename (`None` when served at the root).
+fn basename() -> Option<AttrValue> {
+    let base = BASE.trim_end_matches('/');
+    (!base.is_empty()).then(|| AttrValue::from(base.to_owned()))
+}
 pub const CRATES_IO: &str = "https://crates.io/crates/securite";
 pub const DOCS_RS: &str = "https://docs.rs/securite";
 pub const HEROKU_DEPLOY: &str =
@@ -133,7 +152,7 @@ fn App() -> Html {
 
     html! {
         <ContextProvider<LangCtx> context={ctx}>
-            <BrowserRouter>
+            <BrowserRouter basename={basename()}>
                 <Shell />
             </BrowserRouter>
         </ContextProvider<LangCtx>>

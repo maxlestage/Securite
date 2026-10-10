@@ -2,7 +2,7 @@
 title: CI y fusión automática
 summary: Qué comprueba el workflow de CI, cómo cada rama en verde se fusiona en master y se despliega automáticamente, y cómo gestionar exclusiones, conflictos y actualizaciones de Dependabot desde el móvil.
 category: deploy
-order: 4
+order: 5
 ---
 
 Tres workflows se encadenan para que una rama enviada desde cualquier lugar, móvil incluido, acabe probada, fusionada y desplegada sin un solo clic:
