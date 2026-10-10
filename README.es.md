@@ -22,8 +22,8 @@ Este repositorio contiene:
 | Carpeta | Contenido |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para tower / axum / hyper / tonic |
-| [`site`](site) | El **sitio web**: Yew + WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo |
-| [`server`](server) | El servidor axum que aloja el sitio — protegido por el propio `securite` |
+| [`site`](site) | El **sitio web**, escrito con [active](https://github.com/maxlestage/Active): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
+| [`server`](server) | El servidor axum que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (33 páginas × 3 idiomas), compilada en el sitio |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Imagen de contenedor y **despliegue en Heroku con un toque** |
 | [`.github/workflows`](.github/workflows) | CI, **merge automático en master**, despliegue en Heroku, publicación en crates.io |
@@ -76,17 +76,19 @@ Guía completa: [docs/es/heroku-from-phone.md](docs/es/heroku-from-phone.md).
 ## GitHub Pages (alojamiento estático gratuito)
 
 [`pages.yml`](.github/workflows/pages.yml) publica el sitio en
-**https://maxlestage.github.io/Securite/** tras cada fusión en `master`, con
-una CSP estricta inyectada como etiqueta `<meta>` (script inline permitido por
-hash). Configuración única desde el móvil: repositorio → *Settings* →
-*Pages* → *Source*: **GitHub Actions**, y luego *Actions* → *Deploy to GitHub
-Pages* → *Run workflow*. El playground de ataques en directo necesita el
+**https://maxlestage.github.io/Securite/** tras cada fusión en `master`,
+como archivos estáticos exportados por el servidor (`securite-server export`),
+con una CSP estricta como etiqueta `<meta>` (scripts inline permitidos por
+hash), un manifiesto de aplicación web y un service worker sin conexión.
+Configuración única desde el móvil: repositorio → *Settings* → *Pages* →
+*Source*: **GitHub Actions**, y luego *Actions* → *Deploy to GitHub Pages* →
+*Run workflow*. El playground de ataques en directo necesita el
 servidor (Heroku o Docker). Guía: [docs/es/github-pages.md](docs/es/github-pages.md).
 
 ## Siempre fusionado en master
 
 Cada rama enviada a GitHub ejecuta la CI (fmt, clippy, tests, docs, MSRV,
-build WebAssembly) y se **fusiona automáticamente en `master` si todo está en
+bundle WebAssembly, exportación estática) y se **fusiona automáticamente en `master` si todo está en
 verde** ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), lo que
 dispara el despliegue en Heroku. Las pull requests de Dependabot se fusionan
 igual en cuanto su CI está en verde
@@ -104,14 +106,17 @@ Llama a una rama `wip/...` para excluirla.
 ## Desarrollo local
 
 ```bash
-# crate
+# crate, sitio y servidor
 cargo test --workspace
 
-# sitio (requisitos: rustup target add wasm32-unknown-unknown; cargo install trunk wasm-bindgen-cli)
-cd site && trunk build --release && cd ..
-DIST_DIR=site/dist cargo run -p securite-server   # http://localhost:8080
+# sitio: el bundle del navegador (requisitos: rustup target add wasm32-unknown-unknown;
+# cargo install wasm-bindgen-cli --version 0.2.129) y luego el servidor
+cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+cargo run -p securite-server   # http://localhost:8080
 
-# o con recarga en caliente: arranca el servidor y luego `trunk serve` en site/ (http://localhost:8081)
+# la copia estática para GitHub Pages
+BASE_PATH=/Securite cargo run -p securite-server -- export dist
 ```
 
 ## Licencia

@@ -22,8 +22,8 @@ Ce dépôt contient :
 | Dossier | Contenu |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (prête pour crates.io) : 19 middlewares de sécurité pour tower / axum / hyper / tonic |
-| [`site`](site) | Le **site de présentation** : Yew + WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct |
-| [`server`](server) | Le serveur axum qui héberge le site — protégé par `securite` lui-même |
+| [`site`](site) | Le **site de présentation**, écrit avec [active](https://github.com/maxlestage/Active) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
+| [`server`](server) | Le serveur axum qui rend et héberge le site et l'API du playground — protégé par `securite` lui-même |
 | [`docs`](docs) | La **documentation** (33 pages × 3 langues), compilée dans le site |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Image conteneur et **déploiement Heroku en un geste** |
 | [`.github/workflows`](.github/workflows) | CI, **merge automatique sur master**, déploiement Heroku, publication crates.io |
@@ -77,8 +77,10 @@ Guide complet : [docs/fr/heroku-from-phone.md](docs/fr/heroku-from-phone.md).
 
 [`pages.yml`](.github/workflows/pages.yml) publie le site sur
 **https://maxlestage.github.io/Securite/** après chaque fusion sur `master`,
-avec une CSP stricte injectée en balise `<meta>` (script inline autorisé par
-hash). Configuration unique depuis le téléphone : dépôt → *Settings* →
+sous forme de fichiers statiques exportés par le serveur (`securite-server
+export`), avec une CSP stricte en balise `<meta>` (scripts inline autorisés par
+hash), un manifeste d'application web et un service worker hors ligne.
+Configuration unique depuis le téléphone : dépôt → *Settings* →
 *Pages* → *Source* : **GitHub Actions**, puis *Actions* → *Deploy to GitHub
 Pages* → *Run workflow*. Le playground d'attaques en direct a besoin du
 serveur (Heroku ou Docker). Guide : [docs/fr/github-pages.md](docs/fr/github-pages.md).
@@ -86,7 +88,7 @@ serveur (Heroku ou Docker). Guide : [docs/fr/github-pages.md](docs/fr/github-pag
 ## Toujours fusionné sur master
 
 Chaque branche poussée sur GitHub lance la CI (fmt, clippy, tests, docs,
-MSRV, build WebAssembly) puis est **fusionnée automatiquement sur `master` si
+MSRV, bundle WebAssembly, export statique) puis est **fusionnée automatiquement sur `master` si
 tout est vert** ([`auto-merge.yml`](.github/workflows/auto-merge.yml)), ce
 qui déclenche ensuite le déploiement Heroku. Les pull requests Dependabot
 sont fusionnées de la même façon dès que leur CI est verte
@@ -104,14 +106,17 @@ Nommez une branche `wip/...` pour l'exclure.
 ## Développement local
 
 ```bash
-# crate
+# crate, site et serveur
 cargo test --workspace
 
-# site (prérequis : rustup target add wasm32-unknown-unknown ; cargo install trunk wasm-bindgen-cli)
-cd site && trunk build --release && cd ..
-DIST_DIR=site/dist cargo run -p securite-server   # http://localhost:8080
+# site : le bundle navigateur (prérequis : rustup target add wasm32-unknown-unknown ;
+# cargo install wasm-bindgen-cli --version 0.2.129), puis le serveur
+cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
+wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
+cargo run -p securite-server   # http://localhost:8080
 
-# ou avec rechargement à chaud : lancez le serveur puis `trunk serve` dans site/ (http://localhost:8081)
+# la copie statique pour GitHub Pages
+BASE_PATH=/Securite cargo run -p securite-server -- export dist
 ```
 
 ## Licence

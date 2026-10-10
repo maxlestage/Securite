@@ -4,15 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-  - package-ecosystem: cargo
-    directory: "/site"
-    schedule:
-      interval: weekly
     ignore:
-      # Same major as yew's own gloo dependency (avoids two copies in the wasm).
-      - dependency-name: gloo
-      # Pinned exactly: must match the wasm-bindgen CLI used by Trunk
-      # (site/Trunk.toml, Dockerfile, ci.yml).
+      # Pinned exactly: must match the wasm-bindgen CLI (the workflows and the
+      # Dockerfile read its version from Cargo.lock / WASM_BINDGEN_VERSION).
       - dependency-name: wasm-bindgen
   - package-ecosystem: github-actions
     directory: "/"

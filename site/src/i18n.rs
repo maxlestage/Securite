@@ -26,6 +26,21 @@ impl Lang {
         }
     }
 
+    /// The language whose code is exactly `code` (URL prefixes).
+    pub fn parse(code: &str) -> Option<Lang> {
+        Lang::ALL.into_iter().find(|l| l.code() == code)
+    }
+
+    /// Open Graph locale.
+    pub fn locale(self) -> &'static str {
+        match self {
+            Lang::Fr => "fr_FR",
+            Lang::En => "en_US",
+            Lang::Es => "es_ES",
+        }
+    }
+
+    /// The language of a tag such as `fr-CA` (`Accept-Language`).
     pub fn from_code(code: &str) -> Option<Lang> {
         match code.get(..2).unwrap_or("").to_ascii_lowercase().as_str() {
             "fr" => Some(Lang::Fr),
@@ -64,6 +79,11 @@ pub struct Step {
 }
 
 pub struct Texts {
+    // Page metadata
+    pub site_title: &'static str,
+    pub site_description: &'static str,
+    pub skip: &'static str,
+    pub back_to_top: &'static str,
     // Navigation
     pub nav_home: &'static str,
     pub nav_docs: &'static str,
@@ -124,6 +144,7 @@ pub struct Texts {
     pub play_blocked: &'static str,
     pub play_allowed: &'static str,
     pub play_offline: &'static str,
+    pub play_static: &'static str,
     pub play_stats: &'static str,
     pub play_total: &'static str,
     pub play_passed: &'static str,
@@ -180,6 +201,10 @@ pub struct Texts {
 const ICON_SHIELD: &str = "shield";
 
 pub static FR: Texts = Texts {
+    site_title: "Middlewares de sécurité pour Rust",
+    site_description: "Des middlewares de sécurité pour Rust rapides, simples et complets (axum, hyper, tonic, tower) : WAF, rate limiting, CSP, CSRF, CORS, auto-ban, authentification, signatures de webhooks. Documentation en français, anglais et espagnol.",
+    skip: "Aller au contenu",
+    back_to_top: "Haut de page",
     nav_home: "Accueil",
     nav_docs: "Documentation",
     nav_features: "Middlewares",
@@ -442,6 +467,7 @@ pub static FR: Texts = Texts {
     play_blocked: "BLOQUÉ",
     play_allowed: "AUTORISÉ",
     play_offline: "Le serveur de démo n'est pas joignable (site statique). Lancez le serveur pour tester en direct.",
+    play_static: "Cette version du site est statique (GitHub Pages) : le playground d'attaques en direct a besoin du serveur axum. Déployez-le sur Heroku en un clic ou lancez-le avec Docker pour l'attaquer pour de vrai.",
     play_stats: "Statistiques du bouclier en direct",
     play_total: "Requêtes",
     play_passed: "Autorisées",
@@ -484,7 +510,7 @@ pub static FR: Texts = Texts {
     footer_resources: "Ressources",
     footer_community: "Communauté",
     footer_rights: "Tous droits réservés.",
-    footer_made: "Fait avec Rust et WebAssembly",
+    footer_made: "Fait avec Rust, active et WebAssembly",
     footer_security: "Politique de sécurité",
     footer_license: "Licence MIT / Apache-2.0",
     footer_changelog: "Changelog",
@@ -508,6 +534,10 @@ pub static FR: Texts = Texts {
 };
 
 pub static EN: Texts = Texts {
+    site_title: "Security middlewares for Rust",
+    site_description: "Fast, easy, batteries-included security middlewares for Rust (axum, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, auth, webhook signatures. Documentation in English, French and Spanish.",
+    skip: "Skip to content",
+    back_to_top: "Back to top",
     nav_home: "Home",
     nav_docs: "Docs",
     nav_features: "Middlewares",
@@ -770,6 +800,7 @@ pub static EN: Texts = Texts {
     play_blocked: "BLOCKED",
     play_allowed: "ALLOWED",
     play_offline: "The demo server is not reachable (static hosting). Run the server to test live.",
+    play_static: "This copy of the site is static (GitHub Pages): the live attack playground needs the axum server. Deploy it on Heroku in one tap or run it with Docker to attack it for real.",
     play_stats: "Live shield statistics",
     play_total: "Requests",
     play_passed: "Allowed",
@@ -812,7 +843,7 @@ pub static EN: Texts = Texts {
     footer_resources: "Resources",
     footer_community: "Community",
     footer_rights: "All rights reserved.",
-    footer_made: "Made with Rust and WebAssembly",
+    footer_made: "Made with Rust, active and WebAssembly",
     footer_security: "Security policy",
     footer_license: "MIT / Apache-2.0 license",
     footer_changelog: "Changelog",
@@ -836,6 +867,10 @@ pub static EN: Texts = Texts {
 };
 
 pub static ES: Texts = Texts {
+    site_title: "Middlewares de seguridad para Rust",
+    site_description: "Middlewares de seguridad para Rust rápidos, sencillos y completos (axum, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, autenticación, firmas de webhooks. Documentación en español, inglés y francés.",
+    skip: "Saltar al contenido",
+    back_to_top: "Volver arriba",
     nav_home: "Inicio",
     nav_docs: "Documentación",
     nav_features: "Middlewares",
@@ -1098,6 +1133,7 @@ pub static ES: Texts = Texts {
     play_blocked: "BLOQUEADO",
     play_allowed: "PERMITIDO",
     play_offline: "El servidor de demo no está disponible (alojamiento estático). Arranca el servidor para probar en directo.",
+    play_static: "Esta versión del sitio es estática (GitHub Pages): el playground de ataques en directo necesita el servidor axum. Despliégalo en Heroku con un toque o arráncalo con Docker para atacarlo de verdad.",
     play_stats: "Estadísticas del escudo en directo",
     play_total: "Peticiones",
     play_passed: "Permitidas",
@@ -1140,7 +1176,7 @@ pub static ES: Texts = Texts {
     footer_resources: "Recursos",
     footer_community: "Comunidad",
     footer_rights: "Todos los derechos reservados.",
-    footer_made: "Hecho con Rust y WebAssembly",
+    footer_made: "Hecho con Rust, active y WebAssembly",
     footer_security: "Política de seguridad",
     footer_license: "Licencia MIT / Apache-2.0",
     footer_changelog: "Changelog",

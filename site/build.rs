@@ -1,5 +1,8 @@
-//! Compiles `../docs/{en,fr,es}/*.md` and `snippets/*` into Rust statics at
-//! build time: zero markdown parsing in the browser, tiny WebAssembly.
+//! Compiles `../docs/{en,fr,es}/*.md` and `snippets/*` into Rust statics at build
+//! time: the server never parses Markdown, and the pages are compiled into the binary.
+//!
+//! Only the native build (the server side of the crate) needs them: the WebAssembly
+//! bundle gets nothing, so it stays small.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -10,20 +13,20 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 const LANGS: [&str; 3] = ["en", "fr", "es"];
 
 fn main() {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let docs_dir = Path::new("../docs");
     println!("cargo:rerun-if-changed=../docs");
     println!("cargo:rerun-if-changed=snippets");
-
-    // Page bodies are written as content-hashed HTML files, copied to
-    // `dist/content` by Trunk and fetched on demand: the WebAssembly bundle
-    // only carries the metadata (titles, table of contents, search index).
-    let content_dir = Path::new("generated/content");
-    let _ = fs::remove_dir_all(content_dir);
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=static");
+    if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32") {
+        return;
+    }
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let docs_dir = Path::new("../docs");
+    // Changes with the content of the site: part of the service worker version.
+    let mut content_hash = 0xcbf2_9ce4_8422_2325_u64;
 
     let mut code = String::from("pub static DOCS: &[DocPage] = &[\n");
     for lang in LANGS {
-        fs::create_dir_all(content_dir.join(lang)).unwrap();
         let dir = docs_dir.join(lang);
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
@@ -37,6 +40,7 @@ fn main() {
             println!("cargo:rerun-if-changed={}", path.display());
             let slug = path.file_stem().unwrap().to_string_lossy().to_string();
             let raw = fs::read_to_string(&path).unwrap();
+            content_hash = fnv1a_from(content_hash, raw.as_bytes());
             let (meta, body) = front_matter(&raw);
             let get = |k: &str| {
                 meta.iter()
@@ -45,10 +49,8 @@ fn main() {
                     .unwrap_or_default()
             };
             let (html, toc) = render(&body);
+            let html = internal_links(&html);
             let order: u32 = get("order").parse().unwrap_or(99);
-            let file = format!("{slug}.{:016x}.html", fnv1a(html.as_bytes()));
-            fs::write(content_dir.join(lang).join(&file), &html).unwrap();
-            let url = format!("content/{lang}/{file}");
             let mut toc_code = String::from("&[");
             for (id, text, level) in &toc {
                 let _ = write!(toc_code, "({id:?}, {text:?}, {level}),");
@@ -66,7 +68,7 @@ fn main() {
             .to_lowercase();
             let _ = writeln!(
                 code,
-                "    DocPage {{ lang: {lang:?}, slug: {slug:?}, category: {:?}, order: {order}, title: {:?}, summary: {:?}, url: {url:?}, toc: {toc_code}, search: {search:?} }},",
+                "    DocPage {{ lang: {lang:?}, slug: {slug:?}, category: {:?}, order: {order}, title: {:?}, summary: {:?}, body: {html:?}, toc: {toc_code}, search: {search:?} }},",
                 get("category"),
                 get("title"),
                 get("summary"),
@@ -74,7 +76,6 @@ fn main() {
         }
     }
     code.push_str("];\n");
-    fs::write(Path::new(&out_dir).join("docs_gen.rs"), code).unwrap();
 
     // Highlighted code snippets for the home page.
     let mut snippets = String::new();
@@ -90,6 +91,7 @@ fn main() {
                 .replace('-', "_");
             let lang = path.extension().and_then(|e| e.to_str()).unwrap_or("text");
             let src = fs::read_to_string(&path).unwrap();
+            content_hash = fnv1a_from(content_hash, src.as_bytes());
             let _ = writeln!(
                 snippets,
                 "pub const {name}: &str = {:?};",
@@ -103,11 +105,69 @@ fn main() {
         }
     }
     fs::write(Path::new(&out_dir).join("snippets_gen.rs"), snippets).unwrap();
+
+    // The page code and the static files are part of the version too.
+    for dir in ["src", "static"] {
+        content_hash = hash_dir(content_hash, Path::new(dir));
+    }
+    let _ = writeln!(
+        code,
+        "/// Hash of the documentation, the snippets, the page code and the static files.\npub const CONTENT_HASH: &str = \"{content_hash:016x}\";"
+    );
+    fs::write(Path::new(&out_dir).join("docs_gen.rs"), code).unwrap();
 }
 
-/// 64-bit FNV-1a, for cache-busting file names.
-fn fnv1a(data: &[u8]) -> u64 {
-    data.iter().fold(0xcbf2_9ce4_8422_2325, |h, b| {
+fn hash_dir(mut hash: u64, dir: &Path) -> u64 {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return hash;
+    };
+    let mut paths: Vec<_> = entries.filter_map(Result::ok).map(|e| e.path()).collect();
+    paths.sort();
+    for path in paths {
+        if path.is_dir() {
+            hash = hash_dir(hash, &path);
+        } else if let Ok(bytes) = fs::read(&path) {
+            hash = fnv1a_from(hash, path.to_string_lossy().as_bytes());
+            hash = fnv1a_from(hash, &bytes);
+        }
+    }
+    hash
+}
+
+/// Links between pages are written `/docs/<slug>` in Markdown. They become
+/// `@BASE@/@LANG@/docs/<slug>/`: the server fills in the base path (`/Securite` on
+/// GitHub Pages) and the language of the page being read.
+fn internal_links(html: &str) -> String {
+    const OPEN: &str = "href=\"/docs";
+    let mut out = String::with_capacity(html.len() + 256);
+    let mut rest = html;
+    while let Some(i) = rest.find(OPEN) {
+        out.push_str(&rest[..i]);
+        let after = &rest[i + OPEN.len()..];
+        let Some(end) = after.find('"') else {
+            out.push_str(&rest[i..]);
+            return out;
+        };
+        let target = &after[..end];
+        let (path, fragment) = match target.split_once('#') {
+            Some((p, f)) => (p, format!("#{f}")),
+            None => (target, String::new()),
+        };
+        let slug = path.trim_matches('/');
+        if slug.is_empty() {
+            let _ = write!(out, "href=\"@BASE@/@LANG@/docs/{fragment}\"");
+        } else {
+            let _ = write!(out, "href=\"@BASE@/@LANG@/docs/{slug}/{fragment}\"");
+        }
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// 64-bit FNV-1a, continued from `seed`.
+fn fnv1a_from(seed: u64, data: &[u8]) -> u64 {
+    data.iter().fold(seed, |h, b| {
         (h ^ u64::from(*b)).wrapping_mul(0x0000_0100_0000_01b3)
     })
 }
