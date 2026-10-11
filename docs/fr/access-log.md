@@ -25,8 +25,8 @@ Le `middleware::logger()` de Vitesse affiche des lignes colorées destinées aux
 |---|---|
 | `time` | Heure d'arrivée de la requête, en UTC, au format RFC 3339 avec millisecondes. |
 | `ip` | Adresse du client (voir ci-dessous). |
-| `method`, `path`, `version` | Ligne de requête ; `path` inclut la chaîne de requête. |
-| `status`, `bytes` | Statut et taille du corps de la réponse (`bytes` est absent pour les corps en flux). |
+| `method`, `path`, `version` | Ligne de requête ; `path` inclut la chaîne de requête, exactement telle que le client l'a envoyée (y compris les caractères non valides dans une adresse, que contiennent souvent les tentatives d'attaque). |
+| `status`, `bytes` | Statut et nombre d'octets du corps envoyés : `0` pour `HEAD`, `204` et `304` (`-` au format combined, comme Apache), absent pour les corps en flux. |
 | `duration_ms` | Temps de production de l'en-tête de la réponse. |
 | `referer`, `user_agent` | En-têtes de la requête. |
 | `request_id` | `X-Request-Id` de la requête, ou de la réponse (`RequestId` de Securite). |

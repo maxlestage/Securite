@@ -18,7 +18,7 @@ La première source qui fournit une langue prise en charge l'emporte :
 
 Les valeurs non prises en charge sont ignorées, jamais renvoyées telles quelles. Le résultat est toujours l'une de vos étiquettes, écrite comme vous l'avez écrite.
 
-Les handlers la lisent avec `req.get::<Lang>()`. La réponse reçoit `Content-Language` (sauf si le handler en a défini un) et `Vary: Accept-Language`, pour que les caches conservent une copie par langue.
+Les handlers la lisent avec `req.get::<Lang>()`. La réponse reçoit `Content-Language` (sauf si le handler en a défini un) et `Vary: Accept-Language`, plus `Cookie` tant que la source cookie est active, pour que les caches partagés ne donnent jamais la langue d'un visiteur à un autre. Toutes les valeurs de `Vary` sont regroupées sur une seule ligne.
 
 ## Démarrage rapide
 
@@ -65,7 +65,9 @@ app.get("/lang/:tag", |req: Request| async move {
 
 ## Pièges et conseils
 
-- Les pages dont le contenu dépend de la langue ne doivent pas être partagées par un cache qui ignore `Vary`. [ResponseCache](/docs/response-cache) ne stocke pas les réponses qui portent `Vary`.
+- Ajoutez `Locale` avant un [ResponseCache](/docs/response-cache) : chaque langue a alors sa propre entrée, quel que soit l'`Accept-Language` envoyé par le navigateur.
+- La plupart des CDN ne mettent pas en cache les réponses qui portent `Vary: Cookie`. Pour les pages qu'un CDN doit mettre en cache, désactivez le cookie avec `.cookie(None)` et utilisez des liens `?lang=` ou une adresse par langue.
+- Une langue refusée avec `q=0` n'est jamais choisie, pas même par l'intermédiaire d'une variante régionale : `fr;q=0, fr-CA` donne la langue par défaut.
 - Pour les moteurs de recherche, préférez une adresse par langue (`/fr/…`, `/en/…`) et utilisez `Locale` pour choisir la cible de la redirection sur `/`.
 
 ## Pages associées

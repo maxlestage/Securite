@@ -60,7 +60,7 @@ let canonical = Redirects::new()
 ## Pièges et conseils
 
 - Les navigateurs mémorisent longtemps les redirections permanentes. Testez d'abord avec `.temporary(…)`, puis passez à `.permanent(…)`.
-- Les cibles proviennent de votre configuration, jamais de la requête : le middleware ne peut pas devenir une redirection ouverte.
+- Les cibles proviennent de votre configuration, jamais de la requête, si bien que le middleware ne peut pas devenir une redirection ouverte : la partie du chemin reportée par une règle de préfixe est normalisée (`/old//evil.example` avec `.prefix("/old", "/")` mène à `/evil.example`), et la chaîne de requête est encodée en pourcentage là où c'est nécessaire.
 - Évitez les chaînes (`/a` → `/b` → `/c`) : faites pointer chaque ancienne adresse directement vers la destination finale.
 
 ## Pages associées
