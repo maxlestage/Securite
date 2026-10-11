@@ -13,8 +13,28 @@ readme = "README.md"
 keywords = ["middleware", "vitesse", "etag", "metrics", "cache"]
 categories = ["web-programming::http-server"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+## `RedisStore`: a `ResponseCache` shared by every instance of the app, in Redis or
+## Valkey (needs Rust 1.88, like the `redis` crate).
+redis = ["dep:redis"]
+## `rediss://` (TLS) addresses for the `RedisStore`, with rustls and ring.
+redis-tls = [
+    "redis",
+    "redis/tokio-rustls-comp",
+    "redis/tls-rustls-webpki-roots",
+    "redis/tls-rustls-insecure",
+    "dep:rustls",
+]
+
 [dependencies]
 vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false }
+redis = { version = "1.7", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+# The crypto provider of rustls for `redis-tls` (rustls has none by default).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

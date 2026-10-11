@@ -17,6 +17,17 @@ jobs:
   crate:
     name: Crate · fmt, clippy, tests, docs, package
     runs-on: ubuntu-latest
+    # For the tests of pratique's RedisStore (feature `redis`).
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -25,8 +36,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy -p pratique --all-features --all-targets -- -D warnings
       - run: cargo test --workspace
-      - run: cargo doc -p securite -p pratique --no-deps
+      - run: cargo test -p pratique --all-features
+        env:
+          REDIS_URL: redis://127.0.0.1:6379/
+      - run: cargo doc -p securite --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo doc -p pratique --all-features --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
       # The package is verified by crates.io itself once vitesse (a git dependency
@@ -45,6 +63,7 @@ jobs:
           toolchain: "1.85"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check -p securite --all-features
+      # Without features: the `redis` feature needs Rust 1.88, like the redis crate.
       - run: cargo check -p pratique
 
   site:
