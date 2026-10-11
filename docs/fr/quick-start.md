@@ -12,7 +12,8 @@ En cinq minutes, vous allez placer une application Vitesse derrière le shield r
 ```bash
 cargo new secure-app
 cd secure-app
-cargo add securite vitesse
+cargo add securite --git https://github.com/maxlestage/Securite
+cargo add vitesse --git https://github.com/maxlestage/Vitesse
 ```
 
 ## Ajouter le shield

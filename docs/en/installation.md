@@ -10,22 +10,22 @@ Securite is a regular crates.io package with no native dependencies: no OpenSSL,
 ## Add the crate
 
 ```bash
-cargo add securite
+cargo add securite --git https://github.com/maxlestage/Securite
 ```
 
 Or declare it by hand in `Cargo.toml`:
 
 ```toml
 [dependencies]
-securite = "0.1"
+securite = { git = "https://github.com/maxlestage/Securite" }
 ```
 
 A typical Vitesse application needs:
 
 ```toml
 [dependencies]
-securite = "0.1"
-vitesse = "0.1"
+securite = { git = "https://github.com/maxlestage/Securite" }
+vitesse = { git = "https://github.com/maxlestage/Vitesse" }
 ```
 
 ## Requirements
@@ -49,7 +49,7 @@ If you use hyper, tonic or another tower stack without Vitesse, disable the defa
 
 ```toml
 [dependencies]
-securite = { version = "0.1", default-features = false }
+securite = { git = "https://github.com/maxlestage/Securite", default-features = false }
 ```
 
 > **Tip:** Disabling the `vitesse` feature only removes the Vitesse dependency. Every guard, preset and tower layer remains available; the peer address is then read from the `PeerAddr` or `SocketAddr` request extension.
@@ -83,7 +83,7 @@ With a raw hyper 1 server, insert `PeerAddr` into each request before it reaches
 
 ```toml
 [dependencies]
-securite = { version = "0.1", default-features = false }
+securite = { git = "https://github.com/maxlestage/Securite", default-features = false }
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio", "service"] }
 http = "1"

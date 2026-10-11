@@ -368,11 +368,17 @@ mod tests {
             assert!(footer.contains("Maxime Nathan Lestage"), "{lang}");
             assert!(footer.contains(rights), "{lang}");
             assert!(footer.contains(r#"href="/static/LICENSE.txt""#), "{lang}");
-            // No link to GitHub anywhere: the project is not open source.
-            assert!(!body.contains("github.com"), "{lang}");
+            // The source is on GitHub, the only way to get the crate until it is on crates.io.
+            assert!(
+                body.contains("https://github.com/maxlestage/Securite"),
+                "{lang}"
+            );
             assert!(!footer.contains("MIT"), "{lang}");
             // The install command and the version of the crate.
-            assert!(footer.contains("cargo add securite"), "{lang}");
+            assert!(
+                footer.contains("cargo add securite --git https://github.com/maxlestage/Securite"),
+                "{lang}"
+            );
             assert!(
                 footer.contains(&format!("v{}", securite::VERSION)),
                 "{lang}"
