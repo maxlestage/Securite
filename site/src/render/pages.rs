@@ -4,9 +4,7 @@
 use active::Str;
 use active::prelude::*;
 
-use super::{
-    AUTHOR, AUTHOR_URL, CRATES_IO, DOCS_RS, ECOSYSTEM, HEROKU_DEPLOY, LICENSE, REPO, Site,
-};
+use super::{AUTHOR, CRATES_IO, DOCS_RS, ECOSYSTEM, LICENSE_PATH, Site};
 use crate::docs::{self, CATEGORY_ORDER, category_icon};
 use crate::i18n::{Lang, Texts};
 use crate::icons::icon;
@@ -163,12 +161,6 @@ fn navbar(ctx: &Ctx<'_>) -> Element {
                     .class("nav-actions")
                     .child(lang_switch(ctx))
                     .child(
-                        external(REPO)
-                            .class("icon-btn")
-                            .attr("aria-label", "GitHub")
-                            .child(icon("github", 20)),
-                    )
-                    .child(
                         a().href(ctx.doc("quick-start"))
                             .class("btn btn-primary btn-sm nav-cta")
                             .text(t.get_started),
@@ -258,12 +250,6 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
             div()
                 .class("socials")
                 .child(
-                    external(REPO)
-                        .class("icon-btn")
-                        .attr("aria-label", "GitHub")
-                        .child(icon("github", 20)),
-                )
-                .child(
                     external(CRATES_IO)
                         .class("icon-btn")
                         .attr("aria-label", "crates.io")
@@ -313,7 +299,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
         .class("container footer-credits reveal")
         .child(p().class("credits-by").text(t.footer_by))
         .child(
-            external(AUTHOR_URL).class("credits-name").children(
+            p().class("credits-name").children(
                 AUTHOR
                     .split(' ')
                     .enumerate()
@@ -367,21 +353,9 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                             .child(doc("heroku-from-phone", "Heroku"))
                             .child(doc("github-pages", "GitHub Pages"))
                             .child(ext(
-                                format!("{REPO}/blob/master/CHANGELOG.md"),
-                                t.footer_changelog,
-                            ))
-                            .child(ext(
-                                format!("{REPO}/blob/master/SECURITY.md"),
-                                t.footer_security,
+                                format!("{}{LICENSE_PATH}", ctx.base()),
+                                t.footer_license,
                             )),
-                    ),
-                )
-                .child(
-                    div().child(h4().text(t.footer_community)).child(
-                        ul().child(ext(REPO.into(), "GitHub"))
-                            .child(ext(format!("{REPO}/issues"), t.footer_issues))
-                            .child(ext(format!("{REPO}/pulls"), t.footer_contribute))
-                            .child(ext(LICENSE.into(), t.footer_license)),
                     ),
                 ),
         )
@@ -392,7 +366,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
             div()
                 .class("container footer-bottom")
                 .child(span().text(format!("© {} {}", current_year(), t.footer_rights)))
-                .child(external(LICENSE).text(t.footer_proprietary))
+                .child(external(format!("{}{LICENSE_PATH}", ctx.base())).text(t.footer_proprietary))
                 .child(
                     span()
                         .class("made")
@@ -726,20 +700,12 @@ fn deploy(ctx: &Ctx<'_>) -> Element {
                         .child(h2().text(t.deploy_title))
                         .child(p().class("muted").text(t.deploy_subtitle))
                         .child(
-                            div()
-                                .class("hero-ctas")
-                                .child(
-                                    external(HEROKU_DEPLOY)
-                                        .class("btn btn-heroku btn-lg")
-                                        .child(icon("rocket", 18))
-                                        .text(t.deploy_button),
-                                )
-                                .child(
-                                    a().href(ctx.doc("heroku-from-phone"))
-                                        .class("btn btn-ghost btn-lg")
-                                        .text(t.deploy_guide)
-                                        .child(icon("arrow-right", 18)),
-                                ),
+                            div().class("hero-ctas").child(
+                                a().href(ctx.doc("heroku-from-phone"))
+                                    .class("btn btn-primary btn-lg")
+                                    .text(t.deploy_guide)
+                                    .child(icon("arrow-right", 18)),
+                            ),
                         ),
                 )
                 .child(
@@ -782,20 +748,12 @@ fn final_cta(ctx: &Ctx<'_>) -> Element {
             .child(p().class("muted").text(t.cta_subtitle))
             .child(install_box(t))
             .child(
-                div()
-                    .class("hero-ctas")
-                    .child(
-                        a().href(ctx.href(Page::Docs))
-                            .class("btn btn-primary btn-lg")
-                            .child(icon("book", 18))
-                            .text(t.nav_docs),
-                    )
-                    .child(
-                        external(REPO)
-                            .class("btn btn-ghost btn-lg")
-                            .child(icon("github", 18))
-                            .text("GitHub"),
-                    ),
+                div().class("hero-ctas").child(
+                    a().href(ctx.href(Page::Docs))
+                        .class("btn btn-primary btn-lg")
+                        .child(icon("book", 18))
+                        .text(t.nav_docs),
+                ),
             ),
     )
 }
@@ -872,7 +830,6 @@ fn doc_page(ctx: &Ctx<'_>, page: &'static docs::DocPage, translated: bool) -> No
         )
     });
 
-    let edit_url = format!("{REPO}/edit/master/docs/{}/{}.md", page.lang, page.slug);
     let toc = (!page.toc.is_empty()).then(|| {
         fragment([
             Node::from(p().class("side-title").text(t.docs_on_page)),
@@ -935,14 +892,6 @@ fn doc_page(ctx: &Ctx<'_>, page: &'static docs::DocPage, translated: bool) -> No
                     div()
                         .class("prose")
                         .html(docs::body(page, ctx.base(), lang)),
-                )
-                .child(
-                    div().class("doc-footer").child(
-                        external(edit_url)
-                            .class("edit-link")
-                            .child(icon("github", 16))
-                            .text(t.docs_edit),
-                    ),
                 )
                 .child(
                     nav()
@@ -1078,9 +1027,10 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
             .title_template("securite · %s")
             .description(t.site_description)
             .json_ld(format!(
-                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"securite","description":{},"url":{},"codeRepository":"{REPO}","programmingLanguage":"Rust","license":"{LICENSE}","author":{{"@type":"Person","name":"{AUTHOR}","url":"{AUTHOR_URL}"}},"inLanguage":"{}"}}"#,
+                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"securite","description":{},"url":{},"programmingLanguage":"Rust","license":"{}{LICENSE_PATH}","author":{{"@type":"Person","name":"{AUTHOR}"}},"inLanguage":"{}"}}"#,
                 json(t.site_description),
                 json(&url),
+                ctx.public,
                 lang.code()
             )),
         Page::Docs => base.title(t.nav_docs).description(t.docs_subtitle),
@@ -1170,13 +1120,52 @@ fn document(site: &Site, lang: Lang, seo: Seo, body: Node) -> String {
 
 /// The root page of a static copy (no `Accept-Language` there): links to the three
 /// languages, and English after a moment.
-pub fn language_picker(site: &Site, public: &str) -> String {
+/// A JavaScript string literal that cannot close a `<script>` element.
+fn js_string(s: &str) -> String {
+    let mut out = String::from("\"");
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '<' => out.push_str("\\u003c"),
+            '\n' => out.push_str("\\n"),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// The script of the pages a static host serves without knowing the visitor's language: goes
+/// to `/{lang}/{target}` for the language of the address (`/fr/…` on a missing page), else the
+/// browser's, else English. Without JavaScript, a `<meta>` refresh goes to English.
+fn language_redirect(base: &str, target: &str) -> String {
+    let codes: Vec<String> = Lang::ALL.iter().map(|l| js_string(l.code())).collect();
+    format!(
+        concat!(
+            "<script>(function(){{var b={base},L=[{codes}],c=null;",
+            "var s=location.pathname.slice(b.length).split('/').filter(Boolean)[0];",
+            "if(L.indexOf(s)>=0)c=s;",
+            "var l=navigator.languages||[navigator.language||''];",
+            "for(var i=0;i<l.length&&!c;i++){{var x=String(l[i]).slice(0,2).toLowerCase();",
+            "if(L.indexOf(x)>=0)c=x}}",
+            "location.replace(b+'/'+(c||'en')+'/'+{target}+location.search+location.hash)}})()</script>",
+        ),
+        base = js_string(base),
+        codes = codes.join(","),
+        target = js_string(target),
+    )
+}
+
+/// The page a static host serves at `/` (`target` empty) and for a missing address (`target`
+/// = `404/`): it goes to the visitor's language by itself, and links the languages.
+pub fn language_picker(site: &Site, public: &str, target: &str) -> String {
     let base = &site.base;
     let seo = Seo::new()
         .title("securite")
         .description(Lang::En.t().site_description)
         .base_url(public)
-        .canonical("/en/")
+        .canonical(format!("/en/{target}"))
         .noindex(true);
     let body = main()
         .id("main")
@@ -1184,7 +1173,7 @@ pub fn language_picker(site: &Site, public: &str) -> String {
         .child(div().class("nf-code").child(icon("shield-check", 64)))
         .child(h1().text("securite"))
         .child(div().class("hero-ctas").children(Lang::ALL.map(|l| {
-            a().href(format!("{base}/{}/", l.code()))
+            a().href(format!("{base}/{}/{target}", l.code()))
                 .class("btn btn-ghost btn-lg")
                 .attr("hreflang", l.code())
                 .attr("lang", l.code())
@@ -1195,7 +1184,8 @@ pub fn language_picker(site: &Site, public: &str) -> String {
         .seo(seo)
         .stylesheet(site.assets.url(base, "/static/main.css"))
         .head(format!(
-            r#"<meta http-equiv="refresh" content="0; url={base}/en/"/><link rel="icon" href="{}" type="image/svg+xml"/>"#,
+            r#"{}<noscript><meta http-equiv="refresh" content="0; url={base}/en/{target}"/></noscript><link rel="icon" href="{}" type="image/svg+xml"/>"#,
+            language_redirect(base, target),
             site.assets.url(base, "/static/favicon.svg")
         ))
         .manifest(&format!("{base}/manifest.webmanifest"), &site.manifest())

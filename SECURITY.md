@@ -10,13 +10,11 @@
 
 ## Reporting a vulnerability
 
-**Please do not open a public issue.** Use GitHub's private reporting:
-<https://github.com/maxlestage/Securite/security/advisories/new>
-
-Include a description, the affected version, a proof of concept if possible
+**Please do not open a public issue.** Write to the author privately (the contact
+details are on the crates.io page of `securite`). Include a description, the affected version, a proof of concept if possible
 and the impact you foresee. You will get an acknowledgement within 72 hours
 and a fix or mitigation plan within 14 days. Fixed vulnerabilities are
-published as GitHub Security Advisories and to the RustSec advisory database.
+published in the changelog and to the RustSec advisory database.
 
 ## Scope
 

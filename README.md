@@ -4,14 +4,11 @@
 
 **Fast, easy, batteries-included security middlewares for Rust.**
 
-[![CI](https://github.com/maxlestage/Securite/actions/workflows/ci.yml/badge.svg)](https://github.com/maxlestage/Securite/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
 [![docs.rs](https://img.shields.io/docsrs/securite)](https://docs.rs/securite)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
 
 **English** · [Français](README.fr.md) · [Español](README.es.md)
-
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy?template=https://github.com/maxlestage/Securite)
 
 </div>
 
@@ -22,7 +19,7 @@ This repository contains:
 | Folder | What |
 |---|---|
 | [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for tower / axum / hyper / tonic |
-| [`site`](site) | The **website**, written with [active](https://github.com/maxlestage/Active): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
+| [`site`](site) | The **website**, written with [active](https://maxlestage.github.io/Active/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
 | [`server`](server) | The axum server that renders and hosts the website and its playground API — protected by `securite` itself |
 | [`docs`](docs) | The **documentation** (33 pages × 3 languages), compiled into the website |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Container image and **one-tap Heroku deployment** |
@@ -133,5 +130,5 @@ to the author, as the license states.
 
 ## Credits
 
-Designed and developed by [Maxime Nathan Lestage](https://github.com/maxlestage),
+Designed and developed by Maxime Nathan Lestage,
 as part of one family of Rust projects: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/) and [FerroSwift](https://maxlestage.github.io/FerroSwift/).

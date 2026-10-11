@@ -6,7 +6,6 @@ members = ["crates/securite", "server", "site"]
 edition = "2024"
 rust-version = "1.85"
 license-file = "LICENSE"
-repository = "https://github.com/maxlestage/Securite"
 authors = ["Maxime Nathan Lestage"]
 
 [profile.release]

@@ -35,10 +35,10 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 |---|---|
 | Current version | 0.1.0 |
 | Minimum supported Rust version | 1.85 (edition 2024) |
-| License | Proprietary (© Maxime Nathan Lestage, all rights reserved): free to use as a dependency, see [LICENSE](https://github.com/maxlestage/Securite/blob/master/LICENSE) |
+| License | Proprietary (© Maxime Nathan Lestage, all rights reserved): free to use as a dependency, see [LICENSE](https://maxlestage.github.io/Securite/LICENSE.txt) |
 | Unsafe code | None, the crate is `#![forbid(unsafe_code)]` |
 | Native dependencies | None (pure Rust) |
-| Repository | `https://github.com/maxlestage/Securite` |
+| Repository | `https://maxlestage.github.io/Securite/` |
 
 ## Cargo features
 

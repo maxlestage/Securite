@@ -2,7 +2,6 @@
 
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
 [![docs.rs](https://img.shields.io/docsrs/securite)](https://docs.rs/securite)
-[![CI](https://github.com/maxlestage/Securite/actions/workflows/ci.yml/badge.svg)](https://github.com/maxlestage/Securite/actions/workflows/ci.yml)
 ![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
 [![License: proprietary](https://img.shields.io/badge/license-proprietary-2a2a2e.svg)](#license)
@@ -102,9 +101,9 @@ in sharded, bounded, HashDoS-resistant maps. `#![forbid(unsafe_code)]`.
 
 ## Documentation
 
-* Full guides (English, Français, Español): <https://github.com/maxlestage/Securite/tree/master/docs>
+* Full guides (English, Français, Español): 
 * API reference: <https://docs.rs/securite>
-* Examples: [`examples/`](https://github.com/maxlestage/Securite/tree/master/crates/securite/examples)
+* Examples: `examples/`
 
 ## Client IP
 
@@ -134,5 +133,5 @@ to the author, as the license states.
 
 ## Credits
 
-Designed and developed by [Maxime Nathan Lestage](https://github.com/maxlestage),
+Designed and developed by Maxime Nathan Lestage,
 as part of one family of Rust projects: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/) and [FerroSwift](https://maxlestage.github.io/FerroSwift/).

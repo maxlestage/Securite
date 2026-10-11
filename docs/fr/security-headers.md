@@ -160,7 +160,7 @@ pub fn app() -> Router {
 
 ### Empreintes pour les applications monopage
 
-Vite et les bundlers similaires injectent un script d'amorçage inline dans `index.html`, et les front-ends Rust rendus par le serveur en écrivent un pour démarrer leur bundle WebAssembly (ce site, construit avec [active](https://github.com/maxlestage/Active), autorise ainsi son chargeur et l'enregistrement de son service worker). Calculez son empreinte au démarrage et gardez un `script-src` strict :
+Vite et les bundlers similaires injectent un script d'amorçage inline dans `index.html`, et les front-ends Rust rendus par le serveur en écrivent un pour démarrer leur bundle WebAssembly (ce site, construit avec [active](https://maxlestage.github.io/Active/), autorise ainsi son chargeur et l'enregistrement de son service worker). Calculez son empreinte au démarrage et gardez un `script-src` strict :
 
 ```rust
 use axum::{Router, response::Html, routing::get};
