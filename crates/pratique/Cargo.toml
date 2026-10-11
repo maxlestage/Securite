@@ -1,0 +1,20 @@
+[package]
+name = "pratique"
+version = "0.1.0"
+description = "Everyday middlewares for Vitesse that have nothing to do with security: ETag & 304, Cache-Control, response cache, response time, trailing slash, redirects, maintenance mode, health checks, Prometheus metrics, access logs, default headers, locale negotiation and API deprecation."
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+authors.workspace = true
+homepage = "https://maxlestage.github.io/Securite/"
+repository = "https://github.com/maxlestage/Securite"
+documentation = "https://docs.rs/pratique"
+readme = "README.md"
+keywords = ["middleware", "vitesse", "etag", "metrics", "cache"]
+categories = ["web-programming::http-server"]
+
+[dependencies]
+vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

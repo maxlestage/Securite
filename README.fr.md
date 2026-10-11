@@ -19,6 +19,7 @@ Ce dépôt contient :
 | Dossier | Contenu |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (prête pour crates.io) : 19 middlewares de sécurité pour Vitesse, et pour tower / hyper / tonic |
+| [`crates/pratique`](crates/pratique) | La **crate `pratique`** : 13 middlewares Vitesse du quotidien sans rapport avec la sécurité (ETag, Cache-Control, cache de réponses, access logs, métriques Prometheus, temps de réponse, slash final, redirections, health checks, mode maintenance, en-têtes, langue, dépréciation d'API) |
 | [`site`](site) | Le **site de présentation**, écrit avec [Active](https://maxlestage.github.io/Active/) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
 | [`server`](server) | Le serveur Vitesse qui rend et héberge le site et l'API du playground — protégé par `securite` lui-même |
 | [`docs`](docs) | La **documentation** (33 pages × 3 langues), compilée dans le site |
