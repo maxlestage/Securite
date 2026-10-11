@@ -14,15 +14,17 @@ Une requête est recherchée dans le cache lorsqu'il s'agit d'un `GET` ou d'un `
 Une réponse n'est stockée que si elle peut être partagée :
 
 - statut `200 OK`, corps complet de taille connue, d'au plus `max_body` octets ;
-- pas de `Set-Cookie` ni de `Vary: *` ;
+- pas de `Set-Cookie`, de `Vary: *` ni de nonce CSP (`'nonce-…'` doit changer à chaque réponse) ;
 - pas de `Cache-Control: private`, `no-store` ou `no-cache`.
 
-Elle est conservée pendant le TTL du cache, ou moins longtemps si la réponse le demande : `Cache-Control: max-age=10` (ou `s-maxage`) la conserve 10 secondes, `max-age=0` pas du tout.
+Elle est conservée pendant le TTL du cache, ou moins longtemps si la réponse le demande : `Cache-Control: max-age=10` (ou `s-maxage`) la conserve 10 secondes ; `max-age=0` ou un âge invalide (`-1`, `10.5`), pas du tout. Une requête avec `Cache-Control: no-store` ne lit ni ne remplit le cache.
 
 ## Une entrée par variante
 
-La clé d'une entrée est le chemin **et** la chaîne de requête (`/products?page=2` n'est pas `/products`), plus :
+La clé d'une entrée est le chemin **et** la chaîne de requête tels que le client les a envoyés (`/products?page=2` n'est pas `/products`), plus :
 
+- **le site** : l'en-tête `Host`, et `Forwarded`, `X-Forwarded-Host` et `X-Forwarded-Proto` derrière un proxy, pour qu'une page qui construit ses liens à partir de son adresse ne soit jamais servie à un autre domaine ;
+- **l'`Origin` CORS**, pour qu'une réponse autorisée pour une origine ne soit jamais servie à une autre ;
 - **la langue choisie par [Locale](/docs/locale)**, lorsque `Locale` est ajouté avant le cache : la page française et la page anglaise sont deux entrées, et tous les `Accept-Language` qui aboutissent au français (`fr`, `fr-CA`, `de, fr;q=0.8`…) partagent l'entrée française ;
 - **les en-têtes nommés par le `Vary` de la réponse** : avec `Vary: Accept-Encoding`, les clients qui demandent du Brotli et ceux qui demandent du gzip obtiennent chacun leur propre entrée.
 
@@ -62,7 +64,7 @@ app.get("/api/catalog", |_req: Request| async { Json(json!({ "products": [] })) 
 | Méthode | Défaut | Description |
 |---|---|---|
 | `ResponseCache::new(ttl)` | — | Durée pendant laquelle une réponse reste fraîche. |
-| `.store(store)` | `MemoryStore` de 1 000 entrées | Emplacement des réponses : `MemoryStore`, `RedisStore` ou votre propre `CacheStore`. |
+| `.store(store)` | `MemoryStore` (1 000 entrées, 64 Mio) | Emplacement des réponses : `MemoryStore`, `RedisStore` ou votre propre `CacheStore`. |
 | `.only(prefix)` | tous les chemins | Restreint le cache à des préfixes de chemin (peut être appelé plusieurs fois). |
 | `.bypass_header(name)` | — | Un en-tête d'identifiant supplémentaire : les requêtes qui le portent atteignent toujours le handler. |
 | `.max_body(bytes)` | `1 MiB` | Taille maximale d'un corps stocké. |
@@ -104,10 +106,11 @@ fn main() -> std::io::Result<()> {
 
 Comportement du stockage :
 
-- **Connexion différée** : `RedisStore::open` vérifie seulement l'adresse. La connexion est ouverte par la première requête, depuis le runtime de l'application, et rouverte automatiquement après une panne.
-- **Délais d'expiration** : chaque commande expire au bout de 250 ms (`.timeout(…)`). Quand Redis est lent ou indisponible, les requêtes sont servies par le handler au lieu d'attendre : le cache peut être perdu, le site reste en ligne. Les échecs sont comptés (`handle.errors()`) et transmis à `.on_error`.
+- **Connexions différées** : `RedisStore::open` vérifie seulement l'adresse. Chaque thread de travail ouvre sa propre connexion à sa première requête (Vitesse fait tourner un runtime par cœur), et la rouvre après une panne.
+- **Délais d'expiration** : chaque opération, connexion comprise, abandonne au bout de 250 ms (`.timeout(…)`).
+- **Mise à l'écart** : après une panne, Redis est laissé de côté pendant 1 s (`.cooldown(…)`) ; pendant ce temps, les requêtes vont directement au handler, sans attendre. Un Redis en panne ou muet coûte au plus un délai d'expiration par seconde, jamais un par requête : le cache peut être perdu, le site reste rapide. Les échecs sont comptés (`handle.errors()`) et transmis à `.on_error`.
 - **Expiration** : les entrées sont écrites avec `PX`, si bien que Redis les supprime de lui-même.
-- **Isolation** : chaque clé commence par le préfixe (`pratique:cache:` par défaut). Donnez à chaque application son propre préfixe lorsqu'elles partagent un même Redis.
+- **Isolation** : chaque clé commence par le préfixe (`pratique:cache:` par défaut). Donnez à chaque application son propre préfixe lorsqu'elles partagent un même Redis ; `clear` ne touche jamais un autre préfixe, même s'il commence de la même façon.
 - **Les purges** utilisent `SCAN` et `UNLINK`, jamais `KEYS`, et ne bloquent donc pas Redis.
 
 Les features `redis` nécessitent Rust 1.88 ou une version ultérieure (comme la crate `redis`) ; sans elles, Pratique prend en charge Rust 1.85.
@@ -143,7 +146,9 @@ app.post("/admin/products", move |_req: Request| {
 | `clear().await` | Oublie tout (avec Redis, uniquement les clés portant le préfixe de ce cache). |
 | `hits()`, `misses()`, `errors()` | Compteurs de ce processus. |
 
-Pour inspecter un `MemoryStore`, conservez-le dans un `Arc` : `let store = Arc::new(MemoryStore::new()); ResponseCache::new(ttl).store(store.clone())`, puis `store.len()`.
+Une requête qui était déjà en cours de calcul pendant une purge n'est pas stockée ensuite : une purge n'est jamais annulée par l'ancienne page (pour les purges faites depuis ce processus).
+
+Pour dimensionner le `MemoryStore`, utilisez `MemoryStore::new().max_entries(n).max_bytes(bytes)` ; quand il est plein, les entrées les plus proches de l'expiration font de la place. Pour l'inspecter, conservez-le dans un `Arc` : `let store = Arc::new(MemoryStore::new()); ResponseCache::new(ttl).store(store.clone())`, puis `store.len()` et `store.bytes()`.
 
 ## Votre propre stockage
 
@@ -153,6 +158,8 @@ Pour inspecter un `MemoryStore`, conservez-le dans un `Arc` : `let store = Arc::
 
 - Ne mettez en cache que des réponses publiques. Les requêtes qui portent un en-tête d'identifiant contournent le cache, mais une réponse qui dépend d'autre chose (une adresse IP, une session passée dans la chaîne de requête) doit être tenue à l'écart avec `.only(…)`, ou indiquer `Cache-Control: private`.
 - Ajoutez [Locale](/docs/locale) **avant** le cache : ajouté après, `Locale` fonctionne toujours, mais l'`Accept-Language` brut entre dans la clé, ce qui morcelle le cache en de nombreuses entrées.
+- Ajoutez [Cache-Control](/docs/cache-control) **après** le cache : le cache voit alors le `private` ou le `no-store` qu'il pose et tient ces pages à l'écart. Ajouté avant, il ne change que l'en-tête envoyé au navigateur.
+- Ajoutez le `Shield` de Securite et CORS **avant** le cache, pour que chaque requête soit contrôlée et que chaque réponse, en cache ou non, reçoive ses en-têtes de sécurité.
 - Les en-têtes propres à un seul échange (`X-Request-Id`, `X-Response-Time`, `Server-Timing`, `Date`, `Age`) ne sont pas stockés ; avec [ETag](/docs/etag) (avant ou après le cache), les réponses servies depuis le cache deviennent des `304` lorsque le client possède déjà la page.
 - Tant que la première réponse n'est pas stockée, de nombreux défauts de cache simultanés sur la même clé atteignent tous le handler.
 

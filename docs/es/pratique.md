@@ -65,9 +65,10 @@ fn main() -> std::io::Result<()> {
 Vitesse ejecuta los middlewares en el orden en que se añaden: el primero que se añade es el más externo, ve la petición la primera y la respuesta la última. Un buen orden:
 
 1. **Observadores**: `AccessLog`, `Metrics`, `ResponseTime`, para que lo midan todo, incluidas las respuestas de los demás middlewares.
-2. **El `Shield` de Securite**, para que `/metrics` y todo lo demás queden protegidos.
+2. **El `Shield` de Securite** (y CORS), para que `/metrics` y todo lo demás queden protegidos, también las páginas en caché.
 3. **Middlewares que responden por sí mismos**: `Health`, `Maintenance`, `Redirects`, `TrailingSlash`.
-4. **Middlewares que trabajan sobre las respuestas de tus rutas**: `Locale`, `ETag`, `CacheControl`, `ResponseCache`, `SetHeaders`, `Deprecation`.
+4. **`Locale`** y luego **`ResponseCache`**: la caché guarda una entrada por idioma.
+5. **Middlewares que dan forma a las respuestas de tus rutas**: `CacheControl`, `ETag`, `SetHeaders`, `Deprecation`. Dentro de la caché, las respuestas almacenadas llevan sus cabeceras, y un `Cache-Control: private` que pongan deja la página fuera de la caché.
 
 ```rust
 use pratique::prelude::*;
@@ -80,6 +81,9 @@ app.middleware(Metrics::new());
 app.middleware(Shield::recommended());
 app.middleware(Health::new());
 app.middleware(Redirects::new().prefix("/blog", "/articles"));
+app.middleware(Locale::new(["en", "fr"]));
+app.middleware(ResponseCache::new(std::time::Duration::from_secs(60)));
+app.middleware(CacheControl::new().route("/account", CacheControl::NO_STORE));
 app.middleware(ETag::new());
 ```
 
