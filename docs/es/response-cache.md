@@ -1,23 +1,49 @@
 ---
 title: Caché de respuestas
-summary: Guarda en memoria respuestas GET completas durante un tiempo y responde a las peticiones idénticas sin ejecutar el handler, con límites de tamaño, cabeceras X-Cache y Age y un handle de purga.
+summary: Guarda respuestas GET completas en memoria o en Redis y responde a las peticiones idénticas sin ejecutar el handler, con una entrada por idioma y por variante de Vary, compartida por todas las instancias de la aplicación.
 category: everyday
 order: 4
 ---
 
-Algunos endpoints son costosos y cambian poco: un catálogo de productos, un panel público, una página de inicio renderizada. `ResponseCache` guarda sus respuestas en memoria durante un tiempo fijo (TTL) y responde por sí mismo a las siguientes peticiones idénticas, sin llamar a tu handler ni a tu base de datos.
+Algunos endpoints son costosos y cambian poco: un catálogo de productos, un panel público, una página de inicio renderizada. `ResponseCache` guarda sus respuestas durante un tiempo fijo (TTL) y responde por sí mismo a las siguientes peticiones idénticas, sin llamar a tu handler ni a tu base de datos. Por defecto, las respuestas viven en la memoria del proceso, o en Redis para que todas las instancias de la aplicación compartan una sola caché.
 
 ## Qué se almacena en caché
 
-Una petición se busca en la caché cuando es un `GET` o un `HEAD`, **no** tiene cabecera `Authorization` **ni** `Cookie` y su ruta está bajo uno de los prefijos de `.only(…)` (todas las rutas por defecto). La clave es la ruta **y** la query string: `/products?page=2` no es `/products`.
+Una petición se busca en la caché cuando es un `GET` o un `HEAD`, **no lleva credenciales** (`Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, más las cabeceras que añadas con `.bypass_header(…)`) y su ruta está bajo uno de los prefijos de `.only(…)` (todas las rutas por defecto).
 
 Una respuesta solo se almacena cuando se puede compartir:
 
 - estado `200 OK`, cuerpo completo de tamaño conocido, como máximo `max_body` bytes;
-- sin `Set-Cookie`, sin `Vary`, sin `Content-Encoding`;
+- sin `Set-Cookie`, sin `Vary: *`;
 - sin `Cache-Control: private`, `no-store` ni `no-cache`.
 
-Las respuestas llevan `X-Cache: MISS` (calculada por el handler) o `X-Cache: HIT` (servida desde la memoria, con una cabecera `Age` en segundos). Una petición con `Cache-Control: no-cache` se salta la búsqueda y refresca la entrada.
+Se almacena durante el TTL de la caché, o menos si la respuesta lo indica: `Cache-Control: max-age=10` (o `s-maxage`) la conserva 10 segundos, y `max-age=0`, nada.
+
+## Una entrada por variante
+
+La clave de una entrada es la ruta **y** la query string (`/products?page=2` no es `/products`), más:
+
+- **el idioma elegido por [Locale](/docs/locale)**, cuando `Locale` se añade antes de la caché: la página en francés y la página en inglés son dos entradas, y todos los `Accept-Language` que negocian el francés (`fr`, `fr-CA`, `de, fr;q=0.8`…) comparten la francesa;
+- **las cabeceras que nombra el `Vary` de la respuesta**: con `Vary: Accept-Encoding`, los clientes que piden Brotli y los que piden gzip tienen cada uno su propia entrada.
+
+```rust
+use pratique::prelude::*;
+use std::time::Duration;
+use vitesse::prelude::*;
+
+let mut app = App::new();
+app.middleware(Locale::new(["en", "fr", "es"])); // antes de la caché
+app.middleware(ResponseCache::new(Duration::from_secs(60)));
+app.get("/", |req: Request| async move {
+    match req.get::<Lang>().map(Lang::as_str) {
+        Some("fr") => "Bonjour",
+        Some("es") => "Hola",
+        _ => "Hello",
+    }
+});
+```
+
+Las respuestas llevan `X-Cache: MISS` (calculada por el handler) o `X-Cache: HIT` (servida desde la caché, con una cabecera `Age` en segundos). Un acierto responde por sí mismo `304 Not Modified` cuando el `If-None-Match` de la petición coincide con el `ETag` almacenado. Una petición con `Cache-Control: no-cache` se salta la búsqueda y refresca la entrada.
 
 ## Inicio rápido
 
@@ -36,10 +62,55 @@ app.get("/api/catalog", |_req: Request| async { Json(json!({ "products": [] })) 
 | Método | Valor por defecto | Descripción |
 |---|---|---|
 | `ResponseCache::new(ttl)` | — | Cuánto tiempo sigue fresca una respuesta. |
+| `.store(store)` | `MemoryStore` de 1000 entradas | Dónde viven las respuestas: `MemoryStore`, `RedisStore` o tu propio `CacheStore`. |
 | `.only(prefix)` | todas las rutas | Limita la caché a prefijos de ruta (se puede llamar varias veces). |
-| `.max_entries(n)` | `1000` | Número máximo de respuestas almacenadas; primero se expulsan las caducadas y después las más antiguas. |
+| `.bypass_header(name)` | — | Una cabecera de credenciales más, cuyas peticiones siempre llegan al handler. |
 | `.max_body(bytes)` | `1 MiB` | Tamaño máximo del cuerpo almacenado. |
-| `.handle()` | — | Un `CacheHandle` para inspeccionar o purgar la caché mientras la aplicación se ejecuta. |
+| `.on_error(f)` | — | Se llama cuando el almacén falla (la petición la sirve entonces el handler). |
+| `.handle()` | — | Un `CacheHandle` para purgar la caché y leer sus contadores. |
+
+## Compartir la caché con Redis
+
+Con varias instancias detrás de un balanceador de carga (dynos, pods, servidores), cada `MemoryStore` es una caché independiente: una página se calcula una vez por instancia y una purga solo llega a una de ellas. Un `RedisStore` (feature `redis`) guarda las entradas en Redis o Valkey, de modo que cada instancia lee lo que ha calculado cualquier otra, y las purgas llegan a todas.
+
+```toml
+[dependencies]
+pratique = { git = "https://github.com/maxlestage/Securite", features = ["redis-tls"] }
+```
+
+```rust
+use pratique::prelude::*;
+use std::time::Duration;
+use vitesse::prelude::*;
+
+fn main() -> std::io::Result<()> {
+    let url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".into());
+    let store = RedisStore::open(&url).expect("invalid REDIS_URL").prefix("shop:cache:");
+    let mut app = App::new();
+    app.middleware(
+        ResponseCache::new(Duration::from_secs(60))
+            .store(store)
+            .on_error(|e| eprintln!("response cache: {e}")),
+    );
+    app.get("/", |_req: Request| async { "home" });
+    app.run(3000)
+}
+```
+
+| Feature | Aporta |
+|---|---|
+| `redis` | `RedisStore` para las direcciones `redis://`. |
+| `redis-tls` | También las direcciones `rediss://` (rustls). Añade `#insecure` a la dirección para un certificado autofirmado, como el que usa Heroku Data for Redis. |
+
+Cómo se comporta el almacén:
+
+- **Conexión diferida**: `RedisStore::open` solo comprueba la dirección. La conexión la abre la primera petición, desde el runtime de la aplicación, y se vuelve a abrir automáticamente tras un fallo.
+- **Timeouts**: cada comando agota su tiempo a los 250 ms (`.timeout(…)`). Cuando Redis va lento o está caído, las peticiones las sirve el handler en lugar de esperar: la caché puede perderse, el sitio sigue en pie. Los fallos se cuentan (`handle.errors()`) y se pasan a `.on_error`.
+- **Caducidad**: las entradas se escriben con `PX`, así que Redis las elimina por sí mismo.
+- **Aislamiento**: cada clave empieza por el prefijo (`pratique:cache:` por defecto). Da a cada aplicación su propio prefijo cuando comparten un Redis.
+- **Las purgas** usan `SCAN` y `UNLINK`, nunca `KEYS`, así que no bloquean Redis.
+
+Las features `redis` requieren Rust 1.88 o posterior (como el crate `redis`); sin ellas, Pratique es compatible con Rust 1.85.
 
 ## Purgar tras una actualización
 
@@ -57,22 +128,36 @@ app.post("/admin/products", move |_req: Request| {
     let purge = purge.clone();
     async move {
         // … guardar el producto …
-        purge.invalidate("/api/catalog"); // todas las query strings, y lo que cuelga debajo
+        // Todas las query strings, todas las variantes y las rutas que cuelgan debajo.
+        if let Err(e) = purge.invalidate("/api/catalog").await {
+            eprintln!("purge failed: {e}");
+        }
         "saved"
     }
 });
 ```
 
-`CacheHandle` también ofrece `clear()`, `len()` e `is_empty()`.
+| Método de `CacheHandle` | Descripción |
+|---|---|
+| `invalidate(path).await` | Olvida `path` y lo que cuelga debajo (`/api/catalog` cubre `/api/catalog?page=2` y `/api/catalog/42`, no `/api/catalogs`). |
+| `clear().await` | Lo olvida todo (con Redis, solo las claves del prefijo de esta caché). |
+| `hits()`, `misses()`, `errors()` | Contadores de este proceso. |
+
+Para inspeccionar un `MemoryStore`, guárdalo en un `Arc`: `let store = Arc::new(MemoryStore::new()); ResponseCache::new(ttl).store(store.clone())`, y después `store.len()`.
+
+## Tu propio almacén
+
+`CacheStore` tiene cuatro métodos (`get`, `set` con un TTL, `remove_prefixes`, `clear`), y cada uno devuelve un future: impleméntalo para Memcached, una base de datos o un doble de pruebas. Un almacén que devuelve un error se trata como un fallo de caché.
 
 ## Errores comunes y consejos
 
-- La caché vive en la memoria de cada proceso: dos instancias detrás de un balanceador de carga tienen dos cachés. Usa TTL cortos o purga todas las instancias.
-- Las respuestas que dependen de algo distinto de la ruta y la query (una cabecera, el idioma) deben indicarlo con `Vary`, lo que desactiva la caché para ellas. Con [Locale](/docs/locale), almacena en caché solo los endpoints que no dependen del idioma, o añade el idioma a la query string.
-- Coloca la caché después de un middleware de compresión para que almacene los bytes originales.
-- Muchos fallos simultáneos para la misma clave llegan cada uno una vez al handler hasta que se almacena la primera respuesta.
+- Almacena en caché solo respuestas públicas. Las peticiones con cabeceras de credenciales se saltan la caché, pero una respuesta que depende de otra cosa (una IP, una sesión pasada en la query string) debe quedar fuera con `.only(…)` o indicar `Cache-Control: private`.
+- Añade [Locale](/docs/locale) **antes** de la caché: si se añade después, `Locale` sigue funcionando, pero el `Accept-Language` en bruto pasa a formar parte de la clave, lo que divide la caché en muchas entradas.
+- Las cabeceras propias de un único intercambio (`X-Request-Id`, `X-Response-Time`, `Server-Timing`, `Date`, `Age`) no se almacenan; con [ETag](/docs/etag) (antes o después de la caché), los aciertos se responden con `304` cuando el cliente ya tiene la página.
+- Muchos fallos simultáneos para la misma clave llegan todos al handler hasta que se almacena la primera respuesta.
 
 ## Páginas relacionadas
 
 - [ETag y 304](/docs/etag)
 - [Cache-Control](/docs/cache-control)
+- [Negociación del idioma](/docs/locale)

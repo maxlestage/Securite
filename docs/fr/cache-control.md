@@ -9,14 +9,16 @@ order: 3
 
 ## Fonctionnement
 
-Pour chaque requête `GET` ou `HEAD` qui reçoit un statut `2xx` ou `3xx` :
+Pour chaque requête `GET` ou `HEAD` qui reçoit un statut `2xx`, un `304` ou une redirection permanente (`301`, `308`) :
 
 1. Si le handler a déjà défini `Cache-Control`, la valeur est conservée (sauf avec `.overwrite(true)`).
 2. Sinon, la valeur du **plus long préfixe de chemin correspondant** est utilisée (`/assets` couvre `/assets/app.js`, pas `/assetsx`),
 3. à défaut, celle du premier **préfixe de type de contenu** correspondant (`image/` couvre `image/png`),
 4. à défaut, la **valeur de repli**, s'il y en a une.
 
-Les erreurs (`4xx`, `5xx`) et les écritures (`POST`, `PUT`…) ne sont pas touchées.
+Les erreurs (`4xx`, `5xx`), les redirections temporaires (`302`, `303`, `307`, qui ne doivent pas être mises en cache aussi longtemps que la page) et les écritures (`POST`, `PUT`…) ne sont pas touchées.
+
+> **Attention :** les fichiers statiques servis par Vitesse (`app.static_dir`, `ServeDir`) portent toujours leur propre `Cache-Control` (`public, max-age=0`, sauf si `ServeDir::max_age(…)` en décide autrement), qui l'emporte par défaut. Définissez la valeur à cet endroit, ou ajoutez `.overwrite(true)` pour que vos règles la remplacent.
 
 ## Démarrage rapide
 

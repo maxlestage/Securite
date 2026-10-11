@@ -18,7 +18,7 @@ The first source that gives a supported language wins:
 
 Unsupported values are ignored, never echoed. The result is always one of your tags, written as you wrote it.
 
-Handlers read it with `req.get::<Lang>()`. The response gets `Content-Language` (unless the handler set one) and `Vary: Accept-Language`, so caches keep one copy per language.
+Handlers read it with `req.get::<Lang>()`. The response gets `Content-Language` (unless the handler set one) and `Vary: Accept-Language`, plus `Cookie` while the cookie source is on, so shared caches never give one visitor's language to another. Every `Vary` value ends up on a single line.
 
 ## Quick start
 
@@ -65,7 +65,9 @@ app.get("/lang/:tag", |req: Request| async move {
 
 ## Pitfalls and tips
 
-- Pages whose content depends on the language must not be shared by a cache that ignores `Vary`. [ResponseCache](/docs/response-cache) skips responses with `Vary`.
+- Add `Locale` before a [ResponseCache](/docs/response-cache): each language then gets its own entry, whatever `Accept-Language` the browser sends.
+- Most CDNs don't cache responses with `Vary: Cookie`. For pages a CDN should cache, turn the cookie off with `.cookie(None)` and use `?lang=` links or one address per language.
+- A language refused with `q=0` is never chosen, not even through a regional variant: `fr;q=0, fr-CA` gives the default language.
 - For search engines, prefer one address per language (`/fr/…`, `/en/…`) and use `Locale` to pick the redirect target on `/`.
 
 ## Related pages

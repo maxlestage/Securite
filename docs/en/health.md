@@ -10,13 +10,22 @@ Load balancers, orchestrators (Kubernetes, Nomad, Fly.io, Heroku…) and uptime 
 ## The answer
 
 ```json
-{"status":"pass","uptime":3600,"version":"1.4.0","checks":{"database":{"status":"pass"},"cache":{"status":"pass"}}}
+{
+  "checks": {
+    "database": [{ "status": "pass" }],
+    "uptime": [{ "componentType": "system", "observedUnit": "s", "observedValue": 3600, "status": "pass" }]
+  },
+  "status": "pass",
+  "version": "1.4.0"
+}
 ```
+
+Each check is a list of measurements, as the `application/health+json` format defines them; the `uptime` check (seconds since the app started) is always there.
 
 - `200 OK` with `"status":"pass"` when every check passes;
 - `503 Service Unavailable` with `"status":"fail"` as soon as one fails, so the load balancer stops sending traffic to this instance.
 
-The content type is `application/health+json` and the answer is never cached (`Cache-Control: no-store`). Only `GET` and `HEAD` on the exact path are answered; everything else goes to your routes.
+The content type is `application/health+json` and the answer is never cached (`Cache-Control: no-store`). Only `GET` and `HEAD` on the path (with or without a final `/`) are answered; everything else goes to your routes.
 
 ## Quick start
 
@@ -33,7 +42,7 @@ curl -i https://example.com/health
 # HTTP/1.1 200 OK
 # content-type: application/health+json
 #
-# {"status":"pass","uptime":42,"version":"1.4.0"}
+# {"checks":{"uptime":[{"componentType":"system","observedUnit":"s","observedValue":42,"status":"pass"}]},"status":"pass","version":"1.4.0"}
 ```
 
 ## Configuration

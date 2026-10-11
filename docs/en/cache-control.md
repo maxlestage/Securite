@@ -9,14 +9,16 @@ order: 3
 
 ## How it works
 
-For every `GET` or `HEAD` request answered with a `2xx` or `3xx` status:
+For every `GET` or `HEAD` request answered with a `2xx` status, a `304` or a permanent redirect (`301`, `308`):
 
 1. If the handler already set `Cache-Control`, it is kept (unless `.overwrite(true)`).
 2. Otherwise the value of the **longest matching path prefix** is used (`/assets` covers `/assets/app.js`, not `/assetsx`),
 3. else the first matching **content type prefix** (`image/` covers `image/png`),
 4. else the **fallback**, if any.
 
-Errors (`4xx`, `5xx`) and writes (`POST`, `PUT`…) are left alone.
+Errors (`4xx`, `5xx`), temporary redirects (`302`, `303`, `307`, which must not be cached for as long as the page) and writes (`POST`, `PUT`…) are left alone.
+
+> **Warning:** Static files served by Vitesse (`app.static_dir`, `ServeDir`) always carry their own `Cache-Control` (`public, max-age=0` unless `ServeDir::max_age(…)` says otherwise), which wins by default. Set the value there, or add `.overwrite(true)` so that your rules replace it.
 
 ## Quick start
 

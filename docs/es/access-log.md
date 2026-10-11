@@ -25,8 +25,8 @@ El `middleware::logger()` de Vitesse imprime líneas en color pensadas para pers
 |---|---|
 | `time` | Momento de llegada de la petición, en UTC, RFC 3339 con milisegundos. |
 | `ip` | Dirección del cliente (ver más abajo). |
-| `method`, `path`, `version` | Línea de petición; `path` incluye la query string. |
-| `status`, `bytes` | Estado y tamaño del cuerpo de la respuesta (`bytes` no aparece en los cuerpos en streaming). |
+| `method`, `path`, `version` | Línea de petición; `path` incluye la query string, exactamente como la envió el cliente (incluso los caracteres que no son válidos en una dirección, que suelen contener las sondas de ataque). |
+| `status`, `bytes` | Estado y bytes del cuerpo enviados: `0` para `HEAD`, `204` y `304` (`-` en el formato combinado, como Apache), ausente en los cuerpos en streaming. |
 | `duration_ms` | Tiempo necesario para producir la cabecera de la respuesta. |
 | `referer`, `user_agent` | Cabeceras de la petición. |
 | `request_id` | `X-Request-Id` de la petición, o de la respuesta (`RequestId` de Securite). |

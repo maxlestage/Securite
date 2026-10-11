@@ -48,7 +48,7 @@ fn main() -> std::io::Result<()> {
 |---|---|---|
 | Cache | [`ETag`](/docs/etag) | `ETag` calculé à partir du corps, `304 Not Modified` sur `If-None-Match` |
 | | [`CacheControl`](/docs/cache-control) | `Cache-Control` par préfixe de chemin et par type de contenu |
-| | [`ResponseCache`](/docs/response-cache) | Cache en mémoire de réponses `GET` entières, avec une poignée de purge |
+| | [`ResponseCache`](/docs/response-cache) | Cache de réponses `GET` entières, en mémoire ou partagé dans Redis, une entrée par langue et par variante |
 | Observabilité | [`AccessLog`](/docs/access-log) | Une ligne par requête, en JSON ou au format Apache combined |
 | | [`Metrics`](/docs/metrics) | `/metrics` Prometheus : compteurs, histogramme de latence, requêtes en cours |
 | | [`ResponseTime`](/docs/response-time) | `X-Response-Time` et `Server-Timing` |

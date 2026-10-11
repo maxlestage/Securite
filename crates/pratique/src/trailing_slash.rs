@@ -4,6 +4,8 @@ use vitesse::http::Uri;
 use vitesse::http::header::{self, HeaderValue};
 use vitesse::{BoxFuture, Middleware, Next, Request, Response, StatusCode};
 
+use crate::util::{encode_target, local_path, normalize_prefix, path_matches};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Style {
     Trim,
@@ -17,7 +19,8 @@ enum Style {
 /// rewriting the request in place ([`rewrite`](TrailingSlash::rewrite)).
 ///
 /// The query string is kept. With `append`, paths whose last segment looks
-/// like a file (`/app.js`) are left alone.
+/// like a file (`/app.js`) are left alone. With a static directory served by
+/// Vitesse, exclude it with [`except`](TrailingSlash::except).
 ///
 /// ```
 /// use pratique::prelude::*;
@@ -31,6 +34,7 @@ enum Style {
 pub struct TrailingSlash {
     style: Style,
     redirect: bool,
+    except: Vec<String>,
 }
 
 impl TrailingSlash {
@@ -39,6 +43,7 @@ impl TrailingSlash {
         Self {
             style: Style::Trim,
             redirect: true,
+            except: Vec::new(),
         }
     }
 
@@ -47,6 +52,7 @@ impl TrailingSlash {
         Self {
             style: Style::Append,
             redirect: true,
+            except: Vec::new(),
         }
     }
 
@@ -57,8 +63,21 @@ impl TrailingSlash {
         self
     }
 
+    /// Leaves the paths under this prefix alone (can be called several
+    /// times). Needed for a static directory served by Vitesse with `trim()`:
+    /// `ServeDir` redirects a folder to its address with a final `/`
+    /// (`/docs` → `/docs/`), and trimming it again would loop.
+    pub fn except(mut self, prefix: impl Into<String>) -> Self {
+        self.except.push(normalize_prefix(prefix));
+        self
+    }
+
     /// The normalised path, if it differs.
     fn normalize(&self, path: &str) -> Option<String> {
+        // `OPTIONS *` and other targets that are not paths.
+        if !path.starts_with('/') || self.except.iter().any(|p| path_matches(path, p)) {
+            return None;
+        }
         let normalized = match self.style {
             Style::Trim => {
                 if path == "/" || !path.ends_with('/') {
@@ -75,9 +94,9 @@ impl TrailingSlash {
                 format!("{path}/")
             }
         };
-        // `//evil.example/` must not become a protocol-relative `Location`.
-        let collapsed = format!("/{}", normalized.trim_start_matches('/'));
-        Some(collapsed)
+        // `//evil.example/` and `/\\evil.example/` must not become
+        // protocol-relative addresses.
+        Some(local_path(&normalized))
     }
 }
 
@@ -86,10 +105,12 @@ impl Middleware for TrailingSlash {
         let Some(path) = self.normalize(req.path()) else {
             return next.run(req);
         };
-        let target = match req.uri().query() {
+        // The raw query string: `req.uri()` drops targets that `Uri` rejects.
+        let target = match req.query_string() {
             Some(query) => format!("{path}?{query}"),
             None => path,
         };
+        let target = encode_target(&target);
         if self.redirect {
             let mut res = Response::new().status(StatusCode::PERMANENT_REDIRECT);
             if let Ok(location) = HeaderValue::from_str(&target) {
@@ -132,5 +153,7 @@ mod tests {
         assert_eq!(t.normalize("/docs/"), None);
         assert_eq!(t.normalize("/app.js"), None);
         assert_eq!(t.normalize("//evil/x").as_deref(), Some("/evil/x/"));
+        assert_eq!(t.normalize("/\\evil/x").as_deref(), Some("/evil/x/"));
+        assert_eq!(t.normalize("*"), None);
     }
 }
