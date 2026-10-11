@@ -178,7 +178,7 @@ pub fn features(props: &str) -> Node {
         .children(
             t.categories
                 .iter()
-                .filter(|c| c.id != "start" && c.id != "deploy")
+                .filter(|c| !matches!(c.id, "start" | "deploy" | "everyday"))
                 .map(|c| {
                     let id = c.id;
                     button()

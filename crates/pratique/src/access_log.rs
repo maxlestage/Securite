@@ -1,10 +1,11 @@
 //! Access logs for log pipelines: JSON lines or the Apache combined format.
 
 use std::io::Write as _;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
-use vitesse::http::header;
+use vitesse::http::header::{self, HeaderName};
 use vitesse::{BoxFuture, Middleware, Next, Request, Response};
 
 use crate::util::{json_escape, normalize_prefix, path_matches, unix_secs};
@@ -20,7 +21,7 @@ enum Format {
 /// What is known about a request once it is answered.
 struct Line {
     time: SystemTime,
-    ip: Option<std::net::IpAddr>,
+    ip: Option<IpAddr>,
     method: String,
     target: String,
     version: vitesse::http::Version,
@@ -42,6 +43,8 @@ struct Line {
 ///   understood by every log analyzer.
 ///
 /// Lines go to standard output, or anywhere with [`to`](AccessLog::to).
+/// Behind a reverse proxy, read the client address from the proxy's header
+/// with [`ip_from_header`](AccessLog::ip_from_header).
 ///
 /// ```
 /// use pratique::prelude::*;
@@ -55,6 +58,7 @@ pub struct AccessLog {
     format: Format,
     sink: Sink,
     skip: Vec<String>,
+    ip_header: Option<HeaderName>,
 }
 
 impl std::fmt::Debug for AccessLog {
@@ -62,6 +66,7 @@ impl std::fmt::Debug for AccessLog {
         f.debug_struct("AccessLog")
             .field("format", &self.format)
             .field("skip", &self.skip)
+            .field("ip_header", &self.ip_header)
             .finish_non_exhaustive()
     }
 }
@@ -88,6 +93,7 @@ impl AccessLog {
             format,
             sink: Arc::new(stdout),
             skip: Vec::new(),
+            ip_header: None,
         }
     }
 
@@ -107,12 +113,56 @@ impl AccessLog {
         self
     }
 
+    /// Behind a reverse proxy, logs the client address that the proxy wrote
+    /// in this header (`x-forwarded-for` on Heroku, Render, Nginx with
+    /// `proxy_add_x_forwarded_for`, `cf-connecting-ip` behind Cloudflare …)
+    /// instead of the proxy's own address.
+    ///
+    /// The **last** address of the header is used: the one appended by the
+    /// proxy in front of the app, which a client cannot forge. When the header
+    /// is missing or invalid, the peer address is logged.
+    ///
+    /// # Panics
+    /// If `name` is not a valid header name.
+    pub fn ip_from_header(mut self, name: &str) -> Self {
+        self.ip_header =
+            Some(HeaderName::from_bytes(name.as_bytes()).expect("invalid header name"));
+        self
+    }
+
+    /// The client address of `req`.
+    fn client_ip(&self, req: &Request) -> Option<IpAddr> {
+        let forwarded = self.ip_header.as_ref().and_then(|name| {
+            let last = req.headers().get_all(name).iter().next_back()?;
+            parse_ip(last.to_str().ok()?.rsplit(',').next()?)
+        });
+        forwarded.or_else(|| req.ip())
+    }
+
     fn format(&self, line: &Line) -> String {
         match self.format {
             Format::Json => json_line(line),
             Format::Combined => combined_line(line),
         }
     }
+}
+
+/// An address as proxies write it: `203.0.113.9`, `2001:db8::1`,
+/// `[2001:db8::1]:4711` or `203.0.113.9:4711`.
+fn parse_ip(value: &str) -> Option<IpAddr> {
+    let value = value.trim();
+    if let Ok(ip) = value.parse() {
+        return Some(ip);
+    }
+    if let Some(rest) = value.strip_prefix('[') {
+        return rest.split(']').next()?.parse().ok();
+    }
+    value
+        .rsplit_once(':')?
+        .0
+        .parse::<std::net::Ipv4Addr>()
+        .ok()
+        .map(IpAddr::V4)
 }
 
 fn json_line(l: &Line) -> String {
@@ -207,7 +257,7 @@ impl Middleware for AccessLog {
         let header = |name| req.header(name).map(str::to_owned);
         let mut line = Line {
             time,
-            ip: req.ip(),
+            ip: self.client_ip(&req),
             method: req.method().to_string(),
             target: req
                 .uri()
@@ -219,7 +269,7 @@ impl Middleware for AccessLog {
             duration_ms: 0.0,
             referer: header(header::REFERER),
             user_agent: header(header::USER_AGENT),
-            request_id: header(vitesse::http::HeaderName::from_static("x-request-id")),
+            request_id: header(HeaderName::from_static("x-request-id")),
         };
         Box::pin(async move {
             let res = next.run(req).await;
@@ -255,6 +305,27 @@ mod tests {
             user_agent: Some("curl/8 \"evil\"\nGET / HTTP/1.1".into()),
             request_id: Some("abc".into()),
         }
+    }
+
+    #[test]
+    fn proxy_addresses() {
+        assert_eq!(
+            parse_ip(" 203.0.113.9"),
+            Some("203.0.113.9".parse().unwrap())
+        );
+        assert_eq!(
+            parse_ip("203.0.113.9:4711"),
+            Some("203.0.113.9".parse().unwrap())
+        );
+        assert_eq!(
+            parse_ip("2001:db8::1"),
+            Some("2001:db8::1".parse().unwrap())
+        );
+        assert_eq!(
+            parse_ip("[2001:db8::1]:80"),
+            Some("2001:db8::1".parse().unwrap())
+        );
+        assert_eq!(parse_ip("unknown"), None);
     }
 
     #[test]

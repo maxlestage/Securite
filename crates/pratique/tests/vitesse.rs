@@ -307,6 +307,33 @@ async fn access_log_lines() {
 }
 
 #[tokio::test]
+async fn access_log_behind_a_proxy() {
+    let lines = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = lines.clone();
+    let c = client(|app| {
+        app.middleware(
+            AccessLog::combined()
+                .ip_from_header("x-forwarded-for")
+                .to(move |line| sink.lock().unwrap().push(line.to_owned())),
+        );
+    });
+    c.get("/")
+        .header("x-forwarded-for", "10.0.0.1, 203.0.113.9")
+        .await;
+    c.get("/").header("x-forwarded-for", "garbage").await;
+    c.get("/").await;
+    let lines = lines.lock().unwrap();
+    assert!(lines[0].starts_with("203.0.113.9 - - ["), "{}", lines[0]);
+    assert!(lines[1].starts_with("127.0.0.1 - - ["), "{}", lines[1]);
+    assert!(lines[2].starts_with("127.0.0.1 - - ["), "{}", lines[2]);
+    assert!(
+        lines[2].contains("\"GET / HTTP/1.1\" 200 4 \"-\" \"-\""),
+        "{}",
+        lines[2]
+    );
+}
+
+#[tokio::test]
 async fn headers_on_every_response() {
     let c = client(|app| {
         app.middleware(
