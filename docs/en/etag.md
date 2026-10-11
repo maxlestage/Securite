@@ -61,7 +61,7 @@ app.middleware(CacheControl::new().fallback(CacheControl::NO_CACHE));
 
 - The body has to be computed to be hashed: a `304` saves bandwidth and client time, not server work. To save server work too, add a [ResponseCache](/docs/response-cache).
 - Comparison is weak, as RFC 9110 requires for `If-None-Match`: `W/"x"` matches `"x"`.
-- Put `ETag` before a compression middleware (so it runs inside it) to hash the original bytes, or use `.weak(true)`.
+- With Vitesse's `middleware::compress()`, use `.weak(true)`: the same tag then covers the compressed and the uncompressed versions, as RFC 9110 allows for weak tags only.
 
 ## Related pages
 
