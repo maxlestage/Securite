@@ -2381,6 +2381,7 @@ pre code {
 
 .credits-name {
   display: flex;
+  margin: 0;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0 0.26em;
