@@ -50,6 +50,8 @@
 }
 
 html {
+  /* Never a horizontal scroll, on phones too: nothing may stick out of the screen. */
+  overflow-x: clip;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   background: var(--bg);
@@ -64,7 +66,7 @@ body {
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 ::selection {
@@ -2542,6 +2544,8 @@ pre code {
 /* ---------- Docs hub ---------- */
 .page-hero {
   position: relative;
+  /* The blurred blobs stay inside the width of the screen. */
+  overflow-x: clip;
   padding-top: 72px;
   padding-bottom: 24px;
   text-align: center;
@@ -2901,6 +2905,7 @@ pre code {
 }
 
 .prose :not(pre) > code {
+  overflow-wrap: anywhere;
   padding: 0.15em 0.4em;
   border-radius: 6px;
   background: rgba(167, 139, 250, 0.12);
