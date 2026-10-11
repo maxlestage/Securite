@@ -15,7 +15,7 @@ All notable changes to this project are documented here. The format follows
   README and the website's footer, which now links the six projects of the
   ecosystem.
 - `securite::VERSION`, the version of the crate.
-- Website rewritten with [active](https://github.com/maxlestage/Active) instead of
+- Website rewritten with [active](https://maxlestage.github.io/Active/) instead of
   Yew and Trunk: the axum server (still protected by securite) renders every page
   with complete SEO tags (canonical address, `hreflang` alternates, Open Graph,
   JSON-LD, sitemap) under `/{fr,en,es}/…`, and only the interactive parts
