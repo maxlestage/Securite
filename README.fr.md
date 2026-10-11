@@ -53,8 +53,9 @@ Lisez le [README de la crate](crates/securite/README.md) et la [documentation](d
 
 ## Déployer depuis votre téléphone (sans ordinateur)
 
-**Option A — en un geste.** Touchez le bouton *Deploy to Heroku* ci-dessus,
-choisissez un nom d'application, touchez *Deploy app*. Heroku construit
+**Option A — en un geste.** Ouvrez `https://heroku.com/deploy?template=<l'adresse
+de votre dépôt>` sur votre téléphone, choisissez un nom d'application, touchez
+*Deploy app*. Heroku construit
 l'image Docker à partir de `heroku.yml` (≈ 10–15 min la première fois) et
 démarre le site.
 

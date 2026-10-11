@@ -1,0 +1,31 @@
+{
+  "name": "securite",
+  "description": "Website and live demo of securite, fast security middlewares for Rust (axum, hyper, tonic). Pages rendered with active, WebAssembly islands, installable PWA, protected by its own WAF, rate limiter, CSP and more.",
+  "logo": "https://maxlestage.github.io/Securite/static/favicon.svg",
+  "keywords": [
+    "rust",
+    "security",
+    "middleware",
+    "axum",
+    "waf",
+    "webassembly",
+    "active",
+    "pwa"
+  ],
+  "stack": "container",
+  "env": {
+    "SECURITE_ENV": {
+      "description": "`production` enables the HTTPS redirect, HSTS, upgrade-insecure-requests and reads the client IP from Heroku's X-Forwarded-For.",
+      "value": "production"
+    },
+    "RUST_LOG": {
+      "description": "Log filter (tracing). Security events use the `securite` target.",
+      "value": "info"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  }
+}
