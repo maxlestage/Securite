@@ -1,29 +1,20 @@
 //! A fully customised shield: every middleware configured explicitly.
 //!
 //! ```sh
-//! cargo run --example axum_advanced
+//! cargo run --example vitesse_advanced
 //! curl -i http://127.0.0.1:3000/
 //! curl -i http://127.0.0.1:3000/admin -H "Authorization: Bearer change-me-please"
 //! curl -i http://127.0.0.1:3000/stats
 //! ```
 
-use std::net::SocketAddr;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
-use axum::extract::{Extension, State};
-use axum::routing::{get, post};
-use axum::{Json, Router};
 use securite::headers::src;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-#[derive(Clone)]
-struct AppState {
-    shield: Shield,
-    waf: Waf,
-}
-
-#[tokio::main]
-async fn main() {
+fn main() -> std::io::Result<()> {
     let waf = Waf::new().paranoia(Paranoia::Medium);
 
     let shield = Shield::builder()
@@ -42,7 +33,7 @@ async fn main() {
         )
         .guard(
             RateLimit::new(Quota::per_second(20).burst(60))
-                .route_methods("/login", [http::Method::POST], Quota::per_minute(5))
+                .route_methods("/login", [Method::POST], Quota::per_minute(5))
                 .skip_paths(["/health"]),
         )
         .guard(ConcurrencyLimit::per_ip(32))
@@ -74,61 +65,49 @@ async fn main() {
         })
         .build();
 
-    let state = AppState {
-        shield: shield.clone(),
-        waf,
-    };
+    let mut app = App::new();
+    // Shared with the handlers: `req.state::<Shield>()`, `req.state::<Waf>()`.
+    app.state(shield.clone());
+    app.state(waf);
+    app.middleware(shield);
 
-    let app = Router::new()
-        .route(
-            "/",
-            get(|Extension(nonce): Extension<CspNonce>| async move {
-                axum::response::Html(format!(
-                    "<h1>Protected</h1><script nonce=\"{}\">console.log('allowed by CSP')</script>",
-                    nonce.0
-                ))
-            }),
-        )
-        .route("/health", get(|| async { "ok" }))
-        .route(
-            "/admin",
-            get(|Extension(p): Extension<Principal>| async move { format!("hello {}", p.name) }),
-        )
-        .route(
-            "/comment",
-            post(|State(s): State<AppState>, body: String| async move {
-                // The WAF can also inspect bodies on demand.
-                if s.waf.inspect_body(&body).blocked {
-                    return (http::StatusCode::FORBIDDEN, "malicious comment");
-                }
-                (http::StatusCode::CREATED, "saved")
-            }),
-        )
-        .route(
-            "/stats",
-            get(|State(s): State<AppState>| async move {
-                let st = s.shield.stats();
-                Json(serde_like(&st))
-            }),
-        )
-        .with_state(state)
-        .layer(shield);
+    app.get("/", |req: Request| async move {
+        // The nonce of this response's CSP, for the scripts the page runs.
+        let nonce = req
+            .get::<CspNonce>()
+            .map(|n| n.0.clone())
+            .unwrap_or_default();
+        Html(format!(
+            "<h1>Protected</h1><script nonce=\"{nonce}\">console.log('allowed by CSP')</script>"
+        ))
+    });
+    app.get("/health", |_req: Request| async { "ok" });
+    app.get("/admin", |req: Request| async move {
+        // Inserted by the `Auth` guard on the paths it protects.
+        let who = req
+            .get::<Principal>()
+            .map_or("nobody".to_string(), |p| p.name.to_string());
+        format!("hello {who}")
+    });
+    app.post("/comment", |req: Request| async move {
+        // The WAF can also inspect bodies on demand.
+        let body = req.text().await?;
+        if req.state::<Waf>().inspect_body(&body).blocked {
+            return Err(Error::forbidden("malicious comment"));
+        }
+        Ok(res::status(201).text("saved"))
+    });
+    app.get("/stats", |req: Request| async move {
+        res::json(counters(&req.state::<Shield>().stats()))
+    });
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
-    println!("listening on http://{}", listener.local_addr().unwrap());
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+    println!("listening on http://127.0.0.1:3000");
+    app.run("127.0.0.1:3000")
 }
 
-/// Tiny helper so the example does not depend on serde.
-fn serde_like(s: &StatsSnapshot) -> std::collections::BTreeMap<&'static str, u64> {
-    let mut m = std::collections::BTreeMap::new();
+/// The live counters of the shield, as a flat map.
+fn counters(s: &StatsSnapshot) -> BTreeMap<&'static str, u64> {
+    let mut m = BTreeMap::new();
     m.insert("total", s.total);
     m.insert("allowed", s.allowed());
     m.insert("blocked", s.blocked);

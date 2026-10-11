@@ -2,7 +2,7 @@
 #
 # securite website — multi-stage image
 #   1. build   : the browser bundle (active islands compiled to WebAssembly, then
-#                wasm-bindgen) and the axum server protected by the securite crate,
+#                wasm-bindgen) and the Vitesse server protected by the securite crate,
 #                which renders the pages with active
 #   2. runtime : small Debian image, non-root user
 #

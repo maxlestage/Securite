@@ -11,7 +11,7 @@
 #
 # GitHub Pages is static: the documentation, animations and navigation work, and the
 # security headers become a strict Content-Security-Policy <meta> tag (inline scripts
-# allowed by hash). The live attack playground needs the axum server (Heroku, Docker…):
+# allowed by hash). The live attack playground needs the Vitesse server (Heroku, Docker…):
 # the static pages say so.
 name: Deploy to GitHub Pages
 

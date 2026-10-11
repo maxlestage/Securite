@@ -18,9 +18,9 @@ Este repositorio contiene:
 
 | Carpeta | Contenido |
 |---|---|
-| [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para tower / axum / hyper / tonic |
+| [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para Vitesse, y para tower / hyper / tonic |
 | [`site`](site) | El **sitio web**, escrito con [active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
-| [`server`](server) | El servidor axum que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
+| [`server`](server) | El servidor Vitesse que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (33 páginas × 3 idiomas), compilada en el sitio |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Imagen de contenedor y **despliegue en Heroku con un toque** |
 | [`.github/workflows`](.github/workflows) | CI, **merge automático en master**, despliegue en Heroku, publicación en crates.io |
@@ -32,12 +32,12 @@ cargo add securite
 ```
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app = Router::new()
-    .route("/", get(|| async { "¡Hola, mundo seguro!" }))
-    .layer(Shield::recommended()); // cabeceras, WAF, rate limit, CSRF, request ids…
+let mut app = App::new();
+app.middleware(Shield::recommended()); // cabeceras, WAF, rate limit, CSRF, request ids…
+app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
 | Categoría | Middlewares |

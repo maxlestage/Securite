@@ -1,7 +1,7 @@
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    // Headers, WAF, rate limiting, CSRF, request ids…
-    .layer(Shield::recommended());
+let mut app = App::new();
+// Headers, WAF, rate limiting, CSRF, request ids…
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "Hello, secure world!" });

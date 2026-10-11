@@ -7,14 +7,15 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
-axum = "0.8"
+# The web server, with Brotli and gzip for the pages, the stylesheet and the bundle.
+vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false, features = ["compress"] }
 securite = { path = "../crates/securite" }
 securite-site = { path = "../site" }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
-tower-http = { version = "0.7", features = ["compression-br", "compression-gzip"] }
+# securite writes its security events with tracing.
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
+# `#[tokio::test]`: the tests call the server through Vitesse's test client.
+tokio = { version = "1", features = ["macros", "rt"] }

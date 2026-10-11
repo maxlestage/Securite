@@ -138,8 +138,10 @@ impl<G: Guard + ?Sized> Guard for std::sync::Arc<G> {
     }
 }
 
-/// Implements `tower::Layer` for a guard so it can be used standalone:
-/// `router.layer(RateLimit::per_second(10))`.
+/// Implements `tower::Layer` and `From<guard> for Shield` so a guard can be
+/// used standalone: `app.middleware(Shield::from(RateLimit::per_second(10)))`
+/// with Vitesse, `ServiceBuilder::new().layer(RateLimit::per_second(10))`
+/// with tower.
 macro_rules! impl_layer {
     ($($ty:ty),* $(,)?) => {$(
         impl<S> tower_layer::Layer<S> for $ty {

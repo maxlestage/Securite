@@ -18,9 +18,9 @@ This repository contains:
 
 | Folder | What |
 |---|---|
-| [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for tower / axum / hyper / tonic |
+| [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for Vitesse, and for tower / hyper / tonic |
 | [`site`](site) | The **website**, written with [active](https://maxlestage.github.io/Active/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
-| [`server`](server) | The axum server that renders and hosts the website and its playground API — protected by `securite` itself |
+| [`server`](server) | The Vitesse server that renders and hosts the website and its playground API — protected by `securite` itself |
 | [`docs`](docs) | The **documentation** (33 pages × 3 languages), compiled into the website |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Container image and **one-tap Heroku deployment** |
 | [`.github/workflows`](.github/workflows) | CI, **auto-merge into master**, Heroku deploy, crates.io publishing |
@@ -32,12 +32,12 @@ cargo add securite
 ```
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .layer(Shield::recommended()); // headers, WAF, rate limit, CSRF, request ids…
+let mut app = App::new();
+app.middleware(Shield::recommended()); // headers, WAF, rate limit, CSRF, request ids…
+app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
 | Category | Middlewares |

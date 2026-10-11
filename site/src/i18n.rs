@@ -210,7 +210,7 @@ const ICON_SHIELD: &str = "shield";
 
 pub static FR: Texts = Texts {
     site_title: "Middlewares de sécurité pour Rust",
-    site_description: "Des middlewares de sécurité pour Rust rapides, simples et complets (axum, hyper, tonic, tower) : WAF, rate limiting, CSP, CSRF, CORS, auto-ban, authentification, signatures de webhooks. Documentation en français, anglais et espagnol.",
+    site_description: "Des middlewares de sécurité pour Rust rapides, simples et complets (Vitesse, hyper, tonic, tower) : WAF, rate limiting, CSP, CSRF, CORS, auto-ban, authentification, signatures de webhooks. Documentation en français, anglais et espagnol.",
     skip: "Aller au contenu",
     back_to_top: "Haut de page",
     nav_home: "Accueil",
@@ -234,7 +234,7 @@ pub static FR: Texts = Texts {
         "le path traversal",
         "les scanners",
     ],
-    hero_subtitle: "Des middlewares de sécurité natifs, ultra-rapides et prêts pour la production. Une seule ligne pour axum, hyper, tonic et tout l'écosystème tower.",
+    hero_subtitle: "Des middlewares de sécurité natifs, ultra-rapides et prêts pour la production. Une seule ligne pour Vitesse, et pour hyper, tonic et tout l'écosystème tower.",
     hero_cta_primary: "Démarrer en 2 minutes",
     hero_cta_secondary: "Lancer une attaque",
     copy: "Copier",
@@ -475,7 +475,7 @@ pub static FR: Texts = Texts {
     play_blocked: "BLOQUÉ",
     play_allowed: "AUTORISÉ",
     play_offline: "Le serveur de démo n'est pas joignable (site statique). Lancez le serveur pour tester en direct.",
-    play_static: "Cette version du site est statique (GitHub Pages) : le playground d'attaques en direct a besoin du serveur axum. Déployez-le sur Heroku en un clic ou lancez-le avec Docker pour l'attaquer pour de vrai.",
+    play_static: "Cette version du site est statique (GitHub Pages) : le playground d'attaques en direct a besoin du serveur Vitesse. Déployez-le sur Heroku en un clic ou lancez-le avec Docker pour l'attaquer pour de vrai.",
     play_stats: "Statistiques du bouclier en direct",
     play_total: "Requêtes",
     play_passed: "Autorisées",
@@ -528,7 +528,7 @@ pub static FR: Texts = Texts {
     footer_projects: [
         "Front-end : composants, SSR, îlots WebAssembly",
         "Serveur web façon Express, HTTP/3",
-        "Middlewares de sécurité pour tower et axum",
+        "Middlewares de sécurité pour Vitesse et tower",
         "ORM asynchrone typé, SQL et NoSQL",
         "Le framework full-stack qui les réunit",
         "Des apps SwiftUI écrites en Rust",
@@ -553,7 +553,7 @@ pub static FR: Texts = Texts {
 
 pub static EN: Texts = Texts {
     site_title: "Security middlewares for Rust",
-    site_description: "Fast, easy, batteries-included security middlewares for Rust (axum, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, auth, webhook signatures. Documentation in English, French and Spanish.",
+    site_description: "Fast, easy, batteries-included security middlewares for Rust (Vitesse, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, auth, webhook signatures. Documentation in English, French and Spanish.",
     skip: "Skip to content",
     back_to_top: "Back to top",
     nav_home: "Home",
@@ -577,7 +577,7 @@ pub static EN: Texts = Texts {
         "path traversal",
         "scanners",
     ],
-    hero_subtitle: "Native, blazing-fast, production-ready security middlewares. One line for axum, hyper, tonic and the whole tower ecosystem.",
+    hero_subtitle: "Native, blazing-fast, production-ready security middlewares. One line for Vitesse, and for hyper, tonic and the whole tower ecosystem.",
     hero_cta_primary: "Start in 2 minutes",
     hero_cta_secondary: "Launch an attack",
     copy: "Copy",
@@ -818,7 +818,7 @@ pub static EN: Texts = Texts {
     play_blocked: "BLOCKED",
     play_allowed: "ALLOWED",
     play_offline: "The demo server is not reachable (static hosting). Run the server to test live.",
-    play_static: "This copy of the site is static (GitHub Pages): the live attack playground needs the axum server. Deploy it on Heroku in one tap or run it with Docker to attack it for real.",
+    play_static: "This copy of the site is static (GitHub Pages): the live attack playground needs the Vitesse server. Deploy it on Heroku in one tap or run it with Docker to attack it for real.",
     play_stats: "Live shield statistics",
     play_total: "Requests",
     play_passed: "Allowed",
@@ -871,7 +871,7 @@ pub static EN: Texts = Texts {
     footer_projects: [
         "Front-end: components, SSR, WebAssembly islands",
         "Express-style web server, HTTP/3",
-        "Security middlewares for tower & axum",
+        "Security middlewares for Vitesse & tower",
         "Async, type-safe ORM, SQL & NoSQL",
         "The full-stack framework that unites them",
         "SwiftUI apps written in Rust",
@@ -896,7 +896,7 @@ pub static EN: Texts = Texts {
 
 pub static ES: Texts = Texts {
     site_title: "Middlewares de seguridad para Rust",
-    site_description: "Middlewares de seguridad para Rust rápidos, sencillos y completos (axum, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, autenticación, firmas de webhooks. Documentación en español, inglés y francés.",
+    site_description: "Middlewares de seguridad para Rust rápidos, sencillos y completos (Vitesse, hyper, tonic, tower): WAF, rate limiting, CSP, CSRF, CORS, auto-ban, autenticación, firmas de webhooks. Documentación en español, inglés y francés.",
     skip: "Saltar al contenido",
     back_to_top: "Volver arriba",
     nav_home: "Inicio",
@@ -920,7 +920,7 @@ pub static ES: Texts = Texts {
         "path traversal",
         "escáneres",
     ],
-    hero_subtitle: "Middlewares de seguridad nativos, ultrarrápidos y listos para producción. Una sola línea para axum, hyper, tonic y todo el ecosistema tower.",
+    hero_subtitle: "Middlewares de seguridad nativos, ultrarrápidos y listos para producción. Una sola línea para Vitesse, y para hyper, tonic y todo el ecosistema tower.",
     hero_cta_primary: "Empieza en 2 minutos",
     hero_cta_secondary: "Lanzar un ataque",
     copy: "Copiar",
@@ -1161,7 +1161,7 @@ pub static ES: Texts = Texts {
     play_blocked: "BLOQUEADO",
     play_allowed: "PERMITIDO",
     play_offline: "El servidor de demo no está disponible (alojamiento estático). Arranca el servidor para probar en directo.",
-    play_static: "Esta versión del sitio es estática (GitHub Pages): el playground de ataques en directo necesita el servidor axum. Despliégalo en Heroku con un toque o arráncalo con Docker para atacarlo de verdad.",
+    play_static: "Esta versión del sitio es estática (GitHub Pages): el playground de ataques en directo necesita el servidor Vitesse. Despliégalo en Heroku con un toque o arráncalo con Docker para atacarlo de verdad.",
     play_stats: "Estadísticas del escudo en directo",
     play_total: "Peticiones",
     play_passed: "Permitidas",
@@ -1214,7 +1214,7 @@ pub static ES: Texts = Texts {
     footer_projects: [
         "Front-end: componentes, SSR, islas WebAssembly",
         "Servidor web estilo Express, HTTP/3",
-        "Middlewares de seguridad para tower y axum",
+        "Middlewares de seguridad para Vitesse y tower",
         "ORM asíncrono tipado, SQL y NoSQL",
         "El framework full-stack que los une",
         "Apps SwiftUI escritas en Rust",

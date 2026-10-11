@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **Vitesse instead of axum.** The `Shield` and the `SignatureLayer` are
+  [Vitesse](https://maxlestage.github.io/Vitesse/) middlewares
+  (`app.middleware(Shield::recommended())`, feature `vitesse`, enabled by
+  default): the guards receive the peer address of the connection, and what they
+  add to the request (`ClientIp`, `RequestIdValue`, `CspNonce`, `CsrfToken`,
+  `Principal`) is read by handlers with `req.get::<T>()`. The `axum` feature and
+  dependency are removed: the shield no longer reads axum's `ConnectInfo`; the
+  `tower::Layer` implementation stays for hyper, tonic and `ServiceBuilder`
+  (insert a `PeerAddr`). The examples (`vitesse_basic`, `vitesse_advanced`), the
+  integration tests and the documentation use Vitesse; the website's own server
+  runs on Vitesse too.
 - License: securite is proprietary software by Maxime Nathan Lestage, all rights
   reserved (see `LICENSE`); it is free to use as a dependency, commercially too,
   but not to modify or redistribute. The MIT/Apache-2.0 dual license is withdrawn.
@@ -16,7 +27,7 @@ All notable changes to this project are documented here. The format follows
   ecosystem.
 - `securite::VERSION`, the version of the crate.
 - Website rewritten with [active](https://maxlestage.github.io/Active/) instead of
-  Yew and Trunk: the axum server (still protected by securite) renders every page
+  Yew and Trunk: the web server (protected by securite itself) renders every page
   with complete SEO tags (canonical address, `hreflang` alternates, Open Graph,
   JSON-LD, sitemap) under `/{fr,en,es}/…`, and only the interactive parts
   (typewriter, middleware filter, code tabs, live attack playground, live shield

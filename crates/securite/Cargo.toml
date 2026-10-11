@@ -1,7 +1,7 @@
 [package]
 name = "securite"
 version = "0.1.0"
-description = "Fast, easy, batteries-included security middlewares for tower / axum / hyper: security headers & CSP, rate limiting, WAF, CSRF, CORS, IP filtering, auto-ban, auth, HMAC webhooks and more."
+description = "Fast, easy, batteries-included security middlewares for Vitesse (and any tower / hyper service): security headers & CSP, rate limiting, WAF, CSRF, CORS, IP filtering, auto-ban, auth, HMAC webhooks and more."
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -9,7 +9,7 @@ authors.workspace = true
 homepage = "https://maxlestage.github.io/Securite/"
 documentation = "https://docs.rs/securite"
 readme = "README.md"
-keywords = ["security", "middleware", "axum", "tower", "waf"]
+keywords = ["security", "middleware", "vitesse", "tower", "waf"]
 categories = ["web-programming::http-server", "network-programming", "authentication", "cryptography"]
 exclude = ["/benches/results"]
 
@@ -18,9 +18,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["axum"]
-## Reads the peer address from axum's `ConnectInfo<SocketAddr>` extension.
-axum = ["dep:axum"]
+default = ["vitesse"]
+## The shield as a Vitesse middleware: `app.middleware(Shield::recommended())`.
+vitesse = ["dep:vitesse"]
 
 [dependencies]
 aho-corasick = "1.1"
@@ -37,10 +37,10 @@ subtle = "2.6"
 tower-layer = "0.3"
 tower-service = "0.3"
 tracing = "0.1"
-axum = { version = "0.8", default-features = false, features = ["tokio"], optional = true }
+vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false, optional = true }
 
 [dev-dependencies]
-axum = { version = "0.8", features = ["macros", "json"] }
+vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false }
 bytes = "1"
 tower-layer = "0.3"
 criterion = { version = "0.8", default-features = false }
@@ -53,7 +53,9 @@ name = "shield"
 harness = false
 
 [[example]]
-name = "axum_basic"
+name = "vitesse_basic"
+required-features = ["vitesse"]
 
 [[example]]
-name = "axum_advanced"
+name = "vitesse_advanced"
+required-features = ["vitesse"]
