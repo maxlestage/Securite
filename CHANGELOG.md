@@ -89,8 +89,10 @@ Found by reviewing every middleware of `pratique` before its first release:
   reserved (see `LICENSE`); it is free to use as a dependency, commercially too,
   but not to modify or redistribute. The MIT/Apache-2.0 dual license is withdrawn.
 - Credits: Maxime Nathan Lestage is named as the author in the crate metadata, the
-  README and the website's footer, which now links the six projects of the
+  README and the website's footer, which now links the seven projects of the
   ecosystem.
+- Credits: Solidify joins the projects linked by the README, the license and the
+  website's footer.
 - `securite::VERSION`, the version of the crate.
 - Website rewritten with [Active](https://maxlestage.github.io/Active/) instead of
   Yew and Trunk: the web server (protected by Securite itself) renders every page
