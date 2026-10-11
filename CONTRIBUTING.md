@@ -14,7 +14,7 @@ Thanks for helping make Rust services safer!
    cargo test --workspace
    ```
 
-   The website (`site/`, written with [active](https://github.com/maxlestage/Active))
+   The website (`site/`, written with [active](https://maxlestage.github.io/Active/))
    is rendered by `server/`. To see it, build the browser bundle, then run the server
    (needs `rustup target add wasm32-unknown-unknown` and
    `cargo install wasm-bindgen-cli --version 0.2.129`):

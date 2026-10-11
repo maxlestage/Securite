@@ -399,12 +399,9 @@ mod tests {
             assert!(footer.contains(r#"class="credits-name""#), "{lang}");
             assert!(footer.contains("Maxime Nathan Lestage"), "{lang}");
             assert!(footer.contains(rights), "{lang}");
-            assert!(
-                footer.contains(
-                    r#"href="https://github.com/maxlestage/Securite/blob/master/LICENSE""#
-                ),
-                "{lang}"
-            );
+            assert!(footer.contains(r#"href="/static/LICENSE.txt""#), "{lang}");
+            // No link to GitHub anywhere: the project is not open source.
+            assert!(!body.contains("github.com"), "{lang}");
             assert!(!footer.contains("MIT"), "{lang}");
             // The install command and the version of the crate.
             assert!(footer.contains("cargo add securite"), "{lang}");
@@ -436,6 +433,10 @@ mod tests {
                 "{lang}"
             );
         }
+        // The license is served by the site, identical to the repository's.
+        let (status, _, body) = get(&app, "/static/LICENSE.txt").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, include_str!("../../LICENSE"));
     }
 
     #[tokio::test]

@@ -13,12 +13,11 @@ use crate::i18n::Lang;
 use crate::routes::{Page, Route, normalize_base};
 use assets::Assets;
 
-pub const REPO: &str = "https://github.com/maxlestage/Securite";
-/// The license, read online: proprietary, all rights reserved.
-pub const LICENSE: &str = "https://github.com/maxlestage/Securite/blob/master/LICENSE";
+/// The license, served by the site itself (a copy of the repository's LICENSE): proprietary,
+/// all rights reserved.
+pub const LICENSE_PATH: &str = "/static/LICENSE.txt";
 /// Who designed and built securite and its sister projects.
 pub const AUTHOR: &str = "Maxime Nathan Lestage";
-pub const AUTHOR_URL: &str = "https://github.com/maxlestage";
 /// The sister projects of securite, by the same author: (name, website). The footer links
 /// them in this order; `i18n::Texts::footer_projects` describes each one in the same order.
 pub const ECOSYSTEM: [(&str, &str); 6] = [
@@ -31,8 +30,6 @@ pub const ECOSYSTEM: [(&str, &str); 6] = [
 ];
 pub const CRATES_IO: &str = "https://crates.io/crates/securite";
 pub const DOCS_RS: &str = "https://docs.rs/securite";
-pub const HEROKU_DEPLOY: &str =
-    "https://www.heroku.com/deploy?template=https://github.com/maxlestage/Securite";
 /// Background of the site (`--bg` in main.css): theme and splash screen color.
 pub const THEME: &str = "#05060a";
 

@@ -14,7 +14,7 @@ El repositorio incluye todo lo que Heroku necesita: un `Dockerfile`, un `heroku.
 
 ## Método A, el botón Deploy
 
-1. Abra el [enlace Deploy to Heroku](https://www.heroku.com/deploy?template=https://github.com/maxlestage/Securite), o toque el botón **Deploy to Heroku** del README, e inicie sesión en Heroku.
+1. Abra el enlace Deploy to Heroku, o toque el botón **Deploy to Heroku** del README, e inicie sesión en Heroku.
 2. Elija un **App name**: letras minúsculas, cifras y guiones, único en todo Heroku. Elija una región.
 3. Conserve las variables de configuración que `app.json` rellena:
    * `SECURITE_ENV=production` activa la redirección a HTTPS, HSTS y `upgrade-insecure-requests`, y lee la IP del cliente de la cabecera `X-Forwarded-For` de Heroku.

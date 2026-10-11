@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Pages, islands and browser bundle of the securite website, written with active."
 edition.workspace = true
 license-file.workspace = true
-repository.workspace = true
 publish = false
 
 # The library holds the texts, routes and islands shared by both sides. Natively it also
