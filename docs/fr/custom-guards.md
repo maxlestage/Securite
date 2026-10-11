@@ -148,8 +148,8 @@ impl Guard for Maintenance {
 Conservez un clone du guard : tous les clones partagent le même indicateur.
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let maintenance = Maintenance::new(
     IpSet::parse(["10.0.0.0/8", "192.0.2.0/24"]).expect("valid networks"),
@@ -159,10 +159,10 @@ let shield = ShieldBuilder::recommended()
     .guard(maintenance.clone())
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .route("/health", get(|| async { "ok" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "Hello, secure world!" });
+app.get("/health", |_req: Request| async { "ok" });
 
 // Later, from wherever you kept the clone:
 maintenance.set_enabled(true);
@@ -250,6 +250,6 @@ mod tests {
 - **Gardez vos guards synchrones et rapides.** Les guards s'exécutent sur chaque requête et ne peuvent pas faire `.await`. Évitez toute E/S bloquante : rafraîchissez plutôt un état partagé en arrière-plan (un `Arc<RwLock<…>>` ou un atomique, comme ci-dessus).
 - **Choisissez un nom unique.** `.guard()` remplace un guard de même nom : appeler le vôtre `waf` retirerait silencieusement le WAF intégré.
 - **Ne supposez pas que `on_request` a été appelé.** `on_response` l'est pour chaque réponse, y compris les rejets émis par des guards qui s'exécutent avant le vôtre. Vérifiez `ctx.rejected_by()` ou `ctx.blocked()` quand cela compte.
-- **Transmettez les données aux handlers via la requête.** Insérez-les dans `req.extensions` et lisez-les avec l'extracteur `Extension<T>` d'axum ; `ctx.extensions_mut()` est réservé aux guards. Les valeurs stockées dans l'un ou l'autre doivent implémenter `Clone + Send + Sync`.
+- **Transmettez les données aux handlers via la requête.** Insérez-les dans `req.extensions` et lisez-les dans les handlers avec `req.get::<T>()` ; `ctx.extensions_mut()` est réservé aux guards. Les valeurs stockées dans l'un ou l'autre doivent implémenter `Clone + Send + Sync`.
 - **Aucun secret dans les messages.** Le message parvient au client ; `with_details` reste dans vos logs.
 - **Déployez progressivement.** Renvoyez `Mode::Monitor` depuis `mode()` pour observer une nouvelle règle avant de l'appliquer, voir [Mode observation](/docs/monitor-mode).

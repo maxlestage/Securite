@@ -42,8 +42,8 @@ L'état réside dans un stockage en mémoire partitionné et borné (64 partitio
 ```rust
 use std::time::Duration;
 
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     .guard(
@@ -54,9 +54,9 @@ let shield = Shield::builder()
     )
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuration
@@ -90,7 +90,7 @@ Tous les clones d'un `AutoBan` partagent le même état. Gardez-en un pour gére
 ```rust
 use std::time::Duration;
 
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let shield = Shield::builder()
@@ -119,30 +119,30 @@ Les connexions ratées produisent des `401`, puis des `429` une fois le quota de
 use std::net::IpAddr;
 use std::time::Duration;
 
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::Router;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn list_bans(State(ban): State<AutoBan>) -> String {
-    ban.banned()
+async fn list_bans(req: Request) -> String {
+    req.state::<AutoBan>()
+        .banned()
         .into_iter()
         .map(|(ip, left)| format!("{ip}\t{}s\n", left.as_secs()))
         .collect()
 }
 
-async fn ban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.ban(ip, Duration::from_secs(24 * 3600));
-    StatusCode::NO_CONTENT
+async fn ban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().ban(ip, Duration::from_secs(24 * 3600));
+    Ok(StatusCode::NO_CONTENT)
 }
 
-async fn unban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.unban(ip);
-    StatusCode::NO_CONTENT
+async fn unban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().unban(ip);
+    Ok(StatusCode::NO_CONTENT)
 }
 
-fn app() -> Router {
+fn app() -> App {
     let ban = AutoBan::new();
     let shield = Shield::builder()
         // Only the internal network may reach /admin.
@@ -150,27 +150,29 @@ fn app() -> Router {
         .guard(ban.clone())
         .build();
 
-    Router::new()
-        .route("/admin/bans", get(list_bans))
-        .route("/admin/bans/{ip}", post(ban_ip).delete(unban_ip))
-        .with_state(ban)
-        .layer(shield)
+    let mut app = App::new();
+    app.state(ban);
+    app.middleware(shield);
+    app.get("/admin/bans", list_bans);
+    app.post("/admin/bans/:ip", ban_ip);
+    app.delete("/admin/bans/:ip", unban_ip);
+    app
 }
 ```
 
-## Utilisation en couche autonome
+## Utilisation en guard autonome
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_second(10))
-    .layer(AutoBan::new()); // outermost: sees the 429s of the inner layer
+let mut app = App::new();
+app.middleware(Shield::from(AutoBan::new())); // le plus externe : il voit les 429 du middleware intérieur
+app.middleware(Shield::from(RateLimit::per_second(10)));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
-Avec axum, le dernier appel à `.layer()` est la couche la plus externe. Placez `AutoBan` à l'extérieur des couches dont les rejets doivent compter : il bloque aussi les clients bannis avant qu'ils ne les atteignent. D'une couche à l'autre, seuls les statuts pénalisants comptent : un `413` renvoyé par un `BodyLimit` autonome n'est pas une pénalité, sauf si vous l'ajoutez avec `count_status(413)`. Au sein d'un même `Shield`, chaque blocage compte.
+Avec Vitesse, le premier middleware ajouté est le plus externe. Ajoutez `AutoBan` avant les middlewares dont les rejets doivent compter : il bloque aussi les clients bannis avant qu'ils ne les atteignent. D'un middleware à l'autre, seuls les statuts pénalisants comptent : un `413` renvoyé par un `BodyLimit` autonome n'est pas une pénalité, sauf si vous l'ajoutez avec `count_status(413)`. Au sein d'un même `Shield`, chaque blocage compte.
 
 ## En-têtes de réponse
 

@@ -40,21 +40,19 @@ Pour Stripe, chaque entrée `v1` de l'en-tête est essayée, ce qui continue de 
 ## Démarrage rapide
 
 ```rust
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let secret = std::env::var("GITHUB_WEBHOOK_SECRET").expect("GITHUB_WEBHOOK_SECRET must be set");
 
-let app: Router = Router::new()
-    .route(
-        "/webhooks/github",
-        post(|body: String| async move {
-            // Only reached when the signature is valid.
-            format!("received {} bytes", body.len())
-        }),
-    )
-    .layer(SignatureLayer::new(SignatureVerifier::github(secret)).paths(["/webhooks/github"]))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.middleware(SignatureLayer::new(SignatureVerifier::github(secret)).paths(["/webhooks/github"]));
+app.post("/webhooks/github", |req: Request| async move {
+    // Only reached when the signature is valid.
+    let body = req.text().await?;
+    Ok::<_, Error>(format!("received {} bytes", body.len()))
+});
 ```
 
 Le shield est ajouté en dernier, il s'exécute donc en premier : limitation de débit, filtrage IP et contrôles des en-têtes ont lieu avant toute mise en tampon du corps.
@@ -79,46 +77,50 @@ Empilez une couche par fournisseur, chacune limitée à son propre chemin :
 ```rust
 use std::time::Duration;
 
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let env = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
 
-let app: Router = Router::new()
-    .route("/webhooks/github", post(|body: String| async move { body.len().to_string() }))
-    .route("/webhooks/stripe", post(|body: String| async move { body.len().to_string() }))
-    .route("/webhooks/slack", post(|body: String| async move { body.len().to_string() }))
-    .layer(
-        SignatureLayer::new(SignatureVerifier::github(env("GITHUB_WEBHOOK_SECRET")))
-            .paths(["/webhooks/github"]),
+async fn size(req: Request) -> Result<String, Error> {
+    Ok(req.text().await?.len().to_string())
+}
+
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.middleware(
+    SignatureLayer::new(SignatureVerifier::github(env("GITHUB_WEBHOOK_SECRET")))
+        .paths(["/webhooks/github"]),
+);
+app.middleware(
+    SignatureLayer::new(
+        SignatureVerifier::stripe(env("STRIPE_WEBHOOK_SECRET"))
+            .tolerance(Duration::from_secs(120))
+            .max_body(256 * 1024),
     )
-    .layer(
-        SignatureLayer::new(
-            SignatureVerifier::stripe(env("STRIPE_WEBHOOK_SECRET"))
-                .tolerance(Duration::from_secs(120))
-                .max_body(256 * 1024),
-        )
-        .paths(["/webhooks/stripe"]),
-    )
-    .layer(
-        SignatureLayer::new(SignatureVerifier::slack(env("SLACK_SIGNING_SECRET")))
-            .paths(["/webhooks/slack"]),
-    )
-    .layer(Shield::recommended());
+    .paths(["/webhooks/stripe"]),
+);
+app.middleware(
+    SignatureLayer::new(SignatureVerifier::slack(env("SLACK_SIGNING_SECRET")))
+        .paths(["/webhooks/slack"]),
+);
+app.post("/webhooks/github", size);
+app.post("/webhooks/stripe", size);
+app.post("/webhooks/slack", size);
 ```
 
 ## Exigence sur le corps
 
-La couche reconstruit la requête à partir des octets mis en tampon : le type du corps de requête doit donc implémenter `http_body::Body` et `From<Bytes>`. C'est le cas d'`axum::body::Body`, si bien que la couche fonctionne d'emblée avec axum. Avec un serveur hyper brut, `Incoming` ne l'implémente pas : convertissez-le d'abord, par exemple avec `axum::body::Body::new(incoming)`.
+Avec Vitesse, le middleware lit le corps, le vérifie et le rend à la requête : les handlers le lisent comme d'habitude. Dans un service tower, la couche reconstruit la requête à partir des octets mis en tampon : le type du corps de requête doit donc implémenter `http_body::Body` et `From<Bytes>` ; `Incoming` de hyper ne l'implémente pas, convertissez-le d'abord en un type de corps qui le fait (un corps boxé, par exemple).
 
 ## Tester avec `sign()`
 
 `sign()` calcule le HMAC hexadécimal exactement des octets fournis, ce qui facilite la construction de requêtes de test signées :
 
 ```rust
-use axum::{body::Body, http::{Request, StatusCode}, routing::post, Router};
 use securite::prelude::*;
-use tower::ServiceExt;
+use vitesse::prelude::*;
+use vitesse::test::TestClient;
 
 #[tokio::test]
 async fn accepts_signed_github_payload() {
@@ -126,16 +128,18 @@ async fn accepts_signed_github_payload() {
     let payload = r#"{"action":"opened"}"#;
     let signature = format!("sha256={}", verifier.sign(payload.as_bytes()));
 
-    let app: Router = Router::new()
-        .route("/webhooks/github", post(|body: String| async move { body }))
-        .layer(SignatureLayer::new(verifier).paths(["/webhooks/github"]));
+    let mut app = App::new();
+    app.middleware(SignatureLayer::new(verifier).paths(["/webhooks/github"]));
+    app.post("/webhooks/github", |req: Request| async move { req.text().await });
 
-    let request = Request::post("/webhooks/github")
-        .header("x-hub-signature-256", signature)
-        .body(Body::from(payload))
-        .unwrap();
-    let response = app.oneshot(request).await.unwrap();
+    let client = TestClient::new(app);
+    let response = client
+        .post("/webhooks/github")
+        .header("x-hub-signature-256", &signature)
+        .body(payload)
+        .await;
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.text(), payload);
 }
 ```
 

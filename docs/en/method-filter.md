@@ -32,12 +32,12 @@ request ----> method in allow-list?
 ## Quick start
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Shield::builder().guard(MethodFilter::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(MethodFilter::new()).build());
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 `MethodFilter::new()` is already part of the `recommended`, `strict` and `api` presets.
@@ -70,7 +70,7 @@ let shield = Shield::builder()
 `only` replaces the defaults, so list everything you need, including custom verbs such as a cache `PURGE`:
 
 ```rust
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let purge = Method::from_bytes(b"PURGE").expect("valid method");
@@ -93,15 +93,15 @@ use securite::prelude::*;
 let filter = MethodFilter::new().allow_method_override();
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(MethodFilter::read_only());
+let mut app = App::new();
+app.middleware(Shield::from(MethodFilter::read_only()));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Response headers
@@ -122,8 +122,8 @@ An override header gets `400 Bad Request` with the code `method_override`. The r
 ## Pitfalls and tips
 
 * **Keep `OPTIONS` if you use CORS**: browsers send preflights with `OPTIONS`, and the method filter runs before the CORS guard. Without it, every cross-origin preflight fails with `405`.
-* **Keep `HEAD` next to `GET`**: uptime monitors, crawlers and link checkers rely on it, and axum answers `HEAD` for every `GET` route.
-* `MethodFilter` is global. Per-route method restrictions remain your router's job (axum answers `405` for a known path with an unrouted method).
+* **Keep `HEAD` next to `GET`**: uptime monitors, crawlers and link checkers rely on it, and Vitesse answers `HEAD` for every `GET` route.
+* `MethodFilter` is global. Per-route method restrictions remain your router's job (Vitesse answers `405` for a known path with an unrouted method).
 * Method names are case-sensitive: `get` is not `GET`, and is refused.
 
 > **Tip:** the security event of a refused method carries the method name. A spike of `TRACE`, `PROPFIND` or `DEBUG` usually means a scanner is crawling your site; [auto-ban](/docs/auto-ban) in the same shield counts every refused method as a strike and can stop it.

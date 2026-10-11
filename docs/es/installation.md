@@ -1,6 +1,6 @@
 ---
 title: Instalación
-summary: Añade securite a tu proyecto, elige las features adecuadas para axum, hyper o tonic y dale al shield la dirección IP real del cliente.
+summary: Añade securite a tu proyecto, elige las features adecuadas para Vitesse, hyper o tonic y dale al shield la dirección IP real del cliente.
 category: start
 order: 2
 ---
@@ -20,13 +20,12 @@ O decláralo a mano en `Cargo.toml`:
 securite = "0.1"
 ```
 
-Una aplicación axum típica necesita:
+Una aplicación Vitesse típica necesita:
 
 ```toml
 [dependencies]
 securite = "0.1"
-axum = "0.8"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+vitesse = "0.1"
 ```
 
 ## Requisitos
@@ -44,51 +43,39 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 
 | Feature | Por defecto | Efecto |
 |---|---|---|
-| `axum` | Activada | Lee la dirección del peer TCP de la extensión `ConnectInfo<SocketAddr>` de axum. Incorpora `axum` 0.8 con las features mínimas. |
+| `vitesse` | Activada | El `Shield` y el `SignatureLayer` son middlewares de Vitesse: `app.middleware(Shield::recommended())`. Incorpora `vitesse` con las features mínimas. |
 
-Si usas hyper, tonic u otro stack tower sin axum, desactiva las features por defecto:
+Si usas hyper, tonic u otro stack tower sin Vitesse, desactiva las features por defecto:
 
 ```toml
 [dependencies]
 securite = { version = "0.1", default-features = false }
 ```
 
-> **Consejo:** Desactivar la feature `axum` solo elimina la dependencia de axum. Todos los guards, presets y capas siguen disponibles; la dirección del peer se lee entonces de la extensión de petición `PeerAddr` o `SocketAddr`.
+> **Consejo:** Desactivar la feature `vitesse` solo elimina la dependencia de Vitesse. Todos los guards, presets y capas tower siguen disponibles; la dirección del peer se lee entonces de la extensión de petición `PeerAddr` o `SocketAddr`.
 
 ## Exponer la IP del cliente
 
 La limitación de tasa, los límites de concurrencia, el baneo automático y el filtrado de IP indexan su estado por la dirección del cliente, así que el shield necesita saber quién se conecta.
 
-### axum
+### Vitesse
 
-Sirve el router con `into_make_service_with_connect_info::<SocketAddr>()`:
+Nada que configurar: Vitesse entrega al shield la dirección de cada conexión.
 
 ```rust
-use std::net::SocketAddr;
-
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-#[tokio::main]
-async fn main() {
-    let app = Router::new()
-        .route("/", get(|| async { "Hello, secure world!" }))
-        .layer(Shield::recommended());
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(
-        listener,
-        // Without this, the shield cannot see the client address.
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+fn main() -> std::io::Result<()> {
+    let mut app = App::new();
+    // El shield lee la dirección de cada conexión: no hay nada más que hacer.
+    app.middleware(Shield::recommended());
+    app.get("/", |_req: Request| async { "Hello, secure world!" });
+    app.run(3000)
 }
 ```
 
-> **Atención:** Con un simple `axum::serve(listener, app)` no se conoce ninguna dirección de cliente: el limitador por IP recurre a un único cubo compartido por todos los clientes, y el baneo automático y el límite de concurrencia se omiten. El shield lo señala con una advertencia que registra una sola vez, bajo el target `securite`.
-
-> **Atención:** securite lee el tipo `ConnectInfo` de axum 0.8. Si tu aplicación depende de otra versión mayor de axum, inserta tú mismo `PeerAddr`, como en el ejemplo de hyper que aparece a continuación.
+> **Atención:** En un servicio tower sin `PeerAddr` (ver más abajo) no se conoce ninguna dirección de cliente: el limitador por IP recurre a un único cubo compartido por todos los clientes, y el baneo automático y el límite de concurrencia se omiten. El shield lo señala con una advertencia que registra una sola vez, bajo el target `securite`.
 
 ### hyper
 
@@ -164,19 +151,22 @@ let shield = ShieldBuilder::recommended()
     .build();
 ```
 
-Configura la fuente en el shield más externo: los shields interiores y las capas independientes reutilizan la dirección que este resolvió. La página [IP del cliente](/docs/client-ip) explica cada fuente y sus riesgos de suplantación.
+Configura la fuente en el shield más externo: los shields interiores y los guards independientes reutilizan la dirección que este resolvió. La página [IP del cliente](/docs/client-ip) explica cada fuente y sus riesgos de suplantación.
 
 ## Comprobar la configuración
 
 Este handler devuelve la dirección que ha resuelto el shield. Detrás de un proxy debe mostrar la IP del visitante, no la del proxy:
 
 ```rust
-use axum::Extension;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn whoami(Extension(ClientIp(ip)): Extension<ClientIp>) -> String {
-    ip.to_string()
+async fn whoami(req: Request) -> String {
+    match req.get::<ClientIp>() {
+        Some(ClientIp(ip)) => ip.to_string(),
+        None => "unknown".to_owned(),
+    }
 }
 ```
 
-La extensión `ClientIp` solo existe cuando se ha podido resolver una dirección; si no, este extractor responde `500`, lo que deja en evidencia cualquier error de configuración durante la puesta en marcha. Siguiente paso: el [inicio rápido](/docs/quick-start).
+El valor `ClientIp` solo existe cuando se ha podido resolver una dirección: si el handler muestra `unknown`, corrige la configuración antes de pasar a producción. Siguiente paso: el [inicio rápido](/docs/quick-start).

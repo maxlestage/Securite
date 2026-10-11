@@ -7,7 +7,7 @@ order: 2
 
 `.github/workflows/pages.yml` construit le site et en publie une copie statique sur GitHub Pages à l'adresse `https://<propriétaire>.github.io/<dépôt>/` (pour ce dépôt : `https://maxlestage.github.io/Securite/`). C'est gratuit pour les dépôts publics et aucun secret n'est nécessaire.
 
-GitHub Pages est un hébergement statique. Les pages sont celles que le serveur axum rend avec [active](https://maxlestage.github.io/Active/), écrites dans des fichiers : la page d'accueil animée, le hub de documentation et toutes les pages de documentation fonctionnent exactement comme sur Heroku, dans les trois langues, et la copie est une application installable qui fonctionne hors ligne. Le playground d'attaques et les statistiques en direct ont besoin du serveur axum : sur Pages, le playground le signale et renvoie vers le guide de déploiement. Utilisez [Heroku](/docs/heroku-from-phone) ou [Docker](/docs/docker) pour la démo complète.
+GitHub Pages est un hébergement statique. Les pages sont celles que le serveur Vitesse rend avec [active](https://maxlestage.github.io/Active/), écrites dans des fichiers : la page d'accueil animée, le hub de documentation et toutes les pages de documentation fonctionnent exactement comme sur Heroku, dans les trois langues, et la copie est une application installable qui fonctionne hors ligne. Le playground d'attaques et les statistiques en direct ont besoin du serveur Vitesse : sur Pages, le playground le signale et renvoie vers le guide de déploiement. Utilisez [Heroku](/docs/heroku-from-phone) ou [Docker](/docs/docker) pour la démo complète.
 
 ## Configuration unique depuis votre téléphone
 
@@ -40,7 +40,7 @@ GitHub Pages ne permet pas d'envoyer d'en-têtes HTTP : l'export écrit donc dan
 | Referrer-Policy | `<meta name="referrer" content="strict-origin-when-cross-origin">` |
 | HTTPS | imposé par GitHub Pages (cochez **Enforce HTTPS** dans Settings → Pages) |
 
-> **Attention :** certaines protections n'existent que sous forme d'en-têtes HTTP : `frame-ancestors` (clickjacking), HSTS, `X-Content-Type-Options`, COOP et CORP. Un navigateur les ignore dans une balise `<meta>`. Pour une application qui traite des données d'utilisateurs, servez-la avec le serveur axum et le `Shield` de securite, comme sur Heroku.
+> **Attention :** certaines protections n'existent que sous forme d'en-têtes HTTP : `frame-ancestors` (clickjacking), HSTS, `X-Content-Type-Options`, COOP et CORP. Un navigateur les ignore dans une balise `<meta>`. Pour une application qui traite des données d'utilisateurs, servez-la avec le serveur Vitesse et le `Shield` de securite, comme sur Heroku.
 
 ## Adresses et usage hors ligne
 

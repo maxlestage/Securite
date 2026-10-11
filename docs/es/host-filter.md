@@ -37,17 +37,18 @@ Las peticiones con varias cabeceras `Host` ya las rechaza el guard `Hygiene` de 
 ## Inicio rápido
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let shield = Shield::builder()
         .guard(HostFilter::new(["example.com", "*.example.com"]))
         .build();
 
-    Router::new()
-        .route("/", get(|| async { "hello" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/", |_req: Request| async { "hello" });
+    app
 }
 ```
 
@@ -81,13 +82,14 @@ pub fn hosts(dev: bool) -> HostFilter {
 Los paneles de desarrollo, los back-ends de aplicaciones de escritorio y las herramientas de administración que escuchan en `127.0.0.1` son el objetivo favorito del DNS rebinding:
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn local_admin() -> Router {
-    Router::new()
-        .route("/", get(|| async { "local admin" }))
-        .layer(HostFilter::new(["localhost", "127.0.0.1", "[::1]"]))
+pub fn local_admin() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(HostFilter::new(["localhost", "127.0.0.1", "[::1]"])));
+    app.get("/", |_req: Request| async { "local admin" });
+    app
 }
 ```
 
@@ -112,32 +114,38 @@ pub fn shield() -> Shield {
 
 ### Comprobaciones de salud dirigidas por IP
 
-Los balanceadores de carga y las sondas de Kubernetes suelen usar la IP de la instancia como host. En axum, las rutas añadidas después de `.layer()` no quedan envueltas por esa capa:
+Los balanceadores de carga y las sondas de Kubernetes suelen usar la IP de la instancia como host. En Vitesse, los middlewares de un router solo se aplican a sus propias rutas: mantenga la sonda fuera del router que lleva el filtro:
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "hello" }))
-        .layer(Shield::builder().guard(HostFilter::new(["example.com"])).build())
-        // Not behind the shield: probes using the pod IP as host still succeed.
-        .route("/healthz", get(|| async { "ok" }))
+pub fn app() -> App {
+    // El sitio, tras el filtro de hosts: los middlewares de un router solo se aplican a sus rutas.
+    let mut site = Router::new();
+    site.middleware(Shield::builder().guard(HostFilter::new(["example.com"])).build());
+    site.get("/", |_req: Request| async { "hello" });
+
+    let mut app = App::new();
+    // Not behind the shield: probes using the pod IP as host still succeed.
+    app.get("/healthz", |_req: Request| async { "ok" });
+    app.mount("/", site);
+    app
 }
 ```
 
-## Uso como capa independiente
+## Uso como guard independiente
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "ok" }))
-        .layer(SecurityHeaders::strict())
-        .layer(HostFilter::new(["example.com"])) // outermost: runs first
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(HostFilter::new(["example.com"]))); // outermost: runs first
+    app.middleware(Shield::from(SecurityHeaders::strict()));
+    app.get("/", |_req: Request| async { "ok" });
+    app
 }
 ```
 

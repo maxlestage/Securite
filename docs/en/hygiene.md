@@ -65,12 +65,12 @@ Repeated identical lengths (`Content-Length: 5, 5`) are accepted, as RFC 9110 al
 ## Quick start
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Shield::builder().guard(Hygiene::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(Hygiene::new()).build());
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuration
@@ -115,15 +115,15 @@ use securite::prelude::*;
 let hygiene = Hygiene::new().allow_bad_encoding();
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Hygiene::new());
+let mut app = App::new();
+app.middleware(Shield::from(Hygiene::new()));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Response headers

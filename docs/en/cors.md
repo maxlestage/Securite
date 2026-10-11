@@ -34,18 +34,19 @@ Origins are compared case-insensitively, with any trailing slash ignored. `https
 ```rust
 use std::time::Duration;
 
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let cors = Cors::new()
         .allow_origin("https://app.example.com")
         .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
-    Router::new()
-        .route("/api/me", get(|| async { "{}" }))
-        .layer(Shield::builder().guard(cors).build())
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(cors).build());
+    app.get("/api/me", |_req: Request| async { "{}" });
+    app
 }
 ```
 
@@ -75,10 +76,10 @@ A single-page app on `app.example.com` calls `api.example.com` with a session co
 ```rust
 use std::time::Duration;
 
-use axum::{Router, routing::{get, post}};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn api() -> Router {
+pub fn api() -> App {
     let shield = ShieldBuilder::recommended()
         .guard(
             Cors::new()
@@ -91,17 +92,18 @@ pub fn api() -> Router {
         .guard(Csrf::new().trusted_origin("https://app.example.com"))
         .build();
 
-    Router::new()
-        .route("/me", get(|| async { "{}" }))
-        .route("/orders", post(|| async { "created" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/me", |_req: Request| async { "{}" });
+    app.post("/orders", |_req: Request| async { "created" });
+    app
 }
 ```
 
 ### Public read-only API
 
 ```rust
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 pub fn public_cors() -> Cors {
@@ -144,20 +146,21 @@ access-control-allow-credentials: true
 vary: origin
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/api/items", get(|| async { "[]" }))
-        .layer(Cors::new().allow_origin("https://app.example.com"))
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(Cors::new().allow_origin("https://app.example.com")));
+    app.get("/api/items", |_req: Request| async { "[]" });
+    app
 }
 ```
 
-With axum, the last `.layer()` call is the outermost one. When you stack standalone layers, add `Cors` after any authentication layer so that preflights, which never carry credentials, are answered before they reach it. Inside a single `Shield` this order is automatic.
+With Vitesse, the first middleware added is the outermost one. When you stack standalone guards, add `Cors` before any authentication middleware so that preflights, which never carry credentials, are answered before they reach it. Inside a single `Shield` this order is automatic.
 
 ## Pitfalls and tips
 

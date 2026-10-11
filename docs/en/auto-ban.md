@@ -42,8 +42,8 @@ State lives in a sharded, bounded in-memory store (64 shards, randomly keyed Sip
 ```rust
 use std::time::Duration;
 
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     .guard(
@@ -54,9 +54,9 @@ let shield = Shield::builder()
     )
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuration
@@ -90,7 +90,7 @@ All clones of an `AutoBan` share the same state. Keep one clone to manage bans a
 ```rust
 use std::time::Duration;
 
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let shield = Shield::builder()
@@ -119,30 +119,30 @@ Failed logins produce `401`, then `429` once the login quota is exhausted; both 
 use std::net::IpAddr;
 use std::time::Duration;
 
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::Router;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn list_bans(State(ban): State<AutoBan>) -> String {
-    ban.banned()
+async fn list_bans(req: Request) -> String {
+    req.state::<AutoBan>()
+        .banned()
         .into_iter()
         .map(|(ip, left)| format!("{ip}\t{}s\n", left.as_secs()))
         .collect()
 }
 
-async fn ban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.ban(ip, Duration::from_secs(24 * 3600));
-    StatusCode::NO_CONTENT
+async fn ban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().ban(ip, Duration::from_secs(24 * 3600));
+    Ok(StatusCode::NO_CONTENT)
 }
 
-async fn unban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.unban(ip);
-    StatusCode::NO_CONTENT
+async fn unban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().unban(ip);
+    Ok(StatusCode::NO_CONTENT)
 }
 
-fn app() -> Router {
+fn app() -> App {
     let ban = AutoBan::new();
     let shield = Shield::builder()
         // Only the internal network may reach /admin.
@@ -150,27 +150,29 @@ fn app() -> Router {
         .guard(ban.clone())
         .build();
 
-    Router::new()
-        .route("/admin/bans", get(list_bans))
-        .route("/admin/bans/{ip}", post(ban_ip).delete(unban_ip))
-        .with_state(ban)
-        .layer(shield)
+    let mut app = App::new();
+    app.state(ban);
+    app.middleware(shield);
+    app.get("/admin/bans", list_bans);
+    app.post("/admin/bans/:ip", ban_ip);
+    app.delete("/admin/bans/:ip", unban_ip);
+    app
 }
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_second(10))
-    .layer(AutoBan::new()); // outermost: sees the 429s of the inner layer
+let mut app = App::new();
+app.middleware(Shield::from(AutoBan::new())); // outermost: sees the 429s of the inner middleware
+app.middleware(Shield::from(RateLimit::per_second(10)));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
-With axum the last `.layer()` call is the outermost one. Put `AutoBan` outside the layers whose rejections should count, so it also blocks banned clients before they reach them. Across separate layers only strike statuses count: a `413` from a standalone `BodyLimit` is not a strike unless you add it with `count_status(413)`. Inside a single `Shield`, every block counts.
+With Vitesse the first middleware added is the outermost one. Add `AutoBan` before the middlewares whose rejections should count, so it also blocks banned clients before they reach them. Across separate middlewares only strike statuses count: a `413` from a standalone `BodyLimit` is not a strike unless you add it with `count_status(413)`. Inside a single `Shield`, every block counts.
 
 ## Response headers
 

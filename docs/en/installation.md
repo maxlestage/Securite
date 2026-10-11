@@ -1,6 +1,6 @@
 ---
 title: Installation
-summary: Add securite to your project, choose the right features for axum, hyper or tonic, and give the shield the real client IP address.
+summary: Add securite to your project, choose the right features for Vitesse, hyper or tonic, and give the shield the real client IP address.
 category: start
 order: 2
 ---
@@ -20,13 +20,12 @@ Or declare it by hand in `Cargo.toml`:
 securite = "0.1"
 ```
 
-A typical axum application needs:
+A typical Vitesse application needs:
 
 ```toml
 [dependencies]
 securite = "0.1"
-axum = "0.8"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+vitesse = "0.1"
 ```
 
 ## Requirements
@@ -44,51 +43,39 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 
 | Feature | Default | Effect |
 |---|---|---|
-| `axum` | Enabled | Reads the TCP peer address from axum's `ConnectInfo<SocketAddr>` extension. Pulls `axum` 0.8 with minimal features. |
+| `vitesse` | Enabled | The `Shield` and the `SignatureLayer` are Vitesse middlewares: `app.middleware(Shield::recommended())`. Pulls `vitesse` with minimal features. |
 
-If you use hyper, tonic or another tower stack without axum, disable the default features:
+If you use hyper, tonic or another tower stack without Vitesse, disable the default features:
 
 ```toml
 [dependencies]
 securite = { version = "0.1", default-features = false }
 ```
 
-> **Tip:** Disabling the `axum` feature only removes the axum dependency. Every guard, preset and layer remains available; the peer address is then read from the `PeerAddr` or `SocketAddr` request extension.
+> **Tip:** Disabling the `vitesse` feature only removes the Vitesse dependency. Every guard, preset and tower layer remains available; the peer address is then read from the `PeerAddr` or `SocketAddr` request extension.
 
 ## Expose the client IP
 
 Rate limiting, concurrency limits, auto-ban and IP filtering key their state on the client address, so the shield must know who is connecting.
 
-### axum
+### Vitesse
 
-Serve the router with `into_make_service_with_connect_info::<SocketAddr>()`:
+Nothing to configure: Vitesse hands the shield the address of each connection.
 
 ```rust
-use std::net::SocketAddr;
-
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-#[tokio::main]
-async fn main() {
-    let app = Router::new()
-        .route("/", get(|| async { "Hello, secure world!" }))
-        .layer(Shield::recommended());
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(
-        listener,
-        // Without this, the shield cannot see the client address.
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+fn main() -> std::io::Result<()> {
+    let mut app = App::new();
+    // The shield reads the address of each connection: nothing else to do.
+    app.middleware(Shield::recommended());
+    app.get("/", |_req: Request| async { "Hello, secure world!" });
+    app.run(3000)
 }
 ```
 
-> **Warning:** With a plain `axum::serve(listener, app)` no client address is known: the per-IP rate limiter falls back to a single bucket shared by every client, and auto-ban and concurrency limits are skipped. The shield logs a warning once, under the `securite` target, to point this out.
-
-> **Warning:** securite reads the `ConnectInfo` type of axum 0.8. If your application depends on another axum major version, insert `PeerAddr` yourself, as in the hyper example below.
+> **Warning:** In a tower service without a `PeerAddr` (see below) no client address is known: the per-IP rate limiter falls back to a single bucket shared by every client, and auto-ban and concurrency limits are skipped. The shield logs a warning once, under the `securite` target, to point this out.
 
 ### hyper
 
@@ -164,19 +151,22 @@ let shield = ShieldBuilder::recommended()
     .build();
 ```
 
-Set the source on the outermost shield: inner shields and standalone layers reuse the address it resolved. The [Client IP](/docs/client-ip) page explains every source and its spoofing risks.
+Set the source on the outermost shield: inner shields and standalone guards reuse the address it resolved. The [Client IP](/docs/client-ip) page explains every source and its spoofing risks.
 
 ## Check the setup
 
 This handler echoes the address resolved by the shield. Behind a proxy it must print the visitor's IP, not the proxy's:
 
 ```rust
-use axum::Extension;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn whoami(Extension(ClientIp(ip)): Extension<ClientIp>) -> String {
-    ip.to_string()
+async fn whoami(req: Request) -> String {
+    match req.get::<ClientIp>() {
+        Some(ClientIp(ip)) => ip.to_string(),
+        None => "unknown".to_owned(),
+    }
 }
 ```
 
-The `ClientIp` extension only exists when an address could be resolved; otherwise this extractor answers `500`, which makes a misconfiguration obvious during setup. Next step: the [Quick start](/docs/quick-start).
+The `ClientIp` value only exists when an address could be resolved: if the handler prints `unknown`, fix the setup before going live. Next step: the [Quick start](/docs/quick-start).

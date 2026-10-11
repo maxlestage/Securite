@@ -35,14 +35,15 @@ The cookie is `HttpOnly`: scripts never read it. Render the token from `CsrfToke
 `Shield::recommended()` and `Shield::strict()` already include `Csrf::new()`. On its own:
 
 ```rust
-use axum::{Router, routing::{get, post}};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "form" }))
-        .route("/transfer", post(|| async { "done" }))
-        .layer(Shield::builder().guard(Csrf::new()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(Csrf::new()).build());
+    app.get("/", |_req: Request| async { "form" });
+    app.post("/transfer", |_req: Request| async { "done" });
+    app
 }
 ```
 
@@ -69,10 +70,11 @@ The guard is named `csrf`; `ShieldBuilder::recommended().without("csrf")` remove
 ### Server-rendered app with htmx
 
 ```rust
-use axum::{Extension, Router, response::Html, routing::{get, post}};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn page(Extension(CsrfToken(token)): Extension<CsrfToken>) -> Html<String> {
+async fn page(req: Request) -> Html<String> {
+    let token = req.get::<CsrfToken>().map(|t| t.0.clone()).unwrap_or_default();
     // htmx adds this header to every request it sends.
     Html(format!(
         r#"<body hx-headers='{{"X-CSRF-Token": "{token}"}}'>
@@ -81,16 +83,17 @@ async fn page(Extension(CsrfToken(token)): Extension<CsrfToken>) -> Html<String>
     ))
 }
 
-pub fn app(secret: String) -> Router {
+pub fn app(secret: String) -> App {
     let shield = ShieldBuilder::recommended()
         .guard(Csrf::new().with_token(secret).exempt("/webhooks"))
         .build();
 
-    Router::new()
-        .route("/", get(page))
-        .route("/transfer", post(|| async { "sent" }))
-        .route("/webhooks/payments", post(|| async { "ok" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/", page);
+    app.post("/transfer", |_req: Request| async { "sent" });
+    app.post("/webhooks/payments", |_req: Request| async { "ok" });
+    app
 }
 ```
 
@@ -139,16 +142,17 @@ pub fn csrf(secret: &str, dev: bool) -> Csrf {
 {"type":"about:blank","title":"Forbidden","status":403,"code":"csrf_rejected","detail":"Cross-site request rejected."}
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{Router, routing::post};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/settings", post(|| async { "saved" }))
-        .layer(Csrf::new())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(Csrf::new()));
+    app.post("/settings", |_req: Request| async { "saved" });
+    app
 }
 ```
 
@@ -162,7 +166,7 @@ pub fn app() -> Router {
 - **Secret rotation** invalidates every token. Clients receive a new cookie on their next request, but a request already in flight fails once.
 - **Cookie name**: renaming the cookie without the `__Host-` prefix lets a sibling subdomain overwrite it.
 - **APIs**: `Shield::api()` has no CSRF guard, because APIs normally authenticate with tokens. Add `Csrf::new()` back if your API relies on cookies.
-- **Missing extension**: extracting `Extension<CsrfToken>` without `with_token` makes axum answer 500.
+- **Missing token**: without `with_token`, `req.get::<CsrfToken>()` is `None`.
 
 > **Tip:** any XSS defeats every CSRF defence, since the script runs on your own origin. Pair this guard with a strict [Content-Security-Policy](/docs/security-headers).
 

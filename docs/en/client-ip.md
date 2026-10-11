@@ -41,10 +41,10 @@ let shield = ShieldBuilder::recommended()
     .build();
 
 // Akamai, or any edge that sets a single-IP header.
-// (axum::http re-exports the http crate.)
+// (securite::http re-exports the http crate.)
 let shield = ShieldBuilder::recommended()
     .client_ip(ClientIpSource::Header(
-        axum::http::HeaderName::from_static("true-client-ip"),
+        securite::http::HeaderName::from_static("true-client-ip"),
     ))
     .build();
 ```
@@ -96,47 +96,47 @@ The `securite::ip::mask` function applies the same grouping in your own code.
 The shield inserts a `ClientIp` extension into every request whose address it resolved. It holds the full address, not the `/64` group:
 
 ```rust
-use axum::{Extension, Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn whoami(ip: Option<Extension<ClientIp>>) -> String {
-    match ip {
-        Some(Extension(ClientIp(ip))) => format!("your address: {ip}"),
+async fn whoami(req: Request) -> String {
+    match req.get::<ClientIp>() {
+        Some(ClientIp(ip)) => format!("your address: {ip}"),
         None => "unknown address".to_owned(),
     }
 }
 
-let app: Router = Router::new()
-    .route("/whoami", get(whoami))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/whoami", whoami);
 ```
 
 In a [custom guard](/docs/custom-guards), read it with `ctx.client_ip()`.
 
 ## Stacked shields and standalone layers
 
-When a request already carries a `ClientIp` extension, set by an outer shield, the shield reuses that address instead of resolving it again. Inner shields and standalone layers therefore agree with the outermost one. To use standalone layers behind a proxy, add a shield without guards that only resolves the address, as the outermost layer:
+When a request already carries a `ClientIp` extension, set by an outer shield, the shield reuses that address instead of resolving it again. Inner shields and standalone guards therefore agree with the outermost one. To use standalone guards behind a proxy, add a shield without guards that only resolves the address, as the first middleware:
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_minute(120))
-    .layer(AutoBan::new())
-    // Outermost (last `.layer()` call): resolves the client IP once,
-    // and the layers added before it reuse its `ClientIp`.
-    .layer(Shield::builder().client_ip(ClientIpSource::heroku()).build());
+let mut app = App::new();
+// Outermost (first middleware added): resolves the client IP once,
+// and the middlewares added after it reuse its `ClientIp`.
+app.middleware(Shield::builder().client_ip(ClientIpSource::heroku()).build());
+app.middleware(Shield::from(AutoBan::new()));
+app.middleware(Shield::from(RateLimit::per_minute(120)));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 > **Warning:** only the outermost shield's `client_ip` setting counts. If it keeps the default `Peer` source, every inner shield reuses the proxy address it resolved, whatever its own setting: configure the source on the outermost shield.
 
 ## Fallbacks
 
-When the configured header is missing, malformed or has too few entries, the shield falls back to the TCP peer address. The peer is looked up, in order, in axum's `ConnectInfo<SocketAddr>` (with the `axum` feature), a `PeerAddr` extension and a raw `SocketAddr` extension.
+When the configured header is missing, malformed or has too few entries, the shield falls back to the TCP peer address. The peer is the address of the connection, which Vitesse gives the shield; in a tower service it is looked up in a `PeerAddr` extension, then in a raw `SocketAddr` extension.
 
-When no address can be found at all, the shield logs a warning once (target `securite`) recommending `into_make_service_with_connect_info::<SocketAddr>()` with axum or a `PeerAddr` extension with hyper, and guards degrade as follows:
+When no address can be found at all (a tower service without `PeerAddr`), the shield logs a warning once (target `securite`) recommending a `PeerAddr` extension, and guards degrade as follows:
 
 | Guard | Behaviour without a client IP |
 |---|---|

@@ -25,12 +25,12 @@ When a customer reports "the site said Forbidden", you need to find that exact r
 `RequestId::new()` is part of every preset. In a custom shield:
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(Shield::builder().guard(RequestId::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(RequestId::new()).build());
+app.get("/", |_req: Request| async { "home" });
 ```
 
 ```bash
@@ -51,17 +51,18 @@ curl -i https://example.com/
 ## Reading the ID in handlers
 
 ```rust
-use axum::{routing::post, Extension, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn create_order(Extension(id): Extension<RequestIdValue>) -> String {
-    tracing::info!(request_id = id.as_str(), "creating order");
-    format!("order accepted, reference {}", id.as_str())
+async fn create_order(req: Request) -> String {
+    let id = req.get::<RequestIdValue>().map(|id| id.as_str().to_owned()).unwrap_or_default();
+    tracing::info!(request_id = %id, "creating order");
+    format!("order accepted, reference {id}")
 }
 
-let app: Router = Router::new()
-    .route("/orders", post(create_order))
-    .layer(Shield::builder().guard(RequestId::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(RequestId::new()).build());
+app.post("/orders", create_order);
 ```
 
 `RequestIdValue` wraps the `HeaderValue` (`id.0`), which you can copy as-is into the headers of outgoing requests to propagate the identifier to downstream services.
@@ -71,22 +72,20 @@ let app: Router = Router::new()
 With `tower-http`, open a span per request that carries the identifier. The trace layer must sit below the shield so that the extension is already present:
 
 ```rust
-use axum::{body::Body, http::Request, routing::get, Router};
 use securite::prelude::*;
-use tower_http::trace::TraceLayer;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(TraceLayer::new_for_http().make_span_with(|req: &Request<Body>| {
-        let id = req
-            .extensions()
-            .get::<RequestIdValue>()
-            .map(|id| id.as_str().to_owned())
-            .unwrap_or_default();
-        tracing::info_span!("http", method = %req.method(), path = req.uri().path(), request_id = %id)
-    }))
-    // Added last, so it runs first.
-    .layer(Shield::recommended());
+let mut app = App::new();
+// Added first, so it runs first: the id exists for the middlewares that follow.
+app.middleware(Shield::recommended());
+app.middleware(|req: Request, next: Next| async move {
+    let id = req.get::<RequestIdValue>().map(|id| id.as_str().to_owned()).unwrap_or_default();
+    let line = format!("{} {} request_id={id}", req.method(), req.path());
+    let res = next.run(req).await;
+    tracing::info!(status = res.status_code().as_u16(), "{line}");
+    res
+});
+app.get("/", |_req: Request| async { "home" });
 ```
 
 ## Behind a proxy or a platform
@@ -107,15 +106,15 @@ use securite::prelude::*;
 let request_id = RequestId::new().always_generate();
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(RequestId::new());
+let mut app = App::new();
+app.middleware(Shield::from(RequestId::new()));
+app.get("/", |_req: Request| async { "home" });
 ```
 
 > **Warning:** A standalone `RequestId` layer has its own internal shield. Another `Shield` in the same stack will not know the identifier: its events and problem+json bodies will not contain it. Register `RequestId` in the same shield as your other guards, as the presets do.

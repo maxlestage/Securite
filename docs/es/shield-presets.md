@@ -5,7 +5,7 @@ category: start
 order: 4
 ---
 
-Un `Shield` es un pipeline de guards inmutable y barato de clonar. Lo obtienes a partir de un preset (una configuración predefinida) o de `ShieldBuilder`, y lo añades a tu servicio con `.layer()`. `Shield::recommended()` equivale simplemente a `ShieldBuilder::recommended().build()`, y lo mismo vale para `strict()` y `api()`.
+Un `Shield` es un pipeline de guards inmutable y barato de clonar. Lo obtienes a partir de un preset (una configuración predefinida) o de `ShieldBuilder`, y lo añades a tu aplicación con `app.middleware()` (o a un servicio tower con `.layer()`). `Shield::recommended()` equivale simplemente a `ShieldBuilder::recommended().build()`, y lo mismo vale para `strict()` y `api()`.
 
 ## Los tres presets
 
@@ -132,23 +132,23 @@ Como `.guard()` sustituye por nombre, configurar un preset nunca genera duplicad
 
 Este orden es deliberado. El identificador de petición va primero para que todos los eventos lleven uno. Las IP baneadas o filtradas se descartan antes de cualquier trabajo real, las comprobaciones de protocolo baratas se ejecutan antes que el WAF, la redirección HTTPS va justo después del filtro de host para que su `Location` se construya a partir de un host validado, y la limitación de tasa corta las avalanchas de peticiones antes de la inspección, más costosa. La decoración de respuestas sigue el mismo orden, de modo que las cabeceras de seguridad y el refuerzo de cookies actúan al final, sobre la respuesta definitiva. `shield.guard_names()` devuelve los nombres en orden de ejecución.
 
-## Capas independientes
+## Guards independientes
 
-Cada guard implementa `tower::Layer` y se convierte en un `Shield`, así que una protección puede usarse por sí sola:
+Cada guard se convierte en un `Shield` (e implementa `tower::Layer`), así que una protección puede usarse por sí sola:
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "ok" }))
-    .layer(SecurityHeaders::strict())
-    .layer(RateLimit::per_minute(120));
+let mut app = App::new();
+app.middleware(Shield::from(SecurityHeaders::strict()));
+app.middleware(Shield::from(RateLimit::per_minute(120)));
+app.get("/", |_req: Request| async { "ok" });
 
 let waf_only = Shield::from(Waf::new());
 ```
 
-> **Atención:** Cada capa independiente es un shield autónomo con un solo guard: usa el formato de error por defecto y lleva sus propias estadísticas. Obtiene la IP del cliente de la dirección del peer TCP, salvo que un shield exterior ya lo haya hecho: detrás de un proxy, pon `Shield::builder().client_ip(ClientIpSource::heroku()).build()` (o la fuente de tu plataforma) como capa más externa, consulta [IP del cliente](/docs/client-ip). Además, las capas no decoran los rechazos de las demás: en axum, la última llamada a `.layer()` es la capa más externa, así que las respuestas `429` del ejemplo no llevan ninguna cabecera de seguridad. Es preferible un único `Shield` construido con `.guard()`.
+> **Atención:** Cada guard independiente es un shield autónomo con un solo guard: usa el formato de error por defecto y lleva sus propias estadísticas. Obtiene la IP del cliente de la dirección del peer TCP, salvo que un shield exterior ya lo haya hecho: detrás de un proxy, pon `Shield::builder().client_ip(ClientIpSource::heroku()).build()` (o la fuente de tu plataforma) como primer middleware, consulta [IP del cliente](/docs/client-ip). Además, los shields no decoran los rechazos de los demás: el primer middleware añadido es el más externo, así que las respuestas `429` del ejemplo no llevan ninguna cabecera de seguridad. Es preferible un único `Shield` construido con `.guard()`.
 
 ## Inspeccionar un shield
 

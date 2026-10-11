@@ -65,12 +65,12 @@ Las longitudes idénticas repetidas (`Content-Length: 5, 5`) se aceptan, tal com
 ## Inicio rápido
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Shield::builder().guard(Hygiene::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(Hygiene::new()).build());
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuración
@@ -115,15 +115,15 @@ use securite::prelude::*;
 let hygiene = Hygiene::new().allow_bad_encoding();
 ```
 
-## Uso como capa independiente
+## Uso como guard independiente
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Hygiene::new());
+let mut app = App::new();
+app.middleware(Shield::from(Hygiene::new()));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Cabeceras de respuesta

@@ -148,8 +148,8 @@ impl Guard for Maintenance {
 Keep a clone of the guard: all clones share the same flag.
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let maintenance = Maintenance::new(
     IpSet::parse(["10.0.0.0/8", "192.0.2.0/24"]).expect("valid networks"),
@@ -159,10 +159,10 @@ let shield = ShieldBuilder::recommended()
     .guard(maintenance.clone())
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .route("/health", get(|| async { "ok" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "Hello, secure world!" });
+app.get("/health", |_req: Request| async { "ok" });
 
 // Later, from wherever you kept the clone:
 maintenance.set_enabled(true);
@@ -250,6 +250,6 @@ mod tests {
 - **Stay synchronous and fast.** Guards run on every request and cannot `.await`. Never do blocking I/O; refresh shared state in the background instead (an `Arc<RwLock<…>>` or an atomic, as above).
 - **Choose a unique name.** `.guard()` replaces a guard with the same name: calling yours `waf` would silently remove the built-in WAF.
 - **Do not assume `on_request` ran.** `on_response` is called for every response, including rejections issued by guards that run before yours. Check `ctx.rejected_by()` or `ctx.blocked()` when it matters.
-- **Pass data to handlers through the request.** Insert it into `req.extensions` and read it with axum's `Extension<T>`; `ctx.extensions_mut()` is private to guards. Values stored in either must implement `Clone + Send + Sync`.
+- **Pass data to handlers through the request.** Insert it into `req.extensions` and read it in handlers with `req.get::<T>()`; `ctx.extensions_mut()` is private to guards. Values stored in either must implement `Clone + Send + Sync`.
 - **Keep secrets out of messages.** The message reaches the client; `with_details` stays in your logs.
 - **Roll out gradually.** Return `Mode::Monitor` from `mode()` to observe a new rule before enforcing it, see [Monitor mode](/docs/monitor-mode).

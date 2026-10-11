@@ -1,19 +1,19 @@
 ---
 title: Introduction
-summary: Securite protège vos services tower, axum et hyper avec une seule couche, le Shield, qui exécute des guards rapides sur chaque requête et durcit chaque réponse.
+summary: Securite protège vos applications Vitesse, et tout service tower ou hyper, avec un seul middleware, le Shield, qui exécute des guards rapides sur chaque requête et durcit chaque réponse.
 category: start
 order: 1
 ---
 
-`securite` est une boîte à outils de sécurité pour les services web Rust construits sur tower. Elle réunit les protections dont toute application exposée sur Internet a besoin (en-têtes de sécurité, limitation de débit, pare-feu applicatif, CSRF et CORS, filtrage IP, bannissement automatique, authentification, signatures de webhooks) derrière une seule couche, qui s'ajoute en une ligne.
+`securite` est une boîte à outils de sécurité pour les services web Rust, écrite pour Vitesse et pour l'écosystème tower. Elle réunit les protections dont toute application exposée sur Internet a besoin (en-têtes de sécurité, limitation de débit, pare-feu applicatif, CSRF et CORS, filtrage IP, bannissement automatique, authentification, signatures de webhooks) derrière une seule couche, qui s'ajoute en une ligne.
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
 ## Pourquoi securite
@@ -121,14 +121,13 @@ Toutes les signatures du WAF sont compilées en un unique automate Aho-Corasick 
 
 ## Compatibilité
 
-`Shield` implémente `tower::Layer` et s'intègre donc partout où une couche tower est acceptée :
+`Shield` est un middleware Vitesse et implémente `tower::Layer` : il s'intègre donc partout où une couche tower est acceptée :
 
 | Pile | Intégration |
 |---|---|
-| axum 0.8 | `Router::layer(shield)` ; la feature par défaut `axum` lit `ConnectInfo<SocketAddr>` |
+| Vitesse | `app.middleware(shield)` ; le shield lit lui-même l'adresse de chaque connexion |
 | hyper 1 | Enveloppez votre service avec `tower::ServiceBuilder` et insérez `PeerAddr` |
 | tonic | `Server::builder().layer(shield)` |
 | tower | `ServiceBuilder::new().layer(shield)` |
-| Loco, Leptos, Dioxus fullstack | Ces frameworks servent des routeurs axum : ajoutez la couche au routeur |
 
-Chaque guard est aussi une couche autonome, par exemple `router.layer(Waf::new())`. Poursuivez avec l'[installation](/docs/installation), puis le [démarrage rapide](/docs/quick-start).
+Chaque guard est aussi un middleware autonome, par exemple `app.middleware(Shield::from(Waf::new()))`. Poursuivez avec l'[installation](/docs/installation), puis le [démarrage rapide](/docs/quick-start).

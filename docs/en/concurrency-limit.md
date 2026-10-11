@@ -34,17 +34,17 @@ t4  request D arrives     in flight 2/2   accepted
 ## Quick start
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     // At most 16 simultaneous requests per client IP.
     .guard(ConcurrencyLimit::per_ip(16))
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 Serve the app with `into_make_service_with_connect_info::<SocketAddr>()` so the guard sees the client address.
@@ -66,18 +66,18 @@ Fixed behaviour: IPv6 grouping by `/64`, at most 500,000 tracked clients.
 Concurrency limits work best where requests are costly. Apply the guard as a layer on a sub-router:
 
 ```rust
-use axum::{routing::{get, post}, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 // At most 2 report exports at a time per client.
-let reports = Router::new()
-    .route("/reports/export", post(|| async { "export queued" }))
-    .layer(ConcurrencyLimit::per_ip(2));
+let mut reports = Router::new();
+reports.middleware(Shield::from(ConcurrencyLimit::per_ip(2)));
+reports.post("/export", |_req: Request| async { "export queued" });
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .merge(reports)
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "home" });
+app.mount("/reports", reports);
 ```
 
 ### Behind a reverse proxy
@@ -85,22 +85,22 @@ let app: Router = Router::new()
 A standalone layer resolves the client IP from the TCP peer address, unless an outer shield already did: it then reuses that shield's `ClientIp`. Behind a proxy, configure the source once, on the outermost shield:
 
 ```rust
-use axum::{routing::{get, post}, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let reports = Router::new()
-    .route("/reports/export", post(|| async { "export queued" }))
-    .layer(ConcurrencyLimit::per_ip(2));
+let mut reports = Router::new();
+reports.middleware(Shield::from(ConcurrencyLimit::per_ip(2)));
+reports.post("/export", |_req: Request| async { "export queued" });
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .merge(reports)
-    // Outermost: the inner ConcurrencyLimit reuses the client IP it resolves.
-    .layer(
-        ShieldBuilder::recommended()
-            .client_ip(ClientIpSource::cloudflare())
-            .build(),
-    );
+let mut app = App::new();
+// Outermost: the inner ConcurrencyLimit reuses the client IP it resolves.
+app.middleware(
+    ShieldBuilder::recommended()
+        .client_ip(ClientIpSource::cloudflare())
+        .build(),
+);
+app.get("/", |_req: Request| async { "home" });
+app.mount("/reports", reports);
 ```
 
 ### Inspecting live usage
@@ -117,15 +117,15 @@ let busy = handle.in_flight("203.0.113.7".parse().unwrap());
 println!("203.0.113.7 has {busy} requests in flight");
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/search", get(|| async { "results" }))
-    .layer(ConcurrencyLimit::per_ip(4));
+let mut app = App::new();
+app.middleware(Shield::from(ConcurrencyLimit::per_ip(4)));
+app.get("/search", |_req: Request| async { "results" });
 ```
 
 ## Response headers

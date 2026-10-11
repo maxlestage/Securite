@@ -47,30 +47,20 @@ Pour chaque requête, `tat = max(TAT, now)`. Si `tat - now > tau`, la requête a
 ## Démarrage rapide
 
 ```rust
-use std::net::SocketAddr;
-
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-#[tokio::main]
-async fn main() {
+fn main() -> std::io::Result<()> {
     let shield = Shield::builder()
         // 10 requests per second per client IP, bursts of up to 30.
         .guard(RateLimit::per_second(10).burst(30))
         .build();
 
-    let app = Router::new()
-        .route("/", get(|| async { "hello" }))
-        .layer(shield);
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    // `with_connect_info` gives the shield the real peer address.
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+    let mut app = App::new();
+    // Le shield lit lui-même l'adresse du pair de chaque connexion.
+    app.middleware(shield);
+    app.get("/", |_req: Request| async { "hello" });
+    app.run(3000)
 }
 ```
 
@@ -120,7 +110,7 @@ La règle globale s'applique à tous les chemins sauf `skip_paths`. Chaque règl
 ### Connexion et réinitialisation de mot de passe
 
 ```rust
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let limiter = RateLimit::new(Quota::per_second(20).burst(50))
@@ -137,7 +127,7 @@ let limiter = RateLimit::new(Quota::per_second(20).burst(50))
 ### Clés d'API et plafonds globaux
 
 ```rust
-use axum::http::HeaderName;
+use securite::http::HeaderName;
 use securite::prelude::*;
 
 let limiter = RateLimit::per_second(50)
@@ -187,15 +177,15 @@ let shield = Shield::builder()
 
 Observez pendant quelques jours qui aurait été limité, puis retirez `.monitor()`.
 
-## Utilisation en couche autonome
+## Utilisation en guard autonome
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_minute(120));
+let mut app = App::new();
+app.middleware(Shield::from(RateLimit::per_minute(120)));
+app.get("/", |_req: Request| async { "hello" });
 
 // Or replace the limiter of a preset (guards with the same name are replaced).
 let shield = ShieldBuilder::recommended()

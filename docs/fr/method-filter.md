@@ -32,12 +32,12 @@ request ----> method in allow-list?
 ## Démarrage rapide
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(Shield::builder().guard(MethodFilter::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(MethodFilter::new()).build());
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 `MethodFilter::new()` fait déjà partie des préréglages `recommended`, `strict` et `api`.
@@ -70,7 +70,7 @@ let shield = Shield::builder()
 `only` remplace la liste par défaut : énumérez tout ce dont vous avez besoin, y compris des verbes personnalisés comme un `PURGE` de cache :
 
 ```rust
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let purge = Method::from_bytes(b"PURGE").expect("valid method");
@@ -93,15 +93,15 @@ use securite::prelude::*;
 let filter = MethodFilter::new().allow_method_override();
 ```
 
-## Utilisation en couche autonome
+## Utilisation en guard autonome
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(MethodFilter::read_only());
+let mut app = App::new();
+app.middleware(Shield::from(MethodFilter::read_only()));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## En-têtes de réponse
@@ -122,8 +122,8 @@ Un en-tête de surcharge reçoit `400 Bad Request` avec le code `method_override
 ## Pièges et conseils
 
 * **Gardez `OPTIONS` si vous utilisez CORS** : les navigateurs envoient les requêtes de pré-vérification avec `OPTIONS`, et le filtrage des méthodes s'exécute avant le garde CORS. Sans elle, chaque pré-vérification cross-origin échoue en `405`.
-* **Gardez `HEAD` à côté de `GET`** : sondes de disponibilité, robots d'indexation et vérificateurs de liens s'en servent, et axum répond à `HEAD` pour chaque route `GET`.
-* `MethodFilter` est global. Les restrictions de méthode par route restent l'affaire de votre routeur (axum répond `405` pour un chemin connu avec une méthode non routée).
+* **Gardez `HEAD` à côté de `GET`** : sondes de disponibilité, robots d'indexation et vérificateurs de liens s'en servent, et Vitesse répond à `HEAD` pour chaque route `GET`.
+* `MethodFilter` est global. Les restrictions de méthode par route restent l'affaire de votre routeur (Vitesse répond `405` pour un chemin connu avec une méthode non routée).
 * Les noms de méthode sont sensibles à la casse : `get` n'est pas `GET`, et il est refusé.
 
 > **Astuce :** l'événement de sécurité d'une méthode refusée contient son nom. Un pic de `TRACE`, `PROPFIND` ou `DEBUG` signale généralement un scanner qui explore votre site ; le [bannissement automatique](/docs/auto-ban), dans le même shield, compte chaque méthode refusée comme une pénalité et peut l'arrêter.
