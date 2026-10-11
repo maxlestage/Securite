@@ -9,9 +9,9 @@ use crate::util::fnv1a;
 /// answers `304 Not Modified` (no body) when the browser already has it
 /// (`If-None-Match`).
 ///
-/// Only complete bodies of known size are hashed (JSON, HTML, text …):
-/// streams and bodies above [`max_size`](ETag::max_size) pass through
-/// untouched, and so does a response that already has an `ETag` (static
+/// Only bodies of known size are hashed (JSON, HTML, text …, and streams
+/// that announce their exact length): other streams and bodies above
+/// [`max_size`](ETag::max_size) pass through untouched, and so does a response that already has an `ETag` (static
 /// files), which still gets its `304`.
 ///
 /// ```
@@ -75,7 +75,9 @@ impl Middleware for ETag {
         if !matches!(*req.method(), Method::GET | Method::HEAD) {
             return next.run(req);
         }
-        let if_none_match = req.header(header::IF_NONE_MATCH).map(str::to_owned);
+        // Every `If-None-Match` line: a list may be split over several.
+        let if_none_match: Vec<&str> = req.header_all("if-none-match").collect();
+        let if_none_match = (!if_none_match.is_empty()).then(|| if_none_match.join(","));
         Box::pin(async move {
             let mut res = next.run(req).await;
             if res.status_code() != StatusCode::OK {

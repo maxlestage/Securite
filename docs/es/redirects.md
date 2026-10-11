@@ -60,7 +60,7 @@ let canonical = Redirects::new()
 ## Errores comunes y consejos
 
 - Los navegadores recuerdan las redirecciones permanentes durante mucho tiempo. Prueba primero con `.temporary(…)` y después cambia a `.permanent(…)`.
-- Los destinos forman parte de tu propia configuración y nunca se toman de la petición, así que el middleware no puede convertirse en una redirección abierta.
+- Los destinos forman parte de tu propia configuración y nunca se toman de la petición, así que el middleware no puede convertirse en una redirección abierta: la parte de la ruta que una regla de prefijo traslada se normaliza (`/old//evil.example` con `.prefix("/old", "/")` va a `/evil.example`) y la query string se codifica con porcentajes donde hace falta.
 - Evita las cadenas (`/a` → `/b` → `/c`): apunta cada dirección antigua directamente a la final.
 
 ## Páginas relacionadas

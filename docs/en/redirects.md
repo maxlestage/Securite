@@ -60,7 +60,7 @@ let canonical = Redirects::new()
 ## Pitfalls and tips
 
 - Browsers remember permanent redirects for a long time. Test with `.temporary(…)` first, then switch to `.permanent(…)`.
-- Targets are your own configuration, never taken from the request, so the middleware cannot become an open redirect.
+- Targets are your own configuration, never taken from the request, so the middleware cannot become an open redirect: the part of the path that a prefix rule carries over is normalised (`/old//evil.example` with `.prefix("/old", "/")` goes to `/evil.example`), and the query string is percent-encoded where needed.
 - Avoid chains (`/a` → `/b` → `/c`): point every old address straight at the final one.
 
 ## Related pages

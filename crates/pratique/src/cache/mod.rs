@@ -9,7 +9,7 @@ use vitesse::{Body, BoxFuture, Bytes, Method, Middleware, Next, Request, Respons
 
 use crate::etag::none_match;
 use crate::locale::Lang;
-use crate::util::{normalize_prefix, path_matches};
+use crate::util::{normalize_prefix, path_matches, target};
 
 #[cfg(feature = "redis")]
 mod redis_store;
@@ -402,10 +402,9 @@ impl Middleware for ResponseCache {
         if !self.cacheable_request(&req) {
             return next.run(req);
         }
-        let primary = req
-            .uri()
-            .path_and_query()
-            .map_or_else(|| req.path().to_owned(), |pq| pq.as_str().to_owned());
+        // The raw target: `req.uri()` turns targets that `Uri` rejects into
+        // `/`, and the response of `/x?a=<b>` must not be stored as `/`.
+        let primary = target(&req);
         let refresh = req
             .header(header::CACHE_CONTROL)
             .is_some_and(|v| v.contains("no-cache"));
@@ -418,11 +417,13 @@ impl Middleware for ResponseCache {
                     Ok(Some(mut res)) => {
                         self.stats.hits.fetch_add(1, Ordering::Relaxed);
                         let etag = res.get_header("etag").map(str::to_owned);
-                        let inm = headers
-                            .get(header::IF_NONE_MATCH)
-                            .and_then(|v| v.to_str().ok());
-                        if let (Some(etag), Some(inm)) = (etag, inm) {
-                            if none_match(inm, &etag) {
+                        let inm: Vec<&str> = headers
+                            .get_all(header::IF_NONE_MATCH)
+                            .iter()
+                            .filter_map(|v| v.to_str().ok())
+                            .collect();
+                        if let Some(etag) = etag.filter(|_| !inm.is_empty()) {
+                            if none_match(&inm.join(","), &etag) {
                                 res.set_status(StatusCode::NOT_MODIFIED);
                                 *res.body_mut() = Body::empty();
                             }

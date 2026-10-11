@@ -36,6 +36,29 @@ All notable changes to this project are documented here. The format follows
 - Website: a new documentation category, "Pratique", with an overview and one page
   per middleware of the `pratique` crate, in English, French and Spanish.
 
+### Fixed
+
+Found by reviewing every middleware of `pratique` before its first release:
+
+- `ResponseCache`: a request whose target `http::Uri` rejects (`/x?a=<b>`) was
+  stored under `/`, so `GET /` could be answered with another page; with `Locale`
+  added before it, one language could be served to visitors of another; requests
+  authenticated with `X-Api-Key` were cached like public ones.
+- `Redirects`: `.prefix("/old", "/")` sent `/old//evil.example` to
+  `//evil.example`, another site; a prefix whose target is under its source looped.
+- `TrailingSlash`, `Redirects` and `AccessLog` lost or replaced query strings that
+  `http::Uri` rejects; `TrailingSlash` could turn `/\evil.example/` into a
+  protocol-relative address and redirected `OPTIONS *`; `.except(prefix)` avoids
+  a redirect loop with Vitesse's static directories.
+- `Locale` adds `Vary: Cookie` when the cookie chooses the language, honours `Q=`
+  and never picks a language refused with `q=0` through a regional variant; `Vary`
+  values are merged into one line.
+- `CacheControl` no longer gives temporary redirects (`302`, `303`, `307`) the
+  cache lifetime of a page; `ETag` reads every `If-None-Match` line; `Health`
+  follows the `application/health+json` format (checks as lists, `uptime` check)
+  and, like `Metrics`, answers `HEAD` and a final `/`; `Metrics` sums durations in
+  nanoseconds; `AccessLog` logs no body bytes for `HEAD`, `204` and `304`.
+
 ### Changed
 
 - **Vitesse instead of axum.** The `Shield` and the `SignatureLayer` are
