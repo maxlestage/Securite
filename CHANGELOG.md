@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **New crate `pratique`** (`crates/pratique`): everyday Vitesse middlewares that
+  have nothing to do with security. Caching: `ETag` (body hash, `304 Not
+  Modified`), `CacheControl` (by path prefix and content type), `ResponseCache`
+  (in-memory cache of shareable `GET` responses, with a purge handle).
+  Observability: `AccessLog` (JSON lines or Apache combined), `Metrics`
+  (Prometheus `/metrics`: requests by method and status class, latency histogram,
+  in-flight requests), `ResponseTime` (`X-Response-Time`, `Server-Timing`). URLs:
+  `TrailingSlash` (redirect or rewrite), `Redirects` (exact paths, prefixes,
+  canonical host). Operations: `Health` (`/health` with named checks,
+  `application/health+json`), `Maintenance` (`503` + `Retry-After`, runtime
+  switch). Responses and APIs: `SetHeaders`, `Locale` (`?lang=`, cookie,
+  `Accept-Language`, `req.get::<Lang>()`), `Deprecation` (`Deprecation`, `Sunset`,
+  `Link` headers).
+
 ### Changed
 
 - **Vitesse instead of axum.** The `Shield` and the `SignatureLayer` are
