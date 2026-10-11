@@ -24,6 +24,15 @@ All notable changes to this project are documented here. The format follows
 - `AccessLog::ip_from_header(name)`: behind a reverse proxy, logs the client
   address that the proxy appended to `X-Forwarded-For` (or `CF-Connecting-IP` …)
   instead of the proxy's own address.
+- `ResponseCache` stores: `MemoryStore` (default) and, with the new `redis` /
+  `redis-tls` features, `RedisStore`, a cache shared by every instance of the app
+  (lazy connection, 250 ms timeouts, a down Redis means a miss, `SCAN`-based purges
+  that reach every instance). Custom backends implement `CacheStore`.
+- `ResponseCache` keeps one entry per variant: per language chosen by `Locale`, and
+  per value of the headers named by `Vary` (only `Vary: *` is refused). `max-age` /
+  `s-maxage` shorten the TTL, hits answer `304` on a matching `If-None-Match`, and
+  `CacheHandle` counts hits, misses and store errors; `invalidate` and `clear` are
+  now `async` and also reach a shared store.
 - Website: a new documentation category, "Pratique", with an overview and one page
   per middleware of the `pratique` crate, in English, French and Spanish.
 

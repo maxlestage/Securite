@@ -82,7 +82,8 @@ async fn cache_control_by_route() {
 #[tokio::test]
 async fn response_cache_hits_and_purges() {
     static CALLS: AtomicUsize = AtomicUsize::new(0);
-    let cache = ResponseCache::new(Duration::from_secs(60));
+    let store = Arc::new(MemoryStore::new());
+    let cache = ResponseCache::new(Duration::from_secs(60)).store(store.clone());
     let handle = cache.handle();
     let mut app = App::new();
     app.middleware(cache);
@@ -109,10 +110,12 @@ async fn response_cache_hits_and_purges() {
     assert_eq!(header(&c.get("/private").await, "x-cache"), "MISS");
     c.get("/cookie").await;
     assert_eq!(header(&c.get("/cookie").await, "x-cache"), "MISS");
-    assert_eq!(handle.len(), 2);
+    // Two paths, each with its `Vary` record and its response.
+    assert_eq!(store.len(), 4);
+    assert_eq!((handle.hits(), handle.misses(), handle.errors()), (1, 6, 0));
 
-    handle.invalidate("/count");
-    assert!(handle.is_empty());
+    handle.invalidate("/count").await.unwrap();
+    assert!(store.is_empty());
     assert_eq!(c.get("/count").await.text(), "call 3");
 }
 

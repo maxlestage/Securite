@@ -29,7 +29,7 @@ app.get("/", |_req: Request| async { "Hello!" });
 |---|---|---|
 | Caching | `ETag` | `ETag` computed from the body, `304 Not Modified` on `If-None-Match` |
 | | `CacheControl` | `Cache-Control` by path prefix and content type (`IMMUTABLE`, `NO_CACHE`, `NO_STORE` presets) |
-| | `ResponseCache` | In-memory cache of whole `GET` responses: TTL, size limits, `X-Cache` / `Age`, purge handle |
+| | `ResponseCache` | Cache of whole `GET` responses, in memory or shared by every instance in Redis: one entry per language and `Vary` variant, `X-Cache` / `Age`, `304` on hits, purge handle |
 | Observability | `AccessLog` | One line per request, JSON or Apache "combined", to stdout or any sink |
 | | `Metrics` | Prometheus `GET /metrics`: requests by method and status class, latency histogram, in-flight, uptime |
 | | `ResponseTime` | `X-Response-Time: 1.234ms` and `Server-Timing: app;dur=1.234` |
@@ -58,13 +58,26 @@ app.middleware(
 );
 
 let cache = ResponseCache::new(Duration::from_secs(30)).only("/api/catalog");
-let purge = cache.handle(); // purge.invalidate("/api/catalog") after an update
+let purge = cache.handle(); // purge.invalidate("/api/catalog").await after an update
 app.middleware(cache);
 ```
 
 `ResponseCache` only keeps shareable answers: status `200`, known size, no
-`Set-Cookie`, `Vary`, `Content-Encoding` or `Cache-Control: private / no-store /
-no-cache`; requests with `Authorization` or `Cookie` always reach the handler.
+`Set-Cookie`, no `Vary: *`, no `Cache-Control: private / no-store / no-cache`
+(`max-age` / `s-maxage` shorten the TTL). Requests with credentials
+(`Authorization`, `Cookie`, `X-Api-Key` …) always reach the handler. Each language
+chosen by `Locale` and each variant named by `Vary` gets its own entry.
+
+With several instances, share one cache in Redis or Valkey (feature `redis`, or
+`redis-tls` for `rediss://`):
+
+```rust
+let store = RedisStore::open(&std::env::var("REDIS_URL").unwrap())?.prefix("shop:cache:");
+app.middleware(ResponseCache::new(Duration::from_secs(60)).store(store));
+```
+
+The connection opens on first use, every command times out after 250 ms, and when
+Redis is down requests are simply served by the handler.
 
 ### Operations
 
@@ -122,6 +135,15 @@ app.middleware(
 
 The full guide, one page per middleware in English, French and Spanish, is in the
 `docs` folder of the repository (category `everyday`), published on the website.
+
+## Cargo features
+
+| Feature | Gives |
+|---|---|
+| `redis` | `RedisStore`, a response cache shared through Redis / Valkey (Rust 1.88+, like the `redis` crate) |
+| `redis-tls` | `rediss://` addresses for it (rustls + ring) |
+
+Without features, Pratique only depends on Vitesse and supports Rust 1.85.
 
 ## Order
 
