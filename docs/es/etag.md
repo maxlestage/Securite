@@ -61,7 +61,7 @@ app.middleware(CacheControl::new().fallback(CacheControl::NO_CACHE));
 
 - Hay que calcular el cuerpo para obtener su hash: un `304` ahorra ancho de banda y tiempo al cliente, no trabajo al servidor. Para ahorrar también trabajo al servidor, añade una [caché de respuestas](/docs/response-cache).
 - La comparación es débil, como exige la RFC 9110 para `If-None-Match`: `W/"x"` coincide con `"x"`.
-- Coloca `ETag` antes de un middleware de compresión (para que se ejecute dentro de él) si quieres calcular el hash de los bytes originales, o usa `.weak(true)`.
+- Con `middleware::compress()` de Vitesse, usa `.weak(true)`: la misma etiqueta cubre entonces la versión comprimida y la no comprimida, algo que la RFC 9110 solo permite a las etiquetas débiles.
 
 ## Páginas relacionadas
 

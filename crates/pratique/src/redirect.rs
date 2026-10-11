@@ -71,7 +71,8 @@ impl Redirects {
     }
 
     /// Every path under `from` moves under `to` (permanent, `308`). The
-    /// longest matching prefix wins.
+    /// longest matching prefix wins. Paths already under `to` are left alone,
+    /// so `to` may be inside `from` (`/docs` → `/docs/v2`).
     pub fn prefix(mut self, from: impl Into<String>, to: impl Into<String>) -> Self {
         let from = normalize_prefix(from);
         let to = to.into().trim_end_matches('/').to_owned();
@@ -125,7 +126,11 @@ impl Redirects {
         let (from, to, status) = self
             .prefixes
             .iter()
-            .find(|(from, _, _)| path_matches(path, from))?;
+            // A path already under the target is not redirected again:
+            // `/docs` → `/docs/v2` must not loop to `/docs/v2/v2`.
+            .find(|(from, to, _)| {
+                path_matches(path, from) && (to.is_empty() || !path_matches(path, to))
+            })?;
         let rest = &path[from.trim_end_matches('/').len()..];
         let target = format!("{to}{rest}");
         let target = if target.is_empty() {
