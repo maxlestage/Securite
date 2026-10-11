@@ -35,7 +35,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 |---|---|
 | Version actuelle | 0.1.0 |
 | Version minimale de Rust prise en charge | 1.85 (édition 2024) |
-| Licence | MIT OR Apache-2.0 |
+| Licence | Propriétaire (© Maxime Nathan Lestage, tous droits réservés) : utilisation libre comme dépendance, voir [LICENSE](https://github.com/maxlestage/Securite/blob/master/LICENSE) |
 | Code unsafe | Aucun, la crate est en `#![forbid(unsafe_code)]` |
 | Dépendances natives | Aucune (100 % Rust) |
 | Dépôt | `https://github.com/maxlestage/Securite` |

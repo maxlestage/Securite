@@ -2044,12 +2044,14 @@ pre code {
 }
 
 /* ---------- Footer ---------- */
+/* The signature footer: the call to action and the install command, the link columns, the
+   sister projects, the author's signature, the giant wordmark and the legal line. */
 .footer {
   position: relative;
   margin-top: 40px;
-  padding: 64px 0 28px;
+  padding: 0 0 28px;
   border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, transparent, rgba(124, 58, 237, 0.05));
+  background: linear-gradient(180deg, transparent, rgba(124, 58, 237, 0.06));
   overflow: hidden;
 }
 
@@ -2064,10 +2066,75 @@ pre code {
   box-shadow: 0 0 30px 4px rgba(34, 211, 238, 0.35);
 }
 
+/* A soft violet glow rising from the bottom, behind the signature and the wordmark. */
+.footer::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: -30vw;
+  width: 140vw;
+  height: 70vw;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(124, 58, 237, 0.16), transparent 72%);
+  pointer-events: none;
+}
+
+.footer > * {
+  position: relative;
+  z-index: 1;
+}
+
+.footer-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px 40px;
+  padding-top: 56px;
+  padding-bottom: 56px;
+}
+
+.footer-cta-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.25em;
+  color: var(--text);
+  font-size: clamp(28px, 4.6vw, 60px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.footer-cta-link em {
+  font-style: normal;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.footer-cta-link .icon {
+  margin-left: 0.15em;
+  transition: transform 0.4s cubic-bezier(.2, .8, .2, 1), color 0.3s;
+}
+
+.footer-cta-link:hover .icon {
+  transform: translateX(8px) rotate(-45deg);
+  color: var(--cyan);
+}
+
+.footer .install-box {
+  animation: none;
+}
+
 .footer-grid {
   display: grid;
   gap: 36px;
   grid-template-columns: repeat(2, 1fr);
+  padding-top: 56px;
+  border-top: 1px solid var(--border);
 }
 
 @media (min-width: 900px) {
@@ -2089,6 +2156,25 @@ pre code {
 .footer-brand p {
   margin: 14px 0 18px;
   max-width: 320px;
+}
+
+/* Version, "100 % Rust", crates.io: small chips under the tagline. */
+.footer .footer-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.footer .footer-badges .chip {
+  padding: 0.35em 0.8em;
+}
+
+.footer .footer-badges a {
+  color: inherit;
+  font-size: inherit;
 }
 
 .footer h4 {
@@ -2128,16 +2214,282 @@ pre code {
   gap: 4px;
 }
 
+/* The sister projects: a hairline grid of tiles, the current one marked. */
+.footer-eco {
+  padding-top: 56px;
+}
+
+.footer-eco-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 32px;
+  margin-bottom: 20px;
+}
+
+.footer-eco-head h4 {
+  margin: 0;
+}
+
+.footer-eco-head p {
+  margin: 0;
+  max-width: 44em;
+  font-size: 0.93rem;
+}
+
+.footer .eco-grid {
+  grid-template-columns: 1fr;
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--border);
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .footer .eco-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 980px) {
+  .footer .eco-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.footer .eco-grid li {
+  min-width: 0;
+}
+
+.footer .eco {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 14px;
+  align-items: start;
+  height: 100%;
+  padding: 22px 24px;
+  background: var(--bg-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  transition: background 0.3s, color 0.3s;
+}
+
+.eco .eco-name {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+}
+
+.eco .eco-text {
+  grid-column: 1;
+  line-height: 1.5;
+}
+
+.eco .icon {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  margin-top: 2px;
+  opacity: 0;
+  transform: translate(-6px, 6px) rotate(-45deg);
+  transition: opacity 0.3s, transform 0.4s cubic-bezier(.2, .8, .2, 1), color 0.3s;
+}
+
+.footer .eco:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.eco:hover .icon {
+  opacity: 1;
+  transform: rotate(-45deg);
+  color: var(--cyan);
+}
+
+.footer .eco.current {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(124, 58, 237, 0.22), transparent 60%),
+    var(--bg-2);
+}
+
+.eco.current .icon {
+  display: none;
+}
+
+.eco-here {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eco-here::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: ping 2.4s ease-out infinite;
+}
+
+@keyframes ping {
+  from {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6);
+  }
+  to {
+    box-shadow: 0 0 0 7px rgba(34, 211, 238, 0);
+  }
+}
+
+/* The signature: who designed and built this. */
+.footer-credits {
+  display: grid;
+  justify-items: center;
+  margin-top: 56px;
+  padding-top: 64px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.credits-by {
+  margin: 0 0 18px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.credits-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.26em;
+  font-size: clamp(34px, 6.4vw, 92px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  background: linear-gradient(
+    100deg,
+    var(--text) 0%,
+    var(--text) 34%,
+    var(--violet) 44%,
+    var(--cyan) 50%,
+    var(--emerald) 56%,
+    var(--text) 66%,
+    var(--text) 100%
+  );
+  background-size: 300% 100%;
+  background-position: 50% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* A shine crosses the name when it scrolls into view. */
+.footer-credits.visible .credits-name {
+  animation: name-shine 1.8s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes name-shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 50% 0;
+  }
+}
+
+.credits-name span {
+  display: inline-block;
+  transition: transform 0.5s cubic-bezier(.2, .8, .2, 1);
+  transition-delay: calc(var(--i) * 60ms);
+}
+
+.credits-name:hover span {
+  transform: translateY(-4px);
+}
+
+.credits-note {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+/* The project name, as big as the screen: outlined, filled with the gradient on hover. */
+.wordmark {
+  display: flex;
+  justify-content: center;
+  margin: 24px -8px 0;
+  font-size: clamp(80px, 22vw, 340px);
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  user-select: none;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    var(--text) 0%,
+    var(--text) 22%,
+    rgba(232, 235, 244, 0.06) 50%,
+    #a78bfa 52%,
+    #22d3ee 76%,
+    #34d399 100%
+  );
+  background-size: 100% 200%;
+  background-position: 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: background-position 1s cubic-bezier(.2, .8, .2, 1);
+}
+
+.wordmark:hover {
+  background-position: 0 100%;
+}
+
+.wordmark span {
+  display: inline-block;
+  -webkit-text-stroke: 1px rgba(232, 235, 244, 0.12);
+}
+
 .footer-bottom {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 48px;
+  align-items: center;
+  gap: 10px 24px;
+  margin-top: 26px;
   padding-top: 22px;
   border-top: 1px solid var(--border);
   color: var(--faint);
   font-size: 0.85rem;
+}
+
+.footer-bottom > a {
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.footer-bottom > a:hover {
+  color: var(--cyan);
 }
 
 .rust {

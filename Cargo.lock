@@ -868,6 +868,7 @@ dependencies = [
  "active",
  "js-sys",
  "pulldown-cmark",
+ "securite",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
