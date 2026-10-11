@@ -56,23 +56,31 @@ struct Stats {
 ///
 /// **What is stored.** Status `200`, complete body of known size, no
 /// `Set-Cookie`, no `Cache-Control: private / no-store / no-cache`, no
-/// `Vary: *`. A `max-age` or `s-maxage` shorter than the cache's TTL wins.
+/// `Vary: *`, no CSP nonce. A `max-age` or `s-maxage` shorter than the
+/// cache's TTL wins; an invalid one means "don't store".
 ///
 /// **Which requests use it.** `GET` and `HEAD` without credentials:
 /// `Authorization`, `Proxy-Authorization`, `Cookie` and `X-Api-Key` (add
 /// others with [`bypass_header`](ResponseCache::bypass_header)) always go to
-/// the handler. Restrict the cache to public endpoints with
-/// [`only`](ResponseCache::only).
+/// the handler, and so does `Cache-Control: no-store`. Restrict the cache to
+/// public endpoints with [`only`](ResponseCache::only).
 ///
-/// **Variants.** The key is the path and the query string, plus the headers
-/// named by the response's `Vary` (`Accept-Encoding`, `Accept-Language` …),
-/// plus the language chosen by a [`Locale`](crate::locale::Locale) middleware
-/// added before the cache, so each language gets its own entry.
+/// **Variants.** The key is the path and the query string as sent, the site
+/// (`Host`, `Forwarded`, `X-Forwarded-Host`, `X-Forwarded-Proto`) and the
+/// CORS `Origin`, the headers named by the response's `Vary`
+/// (`Accept-Encoding`, `Accept-Language` …), and the language chosen by a
+/// [`Locale`](crate::locale::Locale) middleware added before the cache, so
+/// each language gets its own entry.
+///
+/// **Order.** Add `Locale`, CORS and Securite's `Shield` before the cache,
+/// and `CacheControl`, `ETag` or `SetHeaders` after it, so that it sees the
+/// `Cache-Control: private` they set.
 ///
 /// Answers carry `X-Cache: HIT` or `MISS`, and `Age` on hits; a hit answers
 /// `304` itself when `If-None-Match` matches the stored `ETag`. When the store
 /// fails (Redis down), requests go to the handler: the error is counted and
-/// passed to [`on_error`](ResponseCache::on_error).
+/// passed to [`on_error`](ResponseCache::on_error). A response computed while
+/// a purge ran is not stored after it.
 ///
 /// ```
 /// use pratique::prelude::*;
@@ -93,6 +101,9 @@ pub struct ResponseCache {
     bypass: Vec<HeaderName>,
     store: Arc<dyn CacheStore>,
     stats: Arc<Stats>,
+    /// Bumped by every purge: a response computed before a purge is not
+    /// stored after it.
+    epoch: Arc<AtomicU64>,
     on_error: Option<Arc<ErrorHook>>,
 }
 
@@ -113,7 +124,7 @@ impl ResponseCache {
     /// 1 000 entries.
     pub fn new(ttl: Duration) -> Self {
         Self {
-            ttl,
+            ttl: ttl.min(store::MAX_TTL),
             max_body: 1024 * 1024,
             only: Vec::new(),
             bypass: [
@@ -127,6 +138,7 @@ impl ResponseCache {
             .collect(),
             store: Arc::new(MemoryStore::new()),
             stats: Arc::default(),
+            epoch: Arc::default(),
             on_error: None,
         }
     }
@@ -178,11 +190,16 @@ impl ResponseCache {
         CacheHandle {
             store: self.store.clone(),
             stats: self.stats.clone(),
+            epoch: self.epoch.clone(),
         }
     }
 
     fn cacheable_request(&self, req: &Request) -> bool {
+        let no_store = req
+            .header_all("cache-control")
+            .any(|v| v.to_ascii_lowercase().contains("no-store"));
         matches!(*req.method(), Method::GET | Method::HEAD)
+            && !no_store
             && !self.bypass.iter().any(|h| req.headers().contains_key(h))
             && (self.only.is_empty() || self.only.iter().any(|p| path_matches(req.path(), p)))
     }
@@ -197,17 +214,34 @@ impl ResponseCache {
         {
             return None;
         }
-        let mut max_age = None;
-        let mut s_maxage = None;
+        // A page carrying a CSP nonce must get a fresh nonce on every answer.
+        let nonce = headers
+            .get_all(header::CONTENT_SECURITY_POLICY)
+            .iter()
+            .any(|v| {
+                v.as_bytes()
+                    .windows(7)
+                    .any(|w| w.eq_ignore_ascii_case(b"'nonce-"))
+            });
+        if nonce {
+            return None;
+        }
+        let mut max_age: Option<u64> = None;
+        let mut s_maxage: Option<u64> = None;
         for directive in list(headers, &header::CACHE_CONTROL) {
             let (name, value) = directive
                 .split_once('=')
                 .map_or((directive.as_str(), ""), |(n, v)| (n.trim(), v.trim()));
-            let seconds = || value.trim_matches('"').parse::<u64>().ok();
+            // An invalid age (`-1`, `10.5`) means stale (RFC 9111 §1.2.2),
+            // and repeated directives keep the shortest age.
+            let seconds = |previous: Option<u64>| {
+                let secs = value.trim_matches('"').parse::<u64>().ok()?;
+                Some(previous.map_or(secs, |p| p.min(secs)))
+            };
             match name {
                 "private" | "no-store" | "no-cache" => return None,
-                "max-age" => max_age = seconds(),
-                "s-maxage" => s_maxage = seconds(),
+                "max-age" => max_age = Some(seconds(max_age)?),
+                "s-maxage" => s_maxage = Some(seconds(s_maxage)?),
                 _ => {}
             }
         }
@@ -269,7 +303,7 @@ impl ResponseCache {
         let variant = variant(&names_ref, headers, lang)?;
         Some([
             (format!("{primary}{SPEC}"), Bytes::from(names.join(","))),
-            (format!("{primary}{VARIANT}{variant}"), encode(res, body)),
+            (format!("{primary}{VARIANT}{variant}"), encode(res, body)?),
         ])
     }
 
@@ -305,32 +339,66 @@ fn vary(headers: &HeaderMap) -> Option<Vec<String>> {
     Some(names)
 }
 
-/// The part of the key that tells variants apart: the language chosen by
-/// `Locale`, then the value of each header named by `Vary`. `None` when it
-/// would be too long to be a key.
+/// Request headers that are always part of the key, because handlers and
+/// other middlewares commonly answer differently for them: the site
+/// (`Host`, and the original host and scheme behind a proxy) and the CORS
+/// `Origin`.
+const KEY_HEADERS: [&str; 5] = [
+    "host",
+    "forwarded",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "origin",
+];
+
+/// Appends `name` and the values of the `name` headers to a variant. Bytes
+/// other than visible ASCII are percent-encoded, so distinct values never
+/// share a key.
+fn push_header(out: &mut String, name: &str, headers: &HeaderMap) {
+    out.push(VARIANT);
+    out.push_str(name);
+    let mut values = headers.get_all(name).iter().peekable();
+    if values.peek().is_none() {
+        return;
+    }
+    out.push('=');
+    for (i, value) in values.enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        for &b in value.as_bytes() {
+            let b = if name == "host" {
+                b.to_ascii_lowercase()
+            } else {
+                b
+            };
+            if (0x20..0x7f).contains(&b) && b != b'%' {
+                out.push(b as char);
+            } else {
+                out.push_str(&format!("%{b:02X}"));
+            }
+        }
+    }
+}
+
+/// The part of the key that tells variants apart: the site and origin
+/// ([`KEY_HEADERS`]), the language chosen by `Locale`, then each header
+/// named by `Vary`. `None` when it would be too long to be a key.
 fn variant(names: &[&str], headers: &HeaderMap, lang: Option<&str>) -> Option<String> {
     let mut out = String::new();
     if let Some(lang) = lang {
         out.push_str("lang=");
         out.push_str(lang);
     }
+    for name in KEY_HEADERS {
+        push_header(&mut out, name, headers);
+    }
     for name in names {
-        // `Locale` already chose from it, and its choice is in the key.
-        if lang.is_some() && *name == "accept-language" {
+        // Already in the key, or chosen from by `Locale`, whose choice is.
+        if KEY_HEADERS.contains(name) || (lang.is_some() && *name == "accept-language") {
             continue;
         }
-        out.push(VARIANT);
-        out.push_str(name);
-        let mut values = headers.get_all(*name).iter().peekable();
-        if values.peek().is_some() {
-            out.push('=');
-            for (i, value) in values.enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&String::from_utf8_lossy(value.as_bytes()));
-            }
-        }
+        push_header(&mut out, name, headers);
         if out.len() > MAX_VARIANT {
             return None;
         }
@@ -344,8 +412,9 @@ fn now_millis() -> u64 {
         .map_or(0, |d| d.as_millis() as u64)
 }
 
-/// `1 | status u16 | stored at, ms u64 | n u16 | n × (len u16, name, len u32, value) | body`
-fn encode(res: &Response, body: &Bytes) -> Bytes {
+/// `1 | status u16 | stored at, ms u64 | n u16 | n × (len u16, name, len u32, value) | body`,
+/// or `None` when the headers don't fit the format (never truncated).
+fn encode(res: &Response, body: &Bytes) -> Option<Bytes> {
     let headers: Vec<_> = res
         .headers()
         .iter()
@@ -355,24 +424,25 @@ fn encode(res: &Response, body: &Bytes) -> Bytes {
     out.push(1);
     out.extend_from_slice(&res.status_code().as_u16().to_be_bytes());
     out.extend_from_slice(&now_millis().to_be_bytes());
-    out.extend_from_slice(&(headers.len() as u16).to_be_bytes());
+    out.extend_from_slice(&u16::try_from(headers.len()).ok()?.to_be_bytes());
     for (name, value) in headers {
-        out.extend_from_slice(&(name.as_str().len() as u16).to_be_bytes());
+        out.extend_from_slice(&u16::try_from(name.as_str().len()).ok()?.to_be_bytes());
         out.extend_from_slice(name.as_str().as_bytes());
-        out.extend_from_slice(&(value.len() as u32).to_be_bytes());
+        out.extend_from_slice(&u32::try_from(value.len()).ok()?.to_be_bytes());
         out.extend_from_slice(value.as_bytes());
     }
     out.extend_from_slice(body);
-    Bytes::from(out)
+    Some(Bytes::from(out))
 }
 
 /// The response stored by [`encode`], with its `Age`; `None` if the bytes are
 /// not a stored response.
 fn decode(bytes: &Bytes) -> Option<Response> {
-    let mut at = 0;
+    let mut at: usize = 0;
     let mut take = |n: usize| {
-        let slice = bytes.get(at..at + n)?;
-        at += n;
+        let end = at.checked_add(n)?;
+        let slice = bytes.get(at..end)?;
+        at = end;
         Some(slice)
     };
     if take(1)? != [1] {
@@ -410,8 +480,9 @@ impl Middleware for ResponseCache {
             .is_some_and(|v| v.contains("no-cache"));
         let lang = req.get::<Lang>().map(|l| l.0.clone());
         let headers = req.headers().clone();
-        let store = *req.method() == Method::GET;
+        let mut store = *req.method() == Method::GET;
         Box::pin(async move {
+            let epoch = self.epoch.load(Ordering::SeqCst);
             if !refresh {
                 match self.lookup(&primary, &headers, lang.as_deref()).await {
                     Ok(Some(mut res)) => {
@@ -431,7 +502,12 @@ impl Middleware for ResponseCache {
                         return res;
                     }
                     Ok(None) => {}
-                    Err(err) => self.error(&err),
+                    Err(err) => {
+                        self.error(&err);
+                        // The store is failing: don't make the request wait
+                        // for it a second time.
+                        store = false;
+                    }
                 }
             }
             self.stats.misses.fetch_add(1, Ordering::Relaxed);
@@ -443,7 +519,9 @@ impl Middleware for ResponseCache {
                 };
                 let records = self.records(&primary, &headers, lang.as_deref(), &res, &body);
                 *res.body_mut() = Body::from(body);
-                if let Some(records) = records {
+                // Not after a purge that happened while the handler ran.
+                let purged = self.epoch.load(Ordering::SeqCst) != epoch;
+                if let Some(records) = records.filter(|_| !purged) {
                     if let Err(err) = self.insert(records, ttl).await {
                         self.error(&err);
                     }
@@ -464,6 +542,7 @@ impl Middleware for ResponseCache {
 pub struct CacheHandle {
     store: Arc<dyn CacheStore>,
     stats: Arc<Stats>,
+    epoch: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for CacheHandle {
@@ -477,7 +556,10 @@ impl std::fmt::Debug for CacheHandle {
 impl CacheHandle {
     /// Forgets every response.
     pub async fn clear(&self) -> Result<(), StoreError> {
-        self.store.clear().await
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        let cleared = self.store.clear().await;
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        cleared
     }
 
     /// Forgets the responses for `path` and below it, whatever their query
@@ -487,13 +569,16 @@ impl CacheHandle {
         let path = normalize_prefix(path);
         let path = path.trim_end_matches('/');
         if path.is_empty() {
-            return self.store.clear().await;
+            return self.clear().await;
         }
         let prefixes: Vec<String> = ["/", "?", "\u{1e}", "\u{1f}"]
             .iter()
             .map(|sep| format!("{path}{sep}"))
             .collect();
-        self.store.remove_prefixes(&prefixes).await
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        let removed = self.store.remove_prefixes(&prefixes).await;
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        removed
     }
 
     /// Requests answered from the cache.
@@ -526,18 +611,33 @@ mod tests {
 
     #[test]
     fn variants() {
+        // The key headers, absent here.
+        const BASE: &str =
+            "\u{1f}host\u{1f}forwarded\u{1f}x-forwarded-host\u{1f}x-forwarded-proto\u{1f}origin";
         let h = headers(&[("accept-encoding", "br"), ("accept-language", "fr")]);
-        assert_eq!(variant(&[], &h, None).as_deref(), Some(""));
-        assert_eq!(variant(&[], &h, Some("fr")).as_deref(), Some("lang=fr"));
+        assert_eq!(variant(&[], &h, None).as_deref(), Some(BASE));
+        assert_eq!(variant(&[], &h, Some("fr")), Some(format!("lang=fr{BASE}")));
         assert_eq!(
-            variant(&["accept-encoding", "x-missing"], &h, None).as_deref(),
-            Some("\u{1f}accept-encoding=br\u{1f}x-missing")
+            variant(&["accept-encoding", "x-missing"], &h, None),
+            Some(format!("{BASE}\u{1f}accept-encoding=br\u{1f}x-missing"))
         );
         // With `Locale`, the language replaces the raw header.
         assert_eq!(
-            variant(&["accept-language"], &h, Some("fr")).as_deref(),
-            Some("lang=fr")
+            variant(&["accept-language"], &h, Some("fr")),
+            Some(format!("lang=fr{BASE}"))
         );
+        // The site is always in the key, lowercased; `Vary: Origin` adds nothing.
+        let h = headers(&[("host", "Shop.Example"), ("origin", "https://a.example")]);
+        let v = variant(&["origin"], &h, None).unwrap();
+        assert!(v.starts_with("\u{1f}host=shop.example\u{1f}"), "{v:?}");
+        assert!(v.ends_with("\u{1f}origin=https://a.example"), "{v:?}");
+        // Distinct non-UTF-8 values stay distinct.
+        let mut a = HeaderMap::new();
+        a.insert("x-v", HeaderValue::from_bytes(b"\xe9").unwrap());
+        let mut b = HeaderMap::new();
+        b.insert("x-v", HeaderValue::from_bytes(b"\xe8").unwrap());
+        assert_ne!(variant(&["x-v"], &a, None), variant(&["x-v"], &b, None));
+        assert!(variant(&["x-v"], &a, None).unwrap().ends_with("x-v=%E9"));
         let long = HeaderValue::from_str(&"a".repeat(2000)).unwrap();
         let mut h = HeaderMap::new();
         h.insert("accept-language", long);
@@ -593,7 +693,7 @@ mod tests {
             .append_header("link", "<a>")
             .append_header("link", "<b>")
             .text("hello");
-        let bytes = encode(&res, &Bytes::from_static(b"hello"));
+        let bytes = encode(&res, &Bytes::from_static(b"hello")).unwrap();
         let back = decode(&bytes).unwrap();
         assert_eq!(back.status_code(), 200);
         assert_eq!(back.get_header("etag"), Some("\"x\""));

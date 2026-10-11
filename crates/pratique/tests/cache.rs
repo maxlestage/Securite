@@ -143,6 +143,96 @@ async fn max_age_and_conditional_hits() {
     assert_eq!(c.get("/zero").await.header("x-cache"), Some("MISS"));
 }
 
+#[tokio::test]
+async fn each_site_and_origin_gets_its_own_entry() {
+    let mut app = App::new();
+    app.middleware(ResponseCache::new(Duration::from_secs(60)));
+    app.get("/", |req: Request| async move {
+        let host = req.hostname().unwrap_or("?").to_owned();
+        format!("<a href=\"https://{host}/login\">")
+    });
+    let c = TestClient::new(app);
+    let evil = c.get("/").header("host", "evil.example").await;
+    assert!(evil.text().contains("evil.example"));
+    let shop = c.get("/").header("host", "shop.example").await;
+    assert_eq!(shop.header("x-cache"), Some("MISS"));
+    assert!(shop.text().contains("shop.example"), "{}", shop.text());
+    let again = c.get("/").header("host", "SHOP.example").await;
+    assert_eq!(again.header("x-cache"), Some("HIT"));
+    // CORS: an answer for one origin is not served to another.
+    c.get("/").header("origin", "https://a.example").await;
+    let other = c.get("/").header("origin", "https://b.example").await;
+    assert_eq!(other.header("x-cache"), Some("MISS"));
+}
+
+#[tokio::test]
+async fn private_from_an_inner_cache_control_is_respected() {
+    let mut app = App::new();
+    app.middleware(ResponseCache::new(Duration::from_secs(60)));
+    app.middleware(CacheControl::new().route("/me", "private"));
+    app.get("/me", |req: Request| async move {
+        format!("hello {}", req.query("u").unwrap_or_default())
+    });
+    let c = TestClient::new(app);
+    c.get("/me").await;
+    assert_eq!(c.get("/me").await.header("x-cache"), Some("MISS"));
+}
+
+#[tokio::test]
+async fn nonces_invalid_ages_and_request_no_store() {
+    let mut app = App::new();
+    app.middleware(ResponseCache::new(Duration::MAX));
+    app.get("/nonce", |_req: Request| async {
+        res::html("<script nonce=abc>").header("content-security-policy", "script-src 'nonce-abc'")
+    });
+    app.get("/bad-age", |_req: Request| async {
+        res::text("x").header("cache-control", "max-age=-1")
+    });
+    app.get("/twice", |_req: Request| async {
+        res::text("x").header("cache-control", "max-age=0, max-age=60")
+    });
+    app.get("/", |_req: Request| async { "home" });
+    let c = TestClient::new(app);
+    for path in ["/nonce", "/bad-age", "/twice"] {
+        c.get(path).await;
+        assert_eq!(c.get(path).await.header("x-cache"), Some("MISS"), "{path}");
+    }
+    // A huge TTL is capped, not a 500.
+    assert_eq!(c.get("/").await.status(), StatusCode::OK);
+    assert_eq!(c.get("/").await.header("x-cache"), Some("HIT"));
+    // `Cache-Control: no-store` from the client: straight to the handler.
+    let res = c.get("/").header("cache-control", "no-store").await;
+    assert_eq!(res.header("x-cache"), None);
+}
+
+#[tokio::test]
+async fn a_purge_is_not_undone_by_a_request_in_flight() {
+    let version = Arc::new(AtomicUsize::new(1));
+    let current = version.clone();
+    let cache = ResponseCache::new(Duration::from_secs(60));
+    let handle = cache.handle();
+    let mut app = App::new();
+    app.middleware(cache);
+    app.get("/", move |_req: Request| {
+        let v = current.load(Ordering::SeqCst);
+        async move {
+            vitesse::tokio::time::sleep(Duration::from_millis(200)).await;
+            format!("v{v}")
+        }
+    });
+    let c = TestClient::new(app);
+    let slow = async { c.get("/").await.text() };
+    let purge = async {
+        vitesse::tokio::time::sleep(Duration::from_millis(50)).await;
+        version.store(2, Ordering::SeqCst);
+        handle.invalidate("/").await.unwrap();
+    };
+    let (old, ()) = vitesse::tokio::join!(slow, purge);
+    assert_eq!(old, "v1");
+    // The v1 answer finished after the purge: it was not stored.
+    assert_eq!(c.get("/").await.text(), "v2");
+}
+
 /// A store that always fails, like a Redis that is down.
 struct Broken;
 
@@ -186,9 +276,9 @@ async fn a_failing_store_is_a_miss() {
         (StatusCode::OK, "home")
     );
     assert_eq!(res.header("x-cache"), Some("MISS"));
-    // One failed lookup and one failed write.
-    assert_eq!(handle.errors(), 2);
-    assert_eq!(seen.load(Ordering::SeqCst), 2);
+    // One failed lookup; no write is attempted after it.
+    assert_eq!(handle.errors(), 1);
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
     assert!(handle.clear().await.is_err());
 }
 
@@ -277,6 +367,103 @@ mod redis {
         assert_eq!(a.get("/catalog/7").await.header("x-cache"), Some("MISS"));
         assert_eq!(handle_a.errors() + handle_b.errors(), 0);
         handle_a.clear().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn prefixes_are_isolated() {
+        let Some(url) = url() else { return };
+        let app = format!("pratique-iso-{}", std::process::id());
+        let (a, handle_a, _) = instance(&url, &app);
+        let (b, _, calls_b) = instance(&url, &format!("{app}2"));
+        a.get("/catalog/1").await;
+        b.get("/catalog/1").await;
+        handle_a.clear().await.unwrap();
+        assert_eq!(b.get("/catalog/1").await.header("x-cache"), Some("HIT"));
+        assert_eq!(calls_b.load(Ordering::SeqCst), 1);
+        assert_eq!(a.get("/catalog/1").await.header("x-cache"), Some("MISS"));
+        handle_a.clear().await.unwrap();
+        // The other prefix is cleaned up through its own handle.
+        let store = RedisStore::open(&url).unwrap().prefix(format!("{app}2"));
+        CacheStore::clear(&store).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_silent_redis_costs_one_timeout_then_nothing() {
+        // Accepts connections and never answers.
+        let listener = vitesse::tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .unwrap();
+        let addr = listener.local_addr().unwrap();
+        vitesse::tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                held.push(socket);
+            }
+        });
+        let store = RedisStore::open(&format!("redis://{addr}/"))
+            .unwrap()
+            .timeout(Duration::from_millis(100))
+            .cooldown(Duration::from_secs(30));
+        let cache = ResponseCache::new(Duration::from_secs(60)).store(store);
+        let handle = cache.handle();
+        let mut app = App::new();
+        app.middleware(cache);
+        app.get("/", |_req: Request| async { "home" });
+        let c = TestClient::new(app);
+        let start = std::time::Instant::now();
+        assert_eq!(c.get("/").await.text(), "home");
+        let first = start.elapsed();
+        assert!(first < Duration::from_millis(400), "{first:?}");
+        // Cooling down: the next requests don't wait at all.
+        let start = std::time::Instant::now();
+        for _ in 0..20 {
+            assert_eq!(c.get("/").await.text(), "home");
+        }
+        assert!(
+            start.elapsed() < Duration::from_millis(100),
+            "{:?}",
+            start.elapsed()
+        );
+        assert_eq!(handle.errors(), 21);
+        let start = std::time::Instant::now();
+        assert!(handle.invalidate("/").await.is_err());
+        assert!(start.elapsed() < Duration::from_millis(50));
+    }
+
+    /// Like Vitesse's thread-per-core mode: one single-threaded runtime per
+    /// thread. A blocked thread must not hold up the others' Redis traffic.
+    #[test]
+    fn each_runtime_has_its_own_connection() {
+        let Some(url) = url() else { return };
+        let prefix = format!("pratique-cores-{}:", std::process::id());
+        let (client, handle, _) = instance(&url, &prefix);
+        let runtime = || {
+            vitesse::tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+        };
+        // Core A connects first, then blocks for 2 s.
+        let core_a = std::thread::spawn(move || {
+            runtime().block_on(async move {
+                client.get("/catalog/1").await;
+                std::thread::sleep(Duration::from_secs(2));
+            })
+        });
+        std::thread::sleep(Duration::from_millis(300));
+        let core_b = std::thread::spawn(move || {
+            runtime().block_on(async move {
+                let start = std::time::Instant::now();
+                let res = client.get("/catalog/1").await;
+                (res.header("x-cache").map(str::to_owned), start.elapsed())
+            })
+        });
+        let (cache, took) = core_b.join().unwrap();
+        core_a.join().unwrap();
+        assert_eq!(cache.as_deref(), Some("HIT"));
+        assert!(took < Duration::from_millis(200), "{took:?}");
+        assert_eq!(handle.errors(), 0);
+        runtime().block_on(handle.clear()).unwrap();
     }
 
     #[tokio::test]

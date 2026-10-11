@@ -65,9 +65,10 @@ fn main() -> std::io::Result<()> {
 Vitesse runs middlewares in the order they are added: the first one added is the outermost, it sees the request first and the response last. A good order:
 
 1. **Observers**: `AccessLog`, `Metrics`, `ResponseTime`, so they measure everything, including the answers of the other middlewares.
-2. **Securite's `Shield`**, so that `/metrics` and the rest are protected.
+2. **Securite's `Shield`** (and CORS), so that `/metrics` and the rest are protected, cached pages included.
 3. **Middlewares that answer by themselves**: `Health`, `Maintenance`, `Redirects`, `TrailingSlash`.
-4. **Middlewares that work on your routes' responses**: `Locale`, `ETag`, `CacheControl`, `ResponseCache`, `SetHeaders`, `Deprecation`.
+4. **`Locale`**, then **`ResponseCache`**: the cache keeps one entry per language.
+5. **Middlewares that shape your routes' responses**: `CacheControl`, `ETag`, `SetHeaders`, `Deprecation`. Inside the cache, the stored responses carry their headers, and a `Cache-Control: private` they set keeps a page out of the cache.
 
 ```rust
 use pratique::prelude::*;
@@ -80,6 +81,9 @@ app.middleware(Metrics::new());
 app.middleware(Shield::recommended());
 app.middleware(Health::new());
 app.middleware(Redirects::new().prefix("/blog", "/articles"));
+app.middleware(Locale::new(["en", "fr"]));
+app.middleware(ResponseCache::new(std::time::Duration::from_secs(60)));
+app.middleware(CacheControl::new().route("/account", CacheControl::NO_STORE));
 app.middleware(ETag::new());
 ```
 
