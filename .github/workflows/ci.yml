@@ -26,7 +26,7 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
-      - run: cargo doc -p securite --no-deps
+      - run: cargo doc -p securite -p pratique --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
       # The package is verified by crates.io itself once vitesse (a git dependency
@@ -45,6 +45,7 @@ jobs:
           toolchain: "1.85"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check -p securite --all-features
+      - run: cargo check -p pratique
 
   site:
     name: Website · active + WebAssembly
