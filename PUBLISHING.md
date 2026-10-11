@@ -34,7 +34,7 @@ cargo publish -p securite
 
 ## The ecosystem, in order
 
-The six projects by Maxime Nathan Lestage depend on each other through crates.io, so they
+The seven projects by Maxime Nathan Lestage depend on each other through crates.io, so they
 are published in this order, each one after the previous one is online:
 
 1. **Active** — `active`
@@ -43,3 +43,4 @@ are published in this order, each one after the previous one is online:
 4. **Memoire** — `memoire-orm-derive`, then `memoire-orm`
 5. **Paquets** — `paquets-macros`, then `paquets` (depends on the four above)
 6. **FerroSwift** — `ferroswift-macros`, `ferroswift-transpiler`, `ferroswift`, `ferroswift-cli`
+7. **Solidify** — `solidify` (and `solidify-rs` on npm; depends on none of the above)

@@ -383,7 +383,7 @@ mod tests {
                 footer.contains(&format!("v{}", securite::VERSION)),
                 "{lang}"
             );
-            // The six projects of the ecosystem, this one marked as the current page.
+            // The seven projects of the ecosystem, this one marked as the current page.
             for project in [
                 "Active",
                 "Vitesse",
@@ -391,6 +391,7 @@ mod tests {
                 "Memoire",
                 "Paquets",
                 "FerroSwift",
+                "Solidify",
             ] {
                 assert!(
                     footer.contains(&format!(

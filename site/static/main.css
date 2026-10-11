@@ -2251,15 +2251,32 @@ pre code {
   overflow: hidden;
 }
 
+/* The last tile fills the rest of its row: no empty cell shows the hairlines' color. */
 @media (min-width: 720px) {
   .footer .eco-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .footer .eco-grid li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
 @media (min-width: 980px) {
   .footer .eco-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .footer .eco-grid li:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+  .footer .eco-grid li:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+  }
+
+  .footer .eco-grid li:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
   }
 }
 

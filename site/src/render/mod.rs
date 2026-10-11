@@ -20,13 +20,14 @@ pub const LICENSE_PATH: &str = "/static/LICENSE.txt";
 pub const AUTHOR: &str = "Maxime Nathan Lestage";
 /// The sister projects of securite, by the same author: (name, website). The footer links
 /// them in this order; `i18n::Texts::footer_projects` describes each one in the same order.
-pub const ECOSYSTEM: [(&str, &str); 6] = [
+pub const ECOSYSTEM: [(&str, &str); 7] = [
     ("Active", "https://maxlestage.github.io/Active/"),
     ("Vitesse", "https://maxlestage.github.io/Vitesse/"),
     ("Securite", "https://maxlestage.github.io/Securite/"),
     ("Memoire", "https://maxlestage.github.io/Memoire/"),
     ("Paquets", "https://maxlestage.github.io/Paquets/"),
     ("FerroSwift", "https://maxlestage.github.io/FerroSwift/"),
+    ("Solidify", "https://maxlestage.github.io/Solidify/"),
 ];
 pub const CRATES_IO: &str = "https://github.com/maxlestage/Securite";
 pub const DOCS_RS: &str = "https://docs.rs/securite";
