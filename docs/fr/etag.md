@@ -61,7 +61,7 @@ app.middleware(CacheControl::new().fallback(CacheControl::NO_CACHE));
 
 - Le corps doit être calculé pour être haché : un `304` économise de la bande passante et du temps côté client, pas du travail côté serveur. Pour épargner aussi le serveur, ajoutez un [cache de réponses](/docs/response-cache).
 - La comparaison est faible, comme l'exige la RFC 9110 pour `If-None-Match` : `W/"x"` correspond à `"x"`.
-- Placez `ETag` avant un middleware de compression (pour qu'il s'exécute à l'intérieur) afin de hacher les octets d'origine, ou utilisez `.weak(true)`.
+- Avec `middleware::compress()` de Vitesse, utilisez `.weak(true)` : la même étiquette couvre alors la version compressée et la version non compressée, ce que la RFC 9110 n'autorise que pour les étiquettes faibles.
 
 ## Pages associées
 
