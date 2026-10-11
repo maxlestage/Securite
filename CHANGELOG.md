@@ -50,6 +50,19 @@ Found by reviewing every middleware of `pratique` before its first release:
   `http::Uri` rejects; `TrailingSlash` could turn `/\evil.example/` into a
   protocol-relative address and redirected `OPTIONS *`; `.except(prefix)` avoids
   a redirect loop with Vitesse's static directories.
+- `ResponseCache`, after a second review of its own: the site (`Host`,
+  `Forwarded`, `X-Forwarded-Host`, `X-Forwarded-Proto`) and the CORS `Origin` are
+  part of the key, so one domain's page is never served to another; responses
+  with a CSP nonce, an invalid `max-age` or a request `Cache-Control: no-store`
+  are not cached; a purge is not undone by a request already in flight; huge TTLs
+  are capped instead of panicking; header lists that don't fit the stored format
+  are not truncated; `MemoryStore` evicts in `O(log n)` and has a byte budget
+  (`max_bytes`, 64 MiB). `RedisStore`: one connection per worker thread (a
+  blocked core no longer holds up the others), one timeout per operation
+  connection included, and a cooldown after a failure, so a silent or
+  unreachable Redis costs at most one timeout per second instead of seconds per
+  request; `clear` no longer removes the keys of a prefix that starts the same
+  way.
 - `Locale` adds `Vary: Cookie` when the cookie chooses the language, honours `Q=`
   and never picks a language refused with `q=0` through a regional variant; `Vary`
   values are merged into one line.
