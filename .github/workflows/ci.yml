@@ -29,8 +29,10 @@ jobs:
       - run: cargo doc -p securite --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-      - name: Package (crates.io dry run)
-        run: cargo publish -p securite --dry-run
+      # The package is verified by crates.io itself once vitesse (a git dependency
+      # until it is published there) is on crates.io: its file list is checked here.
+      - name: Package (crates.io)
+        run: cargo package -p securite --list
 
   msrv:
     name: Crate · MSRV 1.85

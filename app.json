@@ -1,12 +1,12 @@
 {
   "name": "securite",
-  "description": "Website and live demo of securite, fast security middlewares for Rust (axum, hyper, tonic). Pages rendered with active, WebAssembly islands, installable PWA, protected by its own WAF, rate limiter, CSP and more.",
+  "description": "Website and live demo of securite, fast security middlewares for Rust (Vitesse, hyper, tonic). Pages rendered with active, WebAssembly islands, installable PWA, protected by its own WAF, rate limiter, CSP and more.",
   "logo": "https://maxlestage.github.io/Securite/static/favicon.svg",
   "keywords": [
     "rust",
     "security",
     "middleware",
-    "axum",
+    "vitesse",
     "waf",
     "webassembly",
     "active",

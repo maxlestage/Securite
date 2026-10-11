@@ -11,4 +11,4 @@ let shield = Shield::builder()
     .on_event(|e| tracing::warn!(guard = e.guard, ip = ?e.client_ip, "blocked"))
     .build();
 
-let app = router.layer(shield);
+app.middleware(shield);

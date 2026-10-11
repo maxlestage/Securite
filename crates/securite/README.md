@@ -8,18 +8,18 @@
 
 **Fast, easy, batteries-included security middlewares for Rust web services.**
 
-`securite` plugs into any [tower](https://docs.rs/tower) stack — axum, hyper,
-tonic, Loco, Leptos / Dioxus fullstack, Poem, Salvo… — and protects it with a
-single layer, the `Shield`, or with individual middlewares.
+`securite` protects a [Vitesse](https://maxlestage.github.io/Vitesse/) application
+with one line, and any [tower](https://docs.rs/tower) stack — hyper, tonic, Poem,
+Salvo… — with a single layer, the `Shield`, or with individual middlewares.
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    // Security headers, WAF, rate limiting, CSRF, request ids…
-    .layer(Shield::recommended());
+let mut app = App::new();
+// Security headers, WAF, rate limiting, CSRF, request ids…
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
 ```console
@@ -76,14 +76,15 @@ let shield = ShieldBuilder::recommended()
     .build();
 ```
 
-Every middleware is also a standalone tower layer:
+Every middleware also works on its own, as a one-guard shield:
 
 ```rust
-let app = router
-    .layer(SecurityHeaders::strict())
-    .layer(RateLimit::per_minute(600))
-    .layer(Waf::new().monitor()); // log only, never block
+app.middleware(Shield::from(SecurityHeaders::strict()));
+app.middleware(Shield::from(RateLimit::per_minute(600)));
+app.middleware(Shield::from(Waf::new().monitor())); // log only, never block
 ```
+
+With tower, a guard is a layer by itself: `ServiceBuilder::new().layer(Waf::new())`.
 
 ## Performance
 
@@ -109,7 +110,7 @@ in sharded, bounded, HashDoS-resistant maps. `#![forbid(unsafe_code)]`.
 
 IP-aware guards need the real client address:
 
-* axum: serve with `app.into_make_service_with_connect_info::<SocketAddr>()`;
+* Vitesse: nothing to do, the shield reads the peer address of the connection;
 * hyper: insert `securite::PeerAddr(addr)` in the request extensions;
 * behind a proxy: `.client_ip(ClientIpSource::heroku())`, `cloudflare()`, `fly()`,
   `x_real_ip()` or `XForwardedFor { trusted_hops }`.

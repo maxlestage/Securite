@@ -3,24 +3,19 @@
 
 use std::sync::Arc;
 
-use axum::Router;
-use axum::extract::{Query, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
-use axum::response::{IntoResponse, Response};
-use axum::routing::get;
 use securite::headers::Hsts;
 use securite::prelude::*;
 use securite_site::i18n::Lang;
 use securite_site::render::Site;
 use securite_site::routes::{Page, Route};
-use tower_http::compression::CompressionLayer;
+use vitesse::prelude::*;
 
-#[derive(Clone)]
+/// What every handler needs.
 pub struct AppState {
     shield: Shield,
     site: Arc<Site>,
-    manifest: Arc<str>,
-    worker: Arc<str>,
+    manifest: String,
+    worker: String,
 }
 
 /// Builds the shield protecting this very website.
@@ -44,9 +39,9 @@ pub fn shield(production: bool, scripts: Vec<String>, styles: Vec<String>) -> Sh
         .guard(RequestId::new())
         .guard(Hygiene::new())
         .guard(MethodFilter::only([
-            axum::http::Method::GET,
-            axum::http::Method::HEAD,
-            axum::http::Method::OPTIONS,
+            Method::GET,
+            Method::HEAD,
+            Method::OPTIONS,
         ]))
         .guard(BodyLimit::new(16 * 1024))
         .guard(
@@ -66,8 +61,8 @@ pub fn shield(production: bool, scripts: Vec<String>, styles: Vec<String>) -> Sh
     builder.build()
 }
 
-/// The whole application (routes + shield).
-pub fn app(site: Arc<Site>, production: bool) -> Router {
+/// Adds the shield (outermost), the compression and the routes to `app`.
+pub fn install(app: &mut App, site: Arc<Site>, production: bool) {
     // Every page has the same inline scripts (WebAssembly loader, service worker
     // registration) and style: hash them once.
     let sample = site.page(&Route::new(Lang::En, Page::Home), "http://localhost");
@@ -81,42 +76,55 @@ pub fn app(site: Arc<Site>, production: bool) -> Router {
     );
     let shield = shield(production, scripts, styles);
     tracing::info!(guards = ?shield.guard_names(), "shield ready");
-    routes(site, shield.clone())
-        .layer(CompressionLayer::new())
-        .layer(shield)
+    // The shield sees every request first, and decorates every response last.
+    app.middleware(shield.clone());
+    app.middleware(middleware::compress());
+    routes(app, site, shield);
 }
 
 /// The routes, without the shield.
-pub fn routes(site: Arc<Site>, shield: Shield) -> Router {
-    let state = AppState {
+pub fn routes(app: &mut App, site: Arc<Site>, shield: Shield) {
+    let state = Arc::new(AppState {
         shield,
-        manifest: site.manifest().to_json().into(),
-        worker: site.service_worker().to_js().into(),
+        manifest: site.manifest().to_json(),
+        worker: site.service_worker().to_js(),
         site,
-    };
-    Router::new()
-        .route("/", get(root))
-        .route("/index.html", get(root))
-        .route("/api/health", get(|| async { "ok" }))
-        .route("/api/stats", get(stats))
-        .route("/api/demo", get(demo))
-        .route("/manifest.webmanifest", get(manifest))
-        .route("/sw.js", get(service_worker))
-        .route("/sitemap.xml", get(sitemap))
-        .route("/robots.txt", get(robots))
-        .route("/favicon.svg", get(favicon))
-        .route("/static/{*path}", get(file))
-        .route("/pkg/{*path}", get(file))
-        .fallback(get(page))
-        .with_state(state)
+    });
+    route(app, "/", &state, root);
+    route(app, "/index.html", &state, root);
+    app.get("/api/health", |_req: Request| async { "ok" });
+    route(app, "/api/stats", &state, stats);
+    app.get("/api/demo", demo);
+    route(app, "/manifest.webmanifest", &state, manifest);
+    route(app, "/sw.js", &state, service_worker);
+    route(app, "/sitemap.xml", &state, sitemap);
+    route(app, "/robots.txt", &state, robots);
+    route(app, "/favicon.svg", &state, favicon);
+    route(app, "/static/*path", &state, file);
+    route(app, "/pkg/*path", &state, file);
+    app.fallback(move |req: Request| {
+        let state = state.clone();
+        async move { page(&state, &req) }
+    });
+}
+
+/// Routes a handler that only needs the state and the request.
+fn route(
+    app: &mut App,
+    path: &str,
+    state: &Arc<AppState>,
+    handler: fn(&AppState, &Request) -> Response,
+) {
+    let state = state.clone();
+    app.get(path, move |req: Request| {
+        let state = state.clone();
+        async move { handler(&state, &req) }
+    });
 }
 
 /// Preferred supported language from `Accept-Language`, English by default.
-pub fn pick_lang(headers: &HeaderMap) -> Lang {
-    let header = headers
-        .get(header::ACCEPT_LANGUAGE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+pub fn pick_lang(req: &Request) -> Lang {
+    let header = req.header("accept-language").unwrap_or("");
     let mut ranked: Vec<(Lang, f32)> = header
         .split(',')
         .filter_map(|part| {
@@ -134,11 +142,9 @@ pub fn pick_lang(headers: &HeaderMap) -> Lang {
     ranked.first().map_or(Lang::En, |r| r.0)
 }
 
-fn public_url(site: &Site, headers: &HeaderMap) -> String {
+fn public_url(site: &Site, req: &Request) -> String {
     let get = |name: &str| {
-        headers
-            .get(name)
-            .and_then(|v| v.to_str().ok())
+        req.header(name)
             .map(|v| v.split(',').next().unwrap_or("").trim().to_string())
     };
     let host = get("x-forwarded-host").or_else(|| get("host"));
@@ -146,222 +152,164 @@ fn public_url(site: &Site, headers: &HeaderMap) -> String {
     site.public_url(host.as_deref(), https)
 }
 
-fn redirect(status: StatusCode, location: String) -> Response {
-    let mut res = (status, [(header::LOCATION, location)]).into_response();
-    res.headers_mut()
-        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-    res
+fn redirect(status: u16, location: String) -> Response {
+    res::status(status)
+        .header("location", location)
+        .header("cache-control", "no-cache")
 }
 
 /// `/`: the home page in the visitor's language.
-async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    let lang = pick_lang(&headers);
-    let mut res = redirect(
-        StatusCode::FOUND,
-        Route::new(lang, Page::Home).href(&state.site.base),
-    );
-    res.headers_mut()
-        .insert(header::VARY, HeaderValue::from_static("Accept-Language"));
-    res
+fn root(state: &AppState, req: &Request) -> Response {
+    let lang = pick_lang(req);
+    redirect(302, Route::new(lang, Page::Home).href(&state.site.base))
+        .header("vary", "Accept-Language")
 }
 
-fn html(status: StatusCode, body: String) -> Response {
-    (
-        status,
-        [
-            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
+fn html(status: u16, body: String) -> Response {
+    res::status(status)
+        .header("cache-control", "no-cache")
+        .html(body)
 }
 
 /// Every page: `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/`, `/{lang}/playground/`,
 /// the addresses of the previous version of the site (redirected), or a 404.
-async fn page(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+fn page(state: &AppState, req: &Request) -> Response {
     let site = &state.site;
-    let path = uri.path();
-    let query = uri.query().map(|q| format!("?{q}")).unwrap_or_default();
+    let path = req.path();
+    let query = req
+        .query_string()
+        .map(|q| format!("?{q}"))
+        .unwrap_or_default();
     let route = match site.route(path) {
         Some(route) => route,
         None => {
-            let lang = pick_lang(&headers);
+            let lang = pick_lang(req);
             // Links to the previous single-page app: /docs, /docs/waf, /playground.
             let legacy = path == "/docs"
                 || path.starts_with("/docs/")
                 || path.trim_end_matches('/') == "/playground";
             if legacy {
                 let path = path.trim_end_matches('/');
-                return redirect(
-                    StatusCode::MOVED_PERMANENTLY,
-                    format!("{}/{}{path}/{query}", site.base, lang.code()),
-                );
+                return redirect(301, format!("{}/{}{path}/{query}", site.base, lang.code()));
             }
             Route::new(lang, Page::NotFound)
         }
     };
     if route.page != Page::NotFound && !path.ends_with('/') {
-        return redirect(
-            StatusCode::MOVED_PERMANENTLY,
-            format!("{}{path}/{query}", site.base),
-        );
+        return redirect(301, format!("{}{path}/{query}", site.base));
     }
     let status = if route.page == Page::NotFound {
-        StatusCode::NOT_FOUND
+        404
     } else {
-        StatusCode::OK
+        200
     };
-    html(status, site.page(&route, &public_url(site, &headers)))
+    html(status, site.page(&route, &public_url(site, req)))
 }
 
-fn asset(site: &Site, url: &str, uri: &Uri) -> Response {
+/// A static file by its URL. Versioned URLs (`?v=`) never change: browsers keep them a year.
+fn asset(site: &Site, url: &str, req: &Request) -> Response {
     match site.assets.get(url) {
         Some(a) => {
-            let cache = if uri.query().is_some_and(|q| q.starts_with("v=")) {
+            let cache = if req.query_string().is_some_and(|q| q.starts_with("v=")) {
                 "public, max-age=31536000, immutable"
             } else {
                 "public, max-age=3600"
             };
-            (
-                [
-                    (header::CONTENT_TYPE, a.content_type),
-                    (header::CACHE_CONTROL, cache),
-                ],
-                a.bytes.clone(),
-            )
-                .into_response()
+            res::send(a.bytes.clone())
+                .header("content-type", a.content_type)
+                .header("cache-control", cache)
         }
-        None => StatusCode::NOT_FOUND.into_response(),
+        None => res::status(404),
     }
 }
 
-async fn file(State(state): State<AppState>, uri: Uri) -> Response {
-    asset(&state.site, uri.path(), &uri)
+fn file(state: &AppState, req: &Request) -> Response {
+    asset(&state.site, req.path(), req)
 }
 
-async fn favicon(State(state): State<AppState>, uri: Uri) -> Response {
-    asset(&state.site, "/static/favicon.svg", &uri)
+fn favicon(state: &AppState, req: &Request) -> Response {
+    asset(&state.site, "/static/favicon.svg", req)
 }
 
-async fn manifest(State(state): State<AppState>) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "application/manifest+json"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        state.manifest.to_string(),
-    )
-        .into_response()
+fn manifest(state: &AppState, _req: &Request) -> Response {
+    res::send(state.manifest.clone())
+        .header("content-type", "application/manifest+json")
+        .header("cache-control", "no-cache")
 }
 
-async fn service_worker(State(state): State<AppState>) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/javascript; charset=utf-8"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        state.worker.to_string(),
-    )
-        .into_response()
+fn service_worker(state: &AppState, _req: &Request) -> Response {
+    res::send(state.worker.clone())
+        .header("content-type", "text/javascript; charset=utf-8")
+        .header("cache-control", "no-cache")
 }
 
-async fn sitemap(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    let public = public_url(&state.site, &headers);
-    (
-        [(header::CONTENT_TYPE, "application/xml; charset=utf-8")],
-        state.site.sitemap(&public),
-    )
-        .into_response()
+fn sitemap(state: &AppState, req: &Request) -> Response {
+    let public = public_url(&state.site, req);
+    res::send(state.site.sitemap(&public)).header("content-type", "application/xml; charset=utf-8")
 }
 
-async fn robots(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    let public = public_url(&state.site, &headers);
-    (
-        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-        state.site.robots(&public),
-    )
-        .into_response()
+fn robots(state: &AppState, req: &Request) -> Response {
+    let public = public_url(&state.site, req);
+    res::text(state.site.robots(&public))
 }
 
-async fn stats(State(state): State<AppState>) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "application/json"),
-            (header::CACHE_CONTROL, "no-store"),
-        ],
-        state.shield.stats().to_json(),
-    )
-        .into_response()
+/// `/api/stats`: the live counters of the shield.
+fn stats(state: &AppState, _req: &Request) -> Response {
+    res::send(state.shield.stats().to_json())
+        .header("content-type", "application/json")
+        .header("cache-control", "no-store")
 }
 
 /// Playground endpoint: if the WAF lets the payload through, echo it back.
-async fn demo(Query(params): Query<std::collections::HashMap<String, String>>) -> Response {
-    let payload = params.get("payload").cloned().unwrap_or_default();
+async fn demo(req: Request) -> Response {
+    let payload = req
+        .query("payload")
+        .map(|p| p.into_owned())
+        .unwrap_or_default();
     let body = serde_json::json!({
         "status": "allowed",
         "message": "No attack detected: the request reached the application.",
         "payload": payload,
     });
-    (
-        StatusCode::OK,
-        [
-            (header::CONTENT_TYPE, "application/json"),
-            (header::CACHE_CONTROL, "no-store"),
-        ],
-        body.to_string(),
-    )
-        .into_response()
+    res::json(body).header("cache-control", "no-store")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
-    use axum::http::Request;
     use securite_site::render::site_dir;
-    use std::net::SocketAddr;
-    use tower::ServiceExt;
+    use vitesse::test::{TestClient, TestResponse};
 
-    fn test_app(production: bool) -> Router {
-        app(
+    fn client_for(site: Arc<Site>, production: bool) -> TestClient {
+        let mut app = App::new();
+        install(&mut app, site, production);
+        TestClient::new(app)
+    }
+
+    fn test_app(production: bool) -> TestClient {
+        client_for(
             Arc::new(Site::load(&site_dir(), "", None, true)),
             production,
         )
     }
 
-    async fn send(app: &Router, req: Request<Body>) -> (StatusCode, HeaderMap, String) {
-        let mut req = req;
-        req.extensions_mut()
-            .insert(axum::extract::ConnectInfo(SocketAddr::from((
-                [203, 0, 113, 7],
-                4000,
-            ))));
-        let res = app.clone().oneshot(req).await.unwrap();
-        let status = res.status();
-        let headers = res.headers().clone();
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        (status, headers, String::from_utf8_lossy(&body).into_owned())
+    fn h<'a>(res: &'a TestResponse, name: &str) -> &'a str {
+        res.header(name).unwrap_or("")
     }
 
-    async fn get(app: &Router, uri: &str) -> (StatusCode, HeaderMap, String) {
-        send(
-            app,
-            Request::builder().uri(uri).body(Body::empty()).unwrap(),
-        )
-        .await
+    async fn get(client: &TestClient, uri: &str) -> TestResponse {
+        client.get(uri).await
     }
 
     #[tokio::test]
     async fn pages_have_a_strict_csp_allowing_their_inline_scripts() {
-        let app = test_app(false);
-        let (status, h, body) = get(&app, "/fr/docs/waf/").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(h["content-type"], "text/html; charset=utf-8");
+        let client = test_app(false);
+        let res = get(&client, "/fr/docs/waf/").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-type"), "text/html; charset=utf-8");
+        let body = res.text();
         assert!(body.contains("<h1>Pare-feu applicatif (WAF)</h1>"));
-        let csp = h["content-security-policy"].to_str().unwrap();
+        let csp = h(&res, "content-security-policy");
         assert!(csp.contains("'wasm-unsafe-eval'"), "{csp}");
         assert!(!csp.contains("'unsafe-inline' "), "{csp}");
         assert!(csp.contains("worker-src 'self'"), "{csp}");
@@ -378,22 +326,42 @@ mod tests {
             "dev mode: {csp}"
         );
         assert!(
-            !h.contains_key("strict-transport-security"),
+            res.header("strict-transport-security").is_none(),
             "no HSTS in dev"
         );
-        assert_eq!(h["cross-origin-embedder-policy"], "require-corp");
+        assert_eq!(h(&res, "cross-origin-embedder-policy"), "require-corp");
+        assert!(res.header("x-request-id").is_some());
+    }
+
+    #[tokio::test]
+    async fn pages_are_compressed_for_browsers_that_accept_it() {
+        let client = test_app(false);
+        let res = client
+            .get("/en/")
+            .header("accept-encoding", "gzip, br")
+            .await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-encoding"), "br");
+        assert!(
+            h(&res, "vary").contains("accept-encoding"),
+            "{}",
+            h(&res, "vary")
+        );
+        // Still decorated by the shield.
+        assert_eq!(h(&res, "x-frame-options"), "DENY");
     }
 
     #[tokio::test]
     async fn every_page_ends_with_the_signature_footer() {
-        let app = test_app(false);
+        let client = test_app(false);
         for (lang, rights, here) in [
             ("fr", "Tous droits réservés", "Vous êtes ici"),
             ("en", "All rights reserved", "You are here"),
             ("es", "Todos los derechos reservados", "Estás aquí"),
         ] {
-            let (status, _, body) = get(&app, &format!("/{lang}/")).await;
-            assert_eq!(status, StatusCode::OK, "{lang}");
+            let res = get(&client, &format!("/{lang}/")).await;
+            assert_eq!(res.status(), StatusCode::OK, "{lang}");
+            let body = res.text();
             let footer = body.split("<footer").nth(1).expect("a footer");
             // The author's signature, the legal line and the license.
             assert!(footer.contains(r#"class="credits-name""#), "{lang}");
@@ -434,124 +402,123 @@ mod tests {
             );
         }
         // The license is served by the site, identical to the repository's.
-        let (status, _, body) = get(&app, "/static/LICENSE.txt").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(body, include_str!("../../LICENSE"));
+        let res = get(&client, "/static/LICENSE.txt").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(res.text(), include_str!("../../LICENSE"));
     }
 
     #[tokio::test]
     async fn every_page_passes_the_shield() {
         let site = Arc::new(Site::load(&site_dir(), "", None, true));
-        let app = app(site.clone(), false);
+        let client = client_for(site.clone(), false);
         for route in site.routes() {
-            let (status, _, body) = get(&app, &route.path()).await;
-            assert_eq!(status, StatusCode::OK, "{}", route.path());
-            assert!(body.contains("</html>"), "{}", route.path());
+            let res = get(&client, &route.path()).await;
+            assert_eq!(res.status(), StatusCode::OK, "{}", route.path());
+            assert!(res.text().contains("</html>"), "{}", route.path());
         }
-        let (status, _, body) = get(&app, "/es/nope/").await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert!(body.contains(r#"<html lang="es">"#));
+        let res = get(&client, "/es/nope/").await;
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
+        assert!(res.text().contains(r#"<html lang="es">"#));
     }
 
     #[tokio::test]
     async fn redirects_to_the_language_and_the_canonical_address() {
-        let app = test_app(false);
-        let req = Request::builder()
-            .uri("/")
+        let client = test_app(false);
+        let res = client
+            .get("/")
             .header("accept-language", "de-DE, fr;q=0.9, en;q=0.8")
-            .body(Body::empty())
-            .unwrap();
-        let (status, h, _) = send(&app, req).await;
-        assert_eq!(status, StatusCode::FOUND);
-        assert_eq!(h["location"], "/fr/");
-        let (status, h, _) = get(&app, "/en/docs/waf").await;
-        assert_eq!(status, StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(h["location"], "/en/docs/waf/");
+            .await;
+        assert_eq!(res.status(), StatusCode::FOUND);
+        assert_eq!(h(&res, "location"), "/fr/");
+        let res = get(&client, "/en/docs/waf").await;
+        assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(h(&res, "location"), "/en/docs/waf/");
         // Addresses of the previous single-page app.
-        let (status, h, _) = get(&app, "/docs/rate-limit").await;
-        assert_eq!(status, StatusCode::MOVED_PERMANENTLY);
-        assert_eq!(h["location"], "/en/docs/rate-limit/");
-        let (_, h, _) = get(&app, "/playground").await;
-        assert_eq!(h["location"], "/en/playground/");
+        let res = get(&client, "/docs/rate-limit").await;
+        assert_eq!(res.status(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(h(&res, "location"), "/en/docs/rate-limit/");
+        let res = get(&client, "/playground").await;
+        assert_eq!(h(&res, "location"), "/en/playground/");
     }
 
     #[tokio::test]
     async fn serves_the_manifest_the_worker_and_the_files() {
-        let app = test_app(false);
-        let (status, h, body) = get(&app, "/manifest.webmanifest").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(h["content-type"], "application/manifest+json");
-        assert!(body.starts_with(r#"{"name":"securite""#));
-        let (status, h, body) = get(&app, "/sw.js").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(h["content-type"], "text/javascript; charset=utf-8");
-        assert_eq!(h["cache-control"], "no-cache");
-        assert!(body.contains(r#"const NETWORK_ONLY = ["/api/"];"#));
-        let (status, h, _) = get(&app, "/static/icon-192.png?v=1").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(h["content-type"], "image/png");
-        assert_eq!(h["cache-control"], "public, max-age=31536000, immutable");
-        let (status, h, _) = get(&app, "/static/main.css").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(h["content-type"], "text/css; charset=utf-8");
-        assert_eq!(get(&app, "/favicon.svg").await.0, StatusCode::OK);
-        assert_eq!(get(&app, "/static/nope.css").await.0, StatusCode::NOT_FOUND);
-        let (_, _, robots) = get(&app, "/robots.txt").await;
+        let client = test_app(false);
+        let res = get(&client, "/manifest.webmanifest").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-type"), "application/manifest+json");
+        assert!(res.text().starts_with(r#"{"name":"securite""#));
+        let res = get(&client, "/sw.js").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-type"), "text/javascript; charset=utf-8");
+        assert_eq!(h(&res, "cache-control"), "no-cache");
+        assert!(res.text().contains(r#"const NETWORK_ONLY = ["/api/"];"#));
+        let res = get(&client, "/static/icon-192.png?v=1").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-type"), "image/png");
+        assert_eq!(
+            h(&res, "cache-control"),
+            "public, max-age=31536000, immutable"
+        );
+        let res = get(&client, "/static/main.css").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(h(&res, "content-type"), "text/css; charset=utf-8");
+        assert_eq!(get(&client, "/favicon.svg").await.status(), StatusCode::OK);
+        assert_eq!(
+            get(&client, "/static/nope.css").await.status(),
+            StatusCode::NOT_FOUND
+        );
+        let robots = get(&client, "/robots.txt").await.text();
         assert!(robots.contains("Sitemap: http://localhost/sitemap.xml"));
-        let (_, h, xml) = get(&app, "/sitemap.xml").await;
-        assert_eq!(h["content-type"], "application/xml; charset=utf-8");
-        assert!(xml.contains("<loc>http://localhost/fr/playground/</loc>"));
+        let res = get(&client, "/sitemap.xml").await;
+        assert_eq!(h(&res, "content-type"), "application/xml; charset=utf-8");
+        assert!(
+            res.text()
+                .contains("<loc>http://localhost/fr/playground/</loc>")
+        );
     }
 
     #[tokio::test]
     async fn demo_blocks_attacks_and_counts_them() {
-        let app = test_app(false);
-        let (status, _, body) = get(&app, "/api/demo?payload=hello").await;
-        assert_eq!(status, StatusCode::OK);
-        assert!(body.contains("\"allowed\""));
-        let (status, h, body) =
-            get(&app, "/api/demo?payload=%24%7Bjndi%3Aldap%3A%2F%2Fx%2Fa%7D").await;
-        assert_eq!(status, StatusCode::FORBIDDEN);
-        assert_eq!(h["content-type"], "application/problem+json");
-        assert!(body.contains("waf_blocked"));
-        let (_, _, stats) = get(&app, "/api/stats").await;
+        let client = test_app(false);
+        let res = get(&client, "/api/demo?payload=hello").await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert!(res.text().contains("\"allowed\""));
+        let res = get(
+            &client,
+            "/api/demo?payload=%24%7Bjndi%3Aldap%3A%2F%2Fx%2Fa%7D",
+        )
+        .await;
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+        assert_eq!(h(&res, "content-type"), "application/problem+json");
+        assert!(res.text().contains("waf_blocked"));
+        let stats = get(&client, "/api/stats").await.text();
         assert!(stats.contains("\"blocked\":1"), "{stats}");
     }
 
     #[tokio::test]
     async fn production_mode_redirects_and_sets_hsts() {
-        let app = test_app(true);
-        let req = Request::builder()
-            .uri("/en/docs/")
+        let client = test_app(true);
+        let res = client
+            .get("/en/docs/")
             .header("host", "securite.example")
             .header("x-forwarded-proto", "http")
             .header("x-forwarded-for", "198.51.100.4")
-            .body(Body::empty())
-            .unwrap();
-        let (status, h, _) = send(&app, req).await;
-        assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
-        assert_eq!(h["location"], "https://securite.example/en/docs/");
-        let req = Request::builder()
-            .uri("/en/")
+            .await;
+        assert_eq!(res.status(), StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(h(&res, "location"), "https://securite.example/en/docs/");
+        let res = client
+            .get("/en/")
             .header("host", "securite.example")
             .header("x-forwarded-proto", "https")
             .header("x-forwarded-for", "198.51.100.4")
-            .body(Body::empty())
-            .unwrap();
-        let (status, h, body) = send(&app, req).await;
-        assert_eq!(status, StatusCode::OK);
+            .await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert!(h(&res, "strict-transport-security").contains("max-age"));
+        assert!(h(&res, "content-security-policy").contains("upgrade-insecure-requests"));
         assert!(
-            h["strict-transport-security"]
-                .to_str()
-                .unwrap()
-                .contains("max-age")
+            res.text()
+                .contains(r#"<link rel="canonical" href="https://securite.example/en/"/>"#)
         );
-        assert!(
-            h["content-security-policy"]
-                .to_str()
-                .unwrap()
-                .contains("upgrade-insecure-requests")
-        );
-        assert!(body.contains(r#"<link rel="canonical" href="https://securite.example/en/"/>"#));
     }
 }

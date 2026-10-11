@@ -7,12 +7,12 @@ use http::{HeaderMap, HeaderName};
 
 /// The resolved client IP, inserted in the request extensions by the shield.
 ///
-/// With axum: `Extension(ClientIp(ip)): Extension<ClientIp>`.
+/// With Vitesse: `req.get::<ClientIp>()`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ClientIp(pub IpAddr);
 
 /// Insert this in the request extensions when you run a raw hyper server, so
-/// the shield knows the TCP peer address.
+/// the shield knows the TCP peer address (Vitesse inserts it for you).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PeerAddr(pub SocketAddr);
 
@@ -22,8 +22,8 @@ pub struct PeerAddr(pub SocketAddr);
 /// through the proxy that sets them; otherwise clients can spoof them.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ClientIpSource {
-    /// TCP peer address (`ConnectInfo<SocketAddr>` with axum, [`PeerAddr`] or
-    /// a raw `SocketAddr` extension). Safe default for directly exposed apps.
+    /// TCP peer address (given by Vitesse, else a [`PeerAddr`] or a raw
+    /// `SocketAddr` extension). Safe default for directly exposed apps.
     #[default]
     Peer,
     /// The right-most `X-Forwarded-For` entry, skipping `trusted_hops`
@@ -94,13 +94,6 @@ impl ClientIpSource {
 
 /// Reads the TCP peer address from the request extensions.
 pub fn peer_ip(parts: &Parts) -> Option<IpAddr> {
-    #[cfg(feature = "axum")]
-    if let Some(info) = parts
-        .extensions
-        .get::<axum::extract::ConnectInfo<SocketAddr>>()
-    {
-        return Some(info.0.ip());
-    }
     if let Some(peer) = parts.extensions.get::<PeerAddr>() {
         return Some(peer.0.ip());
     }

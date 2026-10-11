@@ -1,9 +1,9 @@
 //! Request body size limits.
 //!
 //! [`BodyLimit`] (a [`Guard`]) rejects requests whose `Content-Length` is
-//! too large *before* your handler runs. [`BodyLimitLayer`] additionally
-//! enforces the limit while streaming (chunked bodies without
-//! `Content-Length`).
+//! too large *before* your handler runs. In tower services, [`BodyLimitLayer`]
+//! additionally enforces the limit while streaming (chunked bodies without
+//! `Content-Length`); Vitesse has its own streaming limit, `app.body_limit`.
 
 use std::task::{Context as TaskContext, Poll};
 
@@ -119,7 +119,8 @@ impl_layer!(BodyLimit);
 
 /// Streaming body limit: wraps the request body in
 /// [`http_body_util::Limited`]. Reading more than `max_bytes` fails with
-/// `LengthLimitError` (axum turns it into `413`).
+/// `LengthLimitError`. With Vitesse, use `app.body_limit(bytes)` instead
+/// (1 MiB by default).
 #[derive(Debug, Clone, Copy)]
 pub struct BodyLimitLayer {
     max: usize,

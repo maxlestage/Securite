@@ -1,5 +1,6 @@
 use std::fmt;
 use std::future::Future;
+use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -21,9 +22,11 @@ type EventHook = dyn Fn(&SecurityEvent<'_>) + Send + Sync;
 
 /// The all-in-one security layer.
 ///
-/// A `Shield` is cheap to clone (it is an `Arc`) and implements
-/// [`tower::Layer`](tower_layer::Layer), so it can be used with
-/// `axum::Router::layer`, `tower::ServiceBuilder`, tonic, hyper …
+/// A `Shield` is cheap to clone (it is an `Arc`). With
+/// [Vitesse](https://maxlestage.github.io/Vitesse/) it is a middleware,
+/// `app.middleware(Shield::recommended())` (feature `vitesse`, enabled by
+/// default). It also implements [`tower::Layer`](tower_layer::Layer), for
+/// hyper, tonic, `tower::ServiceBuilder` …
 ///
 /// ```
 /// use securite::prelude::*;
@@ -261,13 +264,30 @@ fn warn_unknown_ip() {
         tracing::warn!(
             target: "securite",
             "client IP unknown: IP based guards fall back to a shared bucket. \
-             With axum use `into_make_service_with_connect_info::<SocketAddr>()`, \
-             with hyper insert `securite::PeerAddr` in the request extensions."
+             Vitesse gives the shield the peer address itself; with hyper insert \
+             `securite::PeerAddr` in the request extensions."
         );
     });
 }
 
 impl ShieldInner {
+    /// The client address: the one an outer shield (e.g. configured for a
+    /// proxy) already resolved, so that stacked layers agree, else the one
+    /// of `ip_source`, recorded in the extensions as [`ClientIp`].
+    fn client_ip(&self, parts: &mut request::Parts) -> Option<IpAddr> {
+        if let Some(ClientIp(ip)) = parts.extensions.get::<ClientIp>() {
+            return Some(*ip);
+        }
+        let ip = self.ip_source.resolve(parts);
+        match ip {
+            Some(ip) => {
+                parts.extensions.insert(ClientIp(ip));
+            }
+            None => warn_unknown_ip(),
+        }
+        ip
+    }
+
     fn run_request(&self, parts: &mut request::Parts, ctx: &mut Context) -> Result<(), Rejection> {
         for (idx, guard) in self.guards.iter().enumerate() {
             let Err(rejection) = guard.on_request(parts, ctx) else {
@@ -392,21 +412,7 @@ where
         shield.stats.total.fetch_add(1, Ordering::Relaxed);
 
         let (mut parts, body) = req.into_parts();
-        // An outer shield (e.g. configured for a proxy) already resolved
-        // the client: reuse its answer so stacked layers agree.
-        let ip = match parts.extensions.get::<ClientIp>() {
-            Some(ClientIp(ip)) => Some(*ip),
-            None => {
-                let ip = shield.ip_source.resolve(&parts);
-                match ip {
-                    Some(ip) => {
-                        parts.extensions.insert(ClientIp(ip));
-                    }
-                    None => warn_unknown_ip(),
-                }
-                ip
-            }
-        };
+        let ip = shield.client_ip(&mut parts);
         let mut ctx = Context::new(parts.method.clone(), parts.uri.clone(), ip);
 
         let state = match shield.run_request(&mut parts, &mut ctx) {
@@ -470,5 +476,91 @@ where
         this.shield.run_response(&mut parts, &ctx);
         drop(ctx);
         Poll::Ready(Ok(Response::from_parts(parts, body)))
+    }
+}
+
+/// The shield as a [Vitesse](https://maxlestage.github.io/Vitesse/) middleware.
+#[cfg(feature = "vitesse")]
+pub(crate) mod vitesse_middleware {
+    use std::sync::atomic::Ordering;
+
+    use vitesse::{Body, BoxFuture, Middleware, Next, Request, Response};
+
+    use super::Shield;
+    use crate::{Context, ErrorFormat, PeerAddr, Rejection};
+
+    /// `app.middleware(shield)`: the guards run on every request before the
+    /// routes, rejections are answered in the shield's error format, and every
+    /// response is decorated (security headers, rate-limit headers, hardened
+    /// cookies, request id …).
+    ///
+    /// The guards see the request head (method, URI, headers, extensions) with
+    /// the peer address of the connection as [`PeerAddr`]. What they add to it
+    /// ([`ClientIp`](crate::ClientIp), [`RequestIdValue`](crate::request_id::RequestIdValue),
+    /// [`CspNonce`](crate::headers::CspNonce), [`CsrfToken`](crate::csrf::CsrfToken),
+    /// [`Principal`](crate::auth::Principal)) is given back to the request, where
+    /// handlers read it with `req.get::<T>()`.
+    ///
+    /// ```no_run
+    /// use securite::prelude::*;
+    /// use vitesse::prelude::*;
+    ///
+    /// let mut app = App::new();
+    /// app.middleware(Shield::recommended());
+    /// app.get("/ip", |req: Request| async move {
+    ///     req.get::<ClientIp>().map_or("unknown".to_string(), |ip| ip.0.to_string())
+    /// });
+    /// ```
+    impl Middleware for Shield {
+        fn handle(&'static self, req: Request, next: Next) -> BoxFuture<Response> {
+            Box::pin(self.protect(req, next))
+        }
+    }
+
+    impl Shield {
+        async fn protect(&self, mut req: Request, next: Next) -> Response {
+            let shield = &self.inner;
+            shield.stats.total.fetch_add(1, Ordering::Relaxed);
+
+            // The head the guards inspect and may change, with the peer address.
+            let mut head = http::Request::new(());
+            *head.method_mut() = req.method().clone();
+            *head.uri_mut() = req.uri().clone();
+            *head.version_mut() = req.version();
+            *head.headers_mut() = std::mem::take(req.headers_mut());
+            *head.extensions_mut() = std::mem::take(req.extensions_mut());
+            if let Some(addr) = req.remote_addr() {
+                head.extensions_mut().insert(PeerAddr(addr));
+            }
+            let (mut parts, ()) = head.into_parts();
+            let ip = shield.client_ip(&mut parts);
+            let mut ctx = Context::new(parts.method.clone(), parts.uri.clone(), ip);
+            let verdict = shield.run_request(&mut parts, &mut ctx);
+            // Back into the request, as the guards left them.
+            *req.headers_mut() = parts.headers;
+            *req.extensions_mut() = parts.extensions;
+
+            let mut res = match verdict {
+                Ok(()) => next.run(req).await,
+                Err(rejection) => {
+                    drop(req);
+                    render(&shield.error_format, &rejection, &ctx)
+                }
+            };
+            // The response head the guards decorate, then back into the response.
+            let (mut parts, ()) = http::Response::new(()).into_parts();
+            parts.status = res.status_code();
+            parts.headers = std::mem::take(res.headers_mut());
+            shield.run_response(&mut parts, &ctx);
+            res.set_status(parts.status);
+            *res.headers_mut() = parts.headers;
+            res
+        }
+    }
+
+    /// The response to a rejection, in the given format.
+    pub(crate) fn render(format: &ErrorFormat, rejection: &Rejection, ctx: &Context) -> Response {
+        let (parts, body) = format.render(rejection, ctx);
+        Response::from_http(http::Response::from_parts(parts, Body::from(body)))
     }
 }

@@ -329,18 +329,25 @@ impl SignatureVerifier {
     }
 }
 
-/// Tower layer verifying webhook signatures on some paths.
+/// Verifies webhook signatures on some paths: a Vitesse middleware (feature
+/// `vitesse`) and a tower layer.
+///
+/// The body is read in full (at most [`max_body`](SignatureVerifier::max_body)
+/// bytes), checked, and handed over to the handler as it was.
 ///
 /// ```no_run
-/// use axum::{routing::post, Router};
 /// use securite::prelude::*;
+/// use vitesse::prelude::*;
 ///
-/// let app: Router = Router::new()
-///     .route("/webhooks/github", post(|body: String| async move { body.len().to_string() }))
-///     .layer(
-///         SignatureLayer::new(SignatureVerifier::github(std::env::var("GH_SECRET").unwrap()))
-///             .paths(["/webhooks/github"]),
-///     );
+/// let mut app = App::new();
+/// app.middleware(
+///     SignatureLayer::new(SignatureVerifier::github(std::env::var("GH_SECRET").unwrap()))
+///         .paths(["/webhooks/github"]),
+/// );
+/// app.post("/webhooks/github", |req: Request| async move {
+///     let body = req.text().await?;
+///     Ok::<_, Error>(body.len().to_string())
+/// });
 /// ```
 #[derive(Debug, Clone)]
 pub struct SignatureLayer {
@@ -406,6 +413,72 @@ fn reject<B>(
     Response::from_parts(parts, SecureBody::full(body))
 }
 
+fn body_too_large() -> Rejection {
+    Rejection::new(
+        StatusCode::PAYLOAD_TOO_LARGE,
+        "body_too_large",
+        "Webhook body too large.",
+    )
+}
+
+fn invalid_signature(path: &str, error: &SignatureError) -> Rejection {
+    tracing::warn!(target: "securite", guard = "signature", path, error = %error, "webhook signature rejected");
+    Rejection::new(
+        StatusCode::UNAUTHORIZED,
+        "invalid_signature",
+        "Invalid webhook signature.",
+    )
+}
+
+/// Whether the layer checks requests to `path`.
+fn applies(paths: &[String], path: &str) -> bool {
+    paths.is_empty() || paths.iter().any(|p| path_matches(path, p))
+}
+
+#[cfg(feature = "vitesse")]
+impl vitesse::Middleware for SignatureLayer {
+    fn handle(
+        &'static self,
+        req: vitesse::Request,
+        next: vitesse::Next,
+    ) -> vitesse::BoxFuture<vitesse::Response> {
+        use vitesse::IntoResponse;
+
+        Box::pin(async move {
+            if !applies(&self.paths, req.path()) {
+                return next.run(req).await;
+            }
+            let mut req = req;
+            let reject = |rejection: Rejection, req: &vitesse::Request| {
+                let ctx = Context::new(req.method().clone(), req.uri().clone(), None);
+                crate::shield::vitesse_middleware::render(
+                    &ErrorFormat::ProblemJson,
+                    &rejection,
+                    &ctx,
+                )
+            };
+            // A declared size above the limit is refused before reading anything.
+            let declared = req
+                .header("content-length")
+                .and_then(|v| v.trim().parse::<usize>().ok());
+            if declared.is_some_and(|n| n > self.verifier.max_body) {
+                return reject(body_too_large(), &req);
+            }
+            let bytes = match req.bytes().await {
+                Ok(bytes) if bytes.len() <= self.verifier.max_body => bytes,
+                Ok(_) => return reject(body_too_large(), &req),
+                Err(error) => return error.into_response(),
+            };
+            if let Err(error) = self.verifier.verify(req.headers(), &bytes) {
+                return reject(invalid_signature(req.path(), &error), &req);
+            }
+            // The handler reads the body as usual.
+            req.set_body(bytes);
+            next.run(req).await
+        })
+    }
+}
+
 impl<S, ReqBody, ResBody> Service<Request<ReqBody>> for SignatureService<S>
 where
     S: Service<Request<ReqBody>, Response = Response<ResBody>> + Clone + Send + 'static,
@@ -427,9 +500,7 @@ where
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
-        let applies =
-            self.paths.is_empty() || self.paths.iter().any(|p| path_matches(req.uri().path(), p));
-        if !applies {
+        if !applies(&self.paths, req.uri().path()) {
             return Box::pin(async move { Ok(inner.call(req).await?.map(SecureBody::inner)) });
         }
         let verifier = self.verifier.clone();
@@ -437,22 +508,10 @@ where
             let (parts, body) = req.into_parts();
             let bytes = match Limited::new(body, verifier.max_body).collect().await {
                 Ok(collected) => collected.to_bytes(),
-                Err(_) => {
-                    let r = Rejection::new(
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        "body_too_large",
-                        "Webhook body too large.",
-                    );
-                    return Ok(reject(&r, parts.method, parts.uri));
-                }
+                Err(_) => return Ok(reject(&body_too_large(), parts.method, parts.uri)),
             };
             if let Err(e) = verifier.verify(&parts.headers, &bytes) {
-                tracing::warn!(target: "securite", guard = "signature", path = parts.uri.path(), error = %e, "webhook signature rejected");
-                let r = Rejection::new(
-                    StatusCode::UNAUTHORIZED,
-                    "invalid_signature",
-                    "Invalid webhook signature.",
-                );
+                let r = invalid_signature(parts.uri.path(), &e);
                 return Ok(reject(&r, parts.method, parts.uri));
             }
             let req = Request::from_parts(parts, ReqBody::from(bytes));

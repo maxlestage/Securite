@@ -44,7 +44,7 @@ impl Ctx<'_> {
 }
 
 const STACK: &[&str] = &[
-    "axum",
+    "Vitesse",
     "hyper",
     "tonic",
     "tower",

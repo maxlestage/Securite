@@ -2,32 +2,25 @@
 //!
 //! **Fast, easy, batteries-included security middlewares for Rust web services.**
 //!
-//! `securite` plugs into any [`tower`](https://docs.rs/tower) based stack
-//! (axum, hyper, tonic, Loco, Leptos/Dioxus fullstack, Poem, Salvo …) and
-//! protects it with one single layer: the [`Shield`].
+//! `securite` protects a [Vitesse](https://maxlestage.github.io/Vitesse/) application
+//! with one line, and any [`tower`](https://docs.rs/tower) based stack (hyper, tonic,
+//! Poem, Salvo …) with one layer: the [`Shield`].
 //!
 //! A `Shield` runs a pipeline of synchronous, allocation-light [`Guard`]s on
 //! every request (in a fixed, sensible order) and decorates every response
 //! (security headers, rate-limit headers, CORS, hardened cookies …).
 //!
 //! ```no_run
-//! use axum::{routing::get, Router};
 //! use securite::prelude::*;
+//! use vitesse::prelude::*;
 //!
-//! # async fn run() {
-//! let app = Router::new()
-//!     .route("/", get(|| async { "Hello, secure world!" }))
-//!     .layer(Shield::recommended());
-//!
-//! let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-//! // `with_connect_info` lets the shield see the real peer address.
-//! axum::serve(
-//!     listener,
-//!     app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-//! )
-//! .await
-//! .unwrap();
-//! # }
+//! fn main() -> std::io::Result<()> {
+//!     let mut app = App::new();
+//!     // Security headers, WAF, rate limiting, CSRF, request ids …
+//!     app.middleware(Shield::recommended());
+//!     app.get("/", |_req: Request| async { "Hello, secure world!" });
+//!     app.run(3000)
+//! }
 //! ```
 //!
 //! ## Middlewares
@@ -55,23 +48,31 @@
 //! |                     | [`SignatureLayer`](signature::SignatureLayer) | HMAC webhook verification (GitHub, Stripe, Slack …) |
 //! |                     | [`Stats`](event::StatsSnapshot) / [events](event::SecurityEvent) | Metrics and audit trail |
 //!
-//! Every guard can also be used on its own as a tower layer:
+//! Every guard can also be used on its own, as a one-guard shield (with tower,
+//! a guard is a layer by itself):
 //!
-//! ```
+//! ```no_run
 //! use securite::prelude::*;
-//! # fn app(router: axum::Router) -> axum::Router {
-//! router
-//!     .layer(SecurityHeaders::strict())
-//!     .layer(RateLimit::per_minute(120))
-//! # }
+//! use vitesse::prelude::*;
+//!
+//! let mut app = App::new();
+//! app.middleware(Shield::from(SecurityHeaders::strict()));
+//! app.middleware(Shield::from(RateLimit::per_minute(120)));
 //! ```
 //!
 //! ## Client IP
 //!
 //! IP aware guards need to know who the client is. By default the shield uses
-//! the TCP peer address (see [`ClientIpSource`]). Behind a reverse proxy
-//! (Heroku, Fly.io, Cloudflare, Nginx …) configure the right source with
+//! the TCP peer address, which Vitesse hands it (see [`ClientIpSource`]; with
+//! hyper, insert a [`PeerAddr`] in the request extensions). Behind a reverse
+//! proxy (Heroku, Fly.io, Cloudflare, Nginx …) configure the right source with
 //! [`ShieldBuilder::client_ip`].
+//!
+//! ## Cargo features
+//!
+//! * `vitesse` (default): the [`Shield`] and the
+//!   [`SignatureLayer`](signature::SignatureLayer) are Vitesse middlewares.
+//!   Without it the crate only depends on `http` and `tower`.
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
