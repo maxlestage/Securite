@@ -18,7 +18,7 @@ Intro paragraph (no `#` title: the title comes from the front matter).
 ### Sub-section
 ```
 
-* Categories: `start`, `browser`, `traffic`, `access`, `threats`, `integrity`, `deploy`.
+* Categories: `start`, `browser`, `traffic`, `access`, `threats`, `integrity`, `everyday` (the `pratique` crate), `deploy`.
 * Only `##` and `###` headings (they build the on-page table of contents).
 * Code fences must declare a language: `rust`, `toml`, `bash`, `json`, `yaml`, `text`.
 * Links to other pages: `/docs/<slug>`.

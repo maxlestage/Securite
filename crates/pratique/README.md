@@ -89,7 +89,8 @@ use pratique::prelude::*;
 
 let metrics = Metrics::new();          // GET /metrics, Prometheus text format
 let numbers = metrics.handle();        // numbers.total(), numbers.by_class(5) …
-app.middleware(AccessLog::combined()); // 203.0.113.9 - - [11/Oct/2026:08:49:37 +0000] "GET / HTTP/1.1" 200 5 "-" "curl/8.9"
+// 203.0.113.9 - - [11/Oct/2026:08:49:37 +0000] "GET / HTTP/1.1" 200 5 "-" "curl/8.9"
+app.middleware(AccessLog::combined().ip_from_header("x-forwarded-for")); // behind Heroku, Nginx…
 app.middleware(metrics);
 ```
 
@@ -118,6 +119,9 @@ app.middleware(
         .only("/api/v1"),
 );
 ```
+
+The full guide, one page per middleware in English, French and Spanish, is in the
+`docs` folder of the repository (category `everyday`), published on the website.
 
 ## Order
 
