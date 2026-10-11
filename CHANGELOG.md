@@ -21,6 +21,11 @@ All notable changes to this project are documented here. The format follows
   switch). Responses and APIs: `SetHeaders`, `Locale` (`?lang=`, cookie,
   `Accept-Language`, `req.get::<Lang>()`), `Deprecation` (`Deprecation`, `Sunset`,
   `Link` headers).
+- `AccessLog::ip_from_header(name)`: behind a reverse proxy, logs the client
+  address that the proxy appended to `X-Forwarded-For` (or `CF-Connecting-IP` …)
+  instead of the proxy's own address.
+- Website: a new documentation category, "Pratique", with an overview and one page
+  per middleware of the `pratique` crate, in English, French and Spanish.
 
 ### Changed
 

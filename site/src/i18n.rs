@@ -282,6 +282,11 @@ pub static FR: Texts = Texts {
             desc: "Installation, presets, concepts",
         },
         Category {
+            id: "everyday",
+            name: "Pratique : le quotidien",
+            desc: "Cache, logs, métriques, redirections, santé",
+        },
+        Category {
             id: "deploy",
             name: "Déploiement",
             desc: "Heroku, Docker, crates.io, CI",
@@ -625,6 +630,11 @@ pub static EN: Texts = Texts {
             desc: "Installation, presets, concepts",
         },
         Category {
+            id: "everyday",
+            name: "Pratique: everyday",
+            desc: "Caching, logs, metrics, redirects, health",
+        },
+        Category {
             id: "deploy",
             name: "Deployment",
             desc: "Heroku, Docker, crates.io, CI",
@@ -966,6 +976,11 @@ pub static ES: Texts = Texts {
             id: "start",
             name: "Primeros pasos",
             desc: "Instalación, presets, conceptos",
+        },
+        Category {
+            id: "everyday",
+            name: "Pratique: el día a día",
+            desc: "Caché, logs, métricas, redirecciones, salud",
         },
         Category {
             id: "deploy",

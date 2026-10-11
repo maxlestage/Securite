@@ -22,7 +22,7 @@ Este repositorio contiene:
 | [`crates/pratique`](crates/pratique) | La **crate `pratique`**: 13 middlewares cotidianos para Vitesse que no tienen nada que ver con la seguridad (ETag, Cache-Control, caché de respuestas, access logs, métricas Prometheus, tiempo de respuesta, barra final, redirecciones, health checks, modo mantenimiento, cabeceras, idioma, deprecación de API) |
 | [`site`](site) | El **sitio web**, escrito con [Active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
 | [`server`](server) | El servidor Vitesse que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
-| [`docs`](docs) | La **documentación** (33 páginas × 3 idiomas), compilada en el sitio |
+| [`docs`](docs) | La **documentación** (47 páginas × 3 idiomas), compilada en el sitio |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Imagen de contenedor y **despliegue en Heroku con un toque** |
 | [`.github/workflows`](.github/workflows) | CI, **merge automático en master**, despliegue en Heroku, publicación en crates.io |
 

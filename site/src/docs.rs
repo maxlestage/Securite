@@ -2,13 +2,14 @@
 //! from `docs/{en,fr,es}/*.md`.
 
 /// Category ids in display order.
-pub const CATEGORY_ORDER: [&str; 7] = [
+pub const CATEGORY_ORDER: [&str; 8] = [
     "start",
     "browser",
     "traffic",
     "access",
     "threats",
     "integrity",
+    "everyday",
     "deploy",
 ];
 
@@ -20,6 +21,7 @@ pub fn category_icon(id: &str) -> &'static str {
         "access" => "key",
         "threats" => "bug",
         "integrity" => "fingerprint",
+        "everyday" => "sparkles",
         "deploy" => "smartphone",
         _ => "book",
     }
@@ -106,7 +108,7 @@ mod compiled {
         #[test]
         fn every_page_exists_in_three_languages_with_known_categories() {
             let slugs = slugs();
-            assert!(slugs.len() >= 33, "{} pages", slugs.len());
+            assert!(slugs.len() >= 47, "{} pages", slugs.len());
             for lang in Lang::ALL {
                 for slug in &slugs {
                     let (page, translated) = find(lang, slug).unwrap();
