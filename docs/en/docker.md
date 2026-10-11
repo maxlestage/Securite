@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-The `Dockerfile` at the repository root builds this website: pages rendered on the server with [active](https://github.com/maxlestage/Active) and WebAssembly islands, served by an axum server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
+The `Dockerfile` at the repository root builds this website: pages rendered on the server with [active](https://maxlestage.github.io/Active/) and WebAssembly islands, served by an axum server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
 
 ## The two stages
 

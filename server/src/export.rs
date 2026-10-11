@@ -44,14 +44,18 @@ pub fn export(out: &Path, base: &str, site_url: Option<String>) -> io::Result<us
             page(&route).as_bytes(),
         )?;
     }
-    write(
-        "404.html",
-        page(&Route::new(Lang::En, Page::NotFound)).as_bytes(),
-    )?;
-    write(
-        "index.html",
-        crate::csp::with_meta_policy(&pages::language_picker(&site, &public)).as_bytes(),
-    )?;
+    // The visitor's language, chosen in the browser: at the root and on a missing address
+    // (the static host serves `404.html`), then the "not found" page of each language.
+    for (file, target) in [("index.html", ""), ("404.html", "404/")] {
+        let html = pages::language_picker(&site, &public, target);
+        write(file, crate::csp::with_meta_policy(&html).as_bytes())?;
+    }
+    for lang in Lang::ALL {
+        write(
+            &format!("{}/404/index.html", lang.code()),
+            page(&Route::new(lang, Page::NotFound)).as_bytes(),
+        )?;
+    }
     write("manifest.webmanifest", site.manifest().to_json().as_bytes())?;
     write("sw.js", site.service_worker().to_js().as_bytes())?;
     write("sitemap.xml", site.sitemap(&public).as_bytes())?;
@@ -99,7 +103,9 @@ mod tests {
         let playground = read("en/playground/index.html");
         assert!(playground.contains("lab-static"));
         assert!(read("es/docs/waf/index.html").contains("(WAF)</h1>"));
-        assert!(read("404.html").contains("404"));
+        assert!(read("404.html").contains("navigator.languages"));
+        assert!(read("fr/404/index.html").contains("404"));
+        assert!(read("index.html").contains("navigator.languages"));
         assert!(read("index.html").contains(r#"url=/Securite/en/"#));
         assert!(read("manifest.webmanifest").contains(r#""start_url":"/Securite/""#));
         let worker = read("sw.js");

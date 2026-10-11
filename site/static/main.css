@@ -584,6 +584,8 @@ active-island {
     top: var(--nav-h);
     left: 0;
     right: 0;
+    max-height: calc(100vh - var(--nav-h));
+    overflow-y: auto;
     margin: 0;
     flex-direction: column;
     align-items: stretch;
@@ -2139,7 +2141,7 @@ pre code {
 
 @media (min-width: 900px) {
   .footer-grid {
-    grid-template-columns: 1.6fr repeat(4, 1fr);
+    grid-template-columns: 1.6fr repeat(3, 1fr);
   }
 }
 
@@ -2706,6 +2708,11 @@ pre code {
   .doc-sidebar.open .side-nav {
     display: block;
     animation: page-in 0.3s ease both;
+  }
+
+  /* Without the browser code the navigation stays visible: the documentation is reachable. */
+  html:not(.motion) .side-nav {
+    display: block;
   }
 }
 
