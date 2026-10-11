@@ -76,8 +76,9 @@ let store = RedisStore::open(&std::env::var("REDIS_URL").unwrap())?.prefix("shop
 app.middleware(ResponseCache::new(Duration::from_secs(60)).store(store));
 ```
 
-The connection opens on first use, every command times out after 250 ms, and when
-Redis is down requests are simply served by the handler.
+The connection opens on first use (one per worker thread), every operation gives up
+after 250 ms, and after a failure Redis is left alone for a second: when it is down
+or silent, requests are simply served by the handler, without waiting.
 
 ### Operations
 
@@ -148,10 +149,16 @@ Without features, Pratique only depends on Vitesse and supports Rust 1.85.
 ## Order
 
 Vitesse runs middlewares in the order they are added, the first one being the
-outermost. Put the observers first (`AccessLog`, `Metrics`), then the ones that
-answer by themselves (`Health`, `Maintenance`, `Redirects`, `TrailingSlash`), then
-the ones that work on your routes' responses (`ETag`, `CacheControl`,
-`ResponseCache`).
+outermost:
+
+1. the observers (`AccessLog`, `Metrics`, `ResponseTime`);
+2. Securite's `Shield` (and CORS), so that `/metrics` and cached pages are protected;
+3. the ones that answer by themselves (`Health`, `Maintenance`, `Redirects`,
+   `TrailingSlash`);
+4. `Locale`, then `ResponseCache` (one entry per language);
+5. the ones that shape your routes' responses (`CacheControl`, `ETag`,
+   `SetHeaders`, `Deprecation`): inside the cache, stored responses carry their
+   headers and a `Cache-Control: private` keeps a page out of it.
 
 ## License
 

@@ -45,12 +45,17 @@
 //! ## Order
 //!
 //! Vitesse runs middlewares in the order they are added, the first one being
-//! the outermost. Put the ones that observe everything first (`AccessLog`,
-//! `Metrics`), then the ones that answer by themselves (`Health`,
-//! `Maintenance`, `Redirects`, `TrailingSlash`), then the ones that work on
-//! the response of your routes (`ETag`, `CacheControl`, `ResponseCache`).
-//! With [Securite](https://docs.rs/securite), add the `Shield` before the
-//! endpoints you want to protect (`/metrics`).
+//! the outermost:
+//!
+//! 1. the observers (`AccessLog`, `Metrics`, `ResponseTime`);
+//! 2. [Securite](https://docs.rs/securite)'s `Shield`, so that `/metrics`
+//!    and cached pages are protected too;
+//! 3. the ones that answer by themselves (`Health`, `Maintenance`,
+//!    `Redirects`, `TrailingSlash`);
+//! 4. `Locale`, then `ResponseCache` (one entry per language);
+//! 5. the ones that shape your routes' responses (`CacheControl`, `ETag`,
+//!    `SetHeaders`, `Deprecation`): inside the cache, stored responses carry
+//!    their headers and a `Cache-Control: private` keeps a page out of it.
 //!
 //! ## Cargo features
 //!
