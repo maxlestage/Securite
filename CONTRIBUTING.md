@@ -34,5 +34,6 @@ Thanks for helping make Rust services safer!
    update the three languages.
 4. New WAF rules need a test with the payload **and** a false-positive test.
 
-By contributing you agree that your work is dual licensed under MIT and
-Apache-2.0.
+securite is proprietary software by Maxime Nathan Lestage (see [LICENSE](LICENSE)).
+By contributing you assign the rights in your contribution to the author, as
+section 3 of the license states; contributions are welcome under those terms.

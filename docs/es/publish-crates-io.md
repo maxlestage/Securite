@@ -12,7 +12,7 @@ El crate `securite`, en `crates/securite`, está listo para crates.io. La public
 | Elemento | Valor |
 |---|---|
 | Metadatos | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) y `readme` en `crates/securite/Cargo.toml`; `rust-version` (1.85) heredado del workspace |
-| Licencia | `MIT OR Apache-2.0`, heredada del workspace, con `LICENSE-MIT` y `LICENSE-APACHE` en la carpeta del crate |
+| Licencia | Propietaria: `license-file = "LICENSE"`, heredada del workspace; cargo copia el archivo en el paquete |
 | README | `crates/securite/README.md`, que se muestra en la página de crates.io |
 | docs.rs | `[package.metadata.docs.rs]` compila con todas las features y `--cfg docsrs` |
 | Comprobación del paquete | La CI ejecuta `cargo publish -p securite --dry-run` en cada push, así que los problemas de empaquetado aparecen mucho antes del día de la publicación |

@@ -121,5 +121,19 @@ BASE_PATH=/Securite cargo run -p securite-server -- export dist
 
 ## Licencia
 
-Doble licencia [MIT](LICENSE-MIT) o [Apache-2.0](LICENSE-APACHE).
+securite es software propietario: © 2026 Maxime Nathan Lestage, todos los
+derechos reservados. No es software de código abierto. El código fuente se
+publica en crates.io y GitHub para que pueda leerse, auditarse y compilarse,
+y puedes usarlo libremente como dependencia de tus propios programas, también
+comerciales. Modificarlo o redistribuir su código fuente requiere el permiso
+escrito del autor. Condiciones completas: [LICENSE](LICENSE).
 Para reportar una vulnerabilidad: ver [SECURITY.md](SECURITY.md).
+
+Las contribuciones (código, documentación, ideas) son bienvenidas y pasan a
+formar parte del proyecto en los mismos términos: al enviar una, cedes sus
+derechos al autor, como indica la licencia.
+
+## Créditos
+
+Diseñado y desarrollado por [Maxime Nathan Lestage](https://github.com/maxlestage),
+dentro de una misma familia de proyectos Rust: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/) y [FerroSwift](https://maxlestage.github.io/FerroSwift/).
