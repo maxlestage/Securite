@@ -4,14 +4,11 @@
 
 **Middlewares de seguridad nativos para Rust: rápidos, fáciles y completos.**
 
-[![CI](https://github.com/maxlestage/Securite/actions/workflows/ci.yml/badge.svg)](https://github.com/maxlestage/Securite/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
 [![docs.rs](https://img.shields.io/docsrs/securite)](https://docs.rs/securite)
 ![unsafe prohibido](https://img.shields.io/badge/unsafe-prohibido-success)
 
 [English](README.md) · [Français](README.fr.md) · **Español**
-
-[![Desplegar en Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy?template=https://github.com/maxlestage/Securite)
 
 </div>
 
@@ -22,7 +19,7 @@ Este repositorio contiene:
 | Carpeta | Contenido |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para tower / axum / hyper / tonic |
-| [`site`](site) | El **sitio web**, escrito con [active](https://github.com/maxlestage/Active): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
+| [`site`](site) | El **sitio web**, escrito con [active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
 | [`server`](server) | El servidor axum que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (33 páginas × 3 idiomas), compilada en el sitio |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Imagen de contenedor y **despliegue en Heroku con un toque** |
@@ -135,5 +132,5 @@ derechos al autor, como indica la licencia.
 
 ## Créditos
 
-Diseñado y desarrollado por [Maxime Nathan Lestage](https://github.com/maxlestage),
+Diseñado y desarrollado por Maxime Nathan Lestage,
 dentro de una misma familia de proyectos Rust: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/) y [FerroSwift](https://maxlestage.github.io/FerroSwift/).

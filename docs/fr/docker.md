@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [active](https://github.com/maxlestage/Active) et des îlots WebAssembly, servis par un serveur axum qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
+Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [active](https://maxlestage.github.io/Active/) et des îlots WebAssembly, servis par un serveur axum qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
 
 ## Les deux étapes
 

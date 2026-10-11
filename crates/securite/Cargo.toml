@@ -5,7 +5,6 @@ description = "Fast, easy, batteries-included security middlewares for tower / a
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-repository.workspace = true
 authors.workspace = true
 homepage = "https://maxlestage.github.io/Securite/"
 documentation = "https://docs.rs/securite"
