@@ -4,7 +4,9 @@
 use active::Str;
 use active::prelude::*;
 
-use super::{CRATES_IO, DOCS_RS, HEROKU_DEPLOY, REPO, Site};
+use super::{
+    AUTHOR, AUTHOR_URL, CRATES_IO, DOCS_RS, ECOSYSTEM, HEROKU_DEPLOY, LICENSE, REPO, Site,
+};
 use crate::docs::{self, CATEGORY_ORDER, category_icon};
 use crate::i18n::{Lang, Texts};
 use crate::icons::icon;
@@ -200,58 +202,142 @@ fn current_year() -> i64 {
     yoe + era * 400 + i64::from(month <= 2)
 }
 
+/// The signature footer, shared in spirit by every site of the ecosystem: the call to
+/// action and the install command, the link columns, the sister projects, the author's
+/// signature, the giant wordmark and the legal line.
 fn footer_(ctx: &Ctx<'_>) -> Element {
     let t = ctx.t();
     let doc = |slug: &str, label: &'static str| li().child(a().href(ctx.doc(slug)).text(label));
     let ext = |href: String, label: &'static str| li().child(external(href).text(label));
+    let cta = div()
+        .class("container footer-cta")
+        .child(
+            a().class("footer-cta-link")
+                .href(ctx.doc("quick-start"))
+                .child(span().text(t.footer_start))
+                .child(Node::from(" "))
+                .child(em().text("securite"))
+                .child(icon("arrow-right", 28)),
+        )
+        .child(install_box(t).attr(
+            "aria-label",
+            format!("{}: cargo add securite", t.footer_install),
+        ));
+    let brand_column = div()
+        .class("footer-brand")
+        .child(brand(ctx.href(Page::Home)))
+        .child(p().class("muted").text(t.footer_tagline))
+        .child(
+            ul().class("footer-badges")
+                .attr("aria-label", "securite")
+                .child(
+                    li().class("chip chip-ok")
+                        .text(format!("v{}", securite::VERSION)),
+                )
+                .child(li().class("chip").text(t.footer_rust))
+                .child(
+                    li().class("chip")
+                        .child(external(CRATES_IO).text("crates.io")),
+                ),
+        )
+        .child(
+            div()
+                .class("footer-langs")
+                .attr("role", "group")
+                .attr("aria-label", t.language)
+                .children(Lang::ALL.map(|l| {
+                    a().href(translated(ctx.route, l).href(ctx.base()))
+                        .class("chip")
+                        .class(if l == ctx.lang() { "active" } else { "" })
+                        .attr("hreflang", l.code())
+                        .attr("lang", l.code())
+                        .text(l.label())
+                })),
+        )
+        .child(
+            div()
+                .class("socials")
+                .child(
+                    external(REPO)
+                        .class("icon-btn")
+                        .attr("aria-label", "GitHub")
+                        .child(icon("github", 20)),
+                )
+                .child(
+                    external(CRATES_IO)
+                        .class("icon-btn")
+                        .attr("aria-label", "crates.io")
+                        .child(icon("crate", 20)),
+                )
+                .child(
+                    external(DOCS_RS)
+                        .class("icon-btn")
+                        .attr("aria-label", "docs.rs")
+                        .child(icon("book", 20)),
+                ),
+        );
+    let ecosystem =
+        nav()
+            .class("container footer-eco")
+            .attr("aria-label", t.footer_ecosystem)
+            .child(
+                div()
+                    .class("footer-eco-head")
+                    .child(h4().text(t.footer_ecosystem))
+                    .child(p().class("muted").text(t.footer_ecosystem_text)),
+            )
+            .child(
+                ul().class("eco-grid")
+                    .children(ECOSYSTEM.iter().zip(t.footer_projects).map(
+                        |((name, url), text)| {
+                            let here = *name == "Securite";
+                            let mut title = span().class("eco-name").text(*name);
+                            if here {
+                                title = title.child(span().class("eco-here").text(t.footer_here));
+                            }
+                            let link = if here {
+                                a().href(*url).attr("aria-current", "page")
+                            } else {
+                                external(*url)
+                            };
+                            li().child(
+                                link.class(if here { "eco current" } else { "eco" })
+                                    .child(title)
+                                    .child(span().class("eco-text").text(text))
+                                    .child(icon("arrow-right", 18)),
+                            )
+                        },
+                    )),
+            );
+    let credits = div()
+        .class("container footer-credits reveal")
+        .child(p().class("credits-by").text(t.footer_by))
+        .child(
+            external(AUTHOR_URL).class("credits-name").children(
+                AUTHOR
+                    .split(' ')
+                    .enumerate()
+                    .map(|(i, word)| span().style(format!("--i:{i}")).text(word.to_string())),
+            ),
+        )
+        .child(p().class("credits-note").text(t.footer_crafted));
+    let wordmark = div()
+        .class("wordmark")
+        .attr("aria-hidden", "true")
+        .children(
+            "securite"
+                .chars()
+                .enumerate()
+                .map(|(i, c)| span().style(format!("--i:{i}")).text(c.to_string())),
+        );
     footer()
         .class("footer")
         .child(div().class("footer-glow").attr("aria-hidden", "true"))
+        .child(cta)
         .child(
             div()
                 .class("container footer-grid")
-                .child(
-                    div()
-                        .class("footer-brand")
-                        .child(brand(ctx.href(Page::Home)))
-                        .child(p().class("muted").text(t.footer_tagline))
-                        .child(
-                            div()
-                                .class("footer-langs")
-                                .attr("role", "group")
-                                .attr("aria-label", t.language)
-                                .children(Lang::ALL.map(|l| {
-                                    a().href(translated(ctx.route, l).href(ctx.base()))
-                                        .class("chip")
-                                        .class(if l == ctx.lang() { "active" } else { "" })
-                                        .attr("hreflang", l.code())
-                                        .attr("lang", l.code())
-                                        .text(l.label())
-                                })),
-                        )
-                        .child(
-                            div()
-                                .class("socials")
-                                .child(
-                                    external(REPO)
-                                        .class("icon-btn")
-                                        .attr("aria-label", "GitHub")
-                                        .child(icon("github", 20)),
-                                )
-                                .child(
-                                    external(CRATES_IO)
-                                        .class("icon-btn")
-                                        .attr("aria-label", "crates.io")
-                                        .child(icon("crate", 20)),
-                                )
-                                .child(
-                                    external(DOCS_RS)
-                                        .class("icon-btn")
-                                        .attr("aria-label", "docs.rs")
-                                        .child(icon("book", 20)),
-                                ),
-                        ),
-                )
+                .child(brand_column)
                 .child(
                     div().child(h4().text(t.footer_product)).child(
                         ul().child(li().child(a().href(ctx.href(Page::Home)).text(t.nav_home)))
@@ -295,21 +381,18 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                         ul().child(ext(REPO.into(), "GitHub"))
                             .child(ext(format!("{REPO}/issues"), t.footer_issues))
                             .child(ext(format!("{REPO}/pulls"), t.footer_contribute))
-                            .child(ext(
-                                format!("{REPO}/blob/master/LICENSE-MIT"),
-                                t.footer_license,
-                            )),
+                            .child(ext(LICENSE.into(), t.footer_license)),
                     ),
                 ),
         )
+        .child(ecosystem)
+        .child(credits)
+        .child(wordmark)
         .child(
             div()
                 .class("container footer-bottom")
-                .child(span().text(format!(
-                    "© {} securite. {}",
-                    current_year(),
-                    t.footer_rights
-                )))
+                .child(span().text(format!("© {} {}", current_year(), t.footer_rights)))
+                .child(external(LICENSE).text(t.footer_proprietary))
                 .child(
                     span()
                         .class("made")
@@ -977,7 +1060,7 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
         .title_template("%s · securite")
         .base_url(ctx.public)
         .locale(lang.locale())
-        .meta_name("author", "maxlestage");
+        .meta_name("author", AUTHOR);
     if route.page == Page::NotFound {
         return base.title(t.nf_title).description(t.nf_text).noindex(true);
     }
@@ -995,7 +1078,7 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
             .title_template("securite · %s")
             .description(t.site_description)
             .json_ld(format!(
-                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"securite","description":{},"url":{},"codeRepository":"{REPO}","programmingLanguage":"Rust","license":"https://spdx.org/licenses/MIT.html","inLanguage":"{}"}}"#,
+                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"securite","description":{},"url":{},"codeRepository":"{REPO}","programmingLanguage":"Rust","license":"{LICENSE}","author":{{"@type":"Person","name":"{AUTHOR}","url":"{AUTHOR_URL}"}},"inLanguage":"{}"}}"#,
                 json(t.site_description),
                 json(&url),
                 lang.code()

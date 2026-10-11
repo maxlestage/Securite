@@ -5,9 +5,9 @@ members = ["crates/securite", "server", "site"]
 [workspace.package]
 edition = "2024"
 rust-version = "1.85"
-license = "MIT OR Apache-2.0"
+license-file = "LICENSE"
 repository = "https://github.com/maxlestage/Securite"
-authors = ["maxlestage"]
+authors = ["Maxime Nathan Lestage"]
 
 [profile.release]
 lto = "thin"

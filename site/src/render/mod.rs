@@ -14,6 +14,21 @@ use crate::routes::{Page, Route, normalize_base};
 use assets::Assets;
 
 pub const REPO: &str = "https://github.com/maxlestage/Securite";
+/// The license, read online: proprietary, all rights reserved.
+pub const LICENSE: &str = "https://github.com/maxlestage/Securite/blob/master/LICENSE";
+/// Who designed and built securite and its sister projects.
+pub const AUTHOR: &str = "Maxime Nathan Lestage";
+pub const AUTHOR_URL: &str = "https://github.com/maxlestage";
+/// The sister projects of securite, by the same author: (name, website). The footer links
+/// them in this order; `i18n::Texts::footer_projects` describes each one in the same order.
+pub const ECOSYSTEM: [(&str, &str); 6] = [
+    ("Active", "https://maxlestage.github.io/Active/"),
+    ("Vitesse", "https://maxlestage.github.io/Vitesse/"),
+    ("Securite", "https://maxlestage.github.io/Securite/"),
+    ("Memoire", "https://maxlestage.github.io/Memoire/"),
+    ("Paquets", "https://maxlestage.github.io/Paquets/"),
+    ("FerroSwift", "https://maxlestage.github.io/FerroSwift/"),
+];
 pub const CRATES_IO: &str = "https://crates.io/crates/securite";
 pub const DOCS_RS: &str = "https://docs.rs/securite";
 pub const HEROKU_DEPLOY: &str =

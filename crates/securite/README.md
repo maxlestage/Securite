@@ -5,7 +5,7 @@
 [![CI](https://github.com/maxlestage/Securite/actions/workflows/ci.yml/badge.svg)](https://github.com/maxlestage/Securite/actions/workflows/ci.yml)
 ![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
-[![license](https://img.shields.io/crates/l/securite.svg)](#license)
+[![License: proprietary](https://img.shields.io/badge/license-proprietary-2a2a2e.svg)](#license)
 
 **Fast, easy, batteries-included security middlewares for Rust web services.**
 
@@ -121,9 +121,18 @@ Rust **1.85** (edition 2024).
 
 ## License
 
-Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
-[MIT license](LICENSE-MIT) at your option.
+securite is proprietary software: © 2026 Maxime Nathan Lestage, all rights
+reserved. It is not open source. The source code is published on crates.io
+and GitHub so that it can be read, audited and built, and you may use it
+freely as a dependency of your own programs, commercial ones included.
+Modifying it or redistributing its source needs the author's written
+permission. Full terms: [LICENSE](LICENSE).
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this crate by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+Contributions (code, documentation, ideas) are welcome and become part of
+the project under the same terms: by submitting one, you assign its rights
+to the author, as the license states.
+
+## Credits
+
+Designed and developed by [Maxime Nathan Lestage](https://github.com/maxlestage),
+as part of one family of Rust projects: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/) and [FerroSwift](https://maxlestage.github.io/FerroSwift/).

@@ -12,7 +12,7 @@ The `securite` crate in `crates/securite` is ready for crates.io. Publishing run
 | Item | Value |
 |---|---|
 | Metadata | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) and `readme` in `crates/securite/Cargo.toml`; `rust-version` (1.85) inherited from the workspace |
-| License | `MIT OR Apache-2.0`, inherited from the workspace, with `LICENSE-MIT` and `LICENSE-APACHE` in the crate folder |
+| License | Proprietary: `license-file = "LICENSE"`, inherited from the workspace; cargo copies the file into the package |
 | README | `crates/securite/README.md`, shown on the crates.io page |
 | docs.rs | `[package.metadata.docs.rs]` builds with every feature and `--cfg docsrs` |
 | Package check | CI runs `cargo publish -p securite --dry-run` on every push, so packaging problems show up long before release day |
