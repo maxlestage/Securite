@@ -28,7 +28,7 @@ Este repositorio contiene:
 ## La crate en 10 segundos
 
 ```bash
-cargo add securite
+cargo add securite --git https://github.com/maxlestage/Securite
 ```
 
 ```rust
@@ -53,8 +53,7 @@ Lee el [README de la crate](crates/securite/README.md) y la [documentación](doc
 
 ## Despliega desde tu móvil (sin ordenador)
 
-**Opción A — con un toque.** Abre `https://heroku.com/deploy?template=<la dirección
-de tu repositorio>` en tu móvil, elige un nombre de aplicación y pulsa *Deploy app*. Heroku construye la imagen
+**Opción A — con un toque.** Abre `https://heroku.com/deploy?template=https://github.com/maxlestage/Securite` en tu móvil, elige un nombre de aplicación y pulsa *Deploy app*. Heroku construye la imagen
 Docker a partir de `heroku.yml` (≈ 10–15 min la primera vez) y arranca el
 sitio.
 

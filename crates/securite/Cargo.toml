@@ -7,6 +7,7 @@ rust-version.workspace = true
 license-file.workspace = true
 authors.workspace = true
 homepage = "https://maxlestage.github.io/Securite/"
+repository = "https://github.com/maxlestage/Securite"
 documentation = "https://docs.rs/securite"
 readme = "README.md"
 keywords = ["security", "middleware", "vitesse", "tower", "waf"]

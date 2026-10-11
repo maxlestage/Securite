@@ -10,22 +10,22 @@ Securite est une crate classique de crates.io, sans aucune dépendance native : 
 ## Ajouter la crate
 
 ```bash
-cargo add securite
+cargo add securite --git https://github.com/maxlestage/Securite
 ```
 
 Ou déclarez-la à la main dans `Cargo.toml` :
 
 ```toml
 [dependencies]
-securite = "0.1"
+securite = { git = "https://github.com/maxlestage/Securite" }
 ```
 
 Une application Vitesse typique a besoin de :
 
 ```toml
 [dependencies]
-securite = "0.1"
-vitesse = "0.1"
+securite = { git = "https://github.com/maxlestage/Securite" }
+vitesse = { git = "https://github.com/maxlestage/Vitesse" }
 ```
 
 ## Prérequis
@@ -49,7 +49,7 @@ Si vous utilisez hyper, tonic ou une autre pile tower sans Vitesse, désactivez 
 
 ```toml
 [dependencies]
-securite = { version = "0.1", default-features = false }
+securite = { git = "https://github.com/maxlestage/Securite", default-features = false }
 ```
 
 > **Astuce :** Désactiver la feature `vitesse` retire uniquement la dépendance à Vitesse. Tous les guards, préréglages et couches tower restent disponibles ; l'adresse du pair est alors lue dans l'extension de requête `PeerAddr` ou `SocketAddr`.
@@ -83,7 +83,7 @@ Avec un serveur hyper 1 brut, insérez `PeerAddr` dans chaque requête avant qu'
 
 ```toml
 [dependencies]
-securite = { version = "0.1", default-features = false }
+securite = { git = "https://github.com/maxlestage/Securite", default-features = false }
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio", "service"] }
 http = "1"

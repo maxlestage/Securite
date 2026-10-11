@@ -213,7 +213,10 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
         )
         .child(install_box(t).attr(
             "aria-label",
-            format!("{}: cargo add securite", t.footer_install),
+            format!(
+                "{}: cargo add securite --git https://github.com/maxlestage/Securite",
+                t.footer_install
+            ),
         ));
     let brand_column = div()
         .class("footer-brand")
@@ -227,10 +230,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                         .text(format!("v{}", securite::VERSION)),
                 )
                 .child(li().class("chip").text(t.footer_rust))
-                .child(
-                    li().class("chip")
-                        .child(external(CRATES_IO).text("crates.io")),
-                ),
+                .child(li().class("chip").child(external(CRATES_IO).text("GitHub"))),
         )
         .child(
             div()
@@ -252,8 +252,8 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                 .child(
                     external(CRATES_IO)
                         .class("icon-btn")
-                        .attr("aria-label", "crates.io")
-                        .child(icon("crate", 20)),
+                        .attr("aria-label", "GitHub")
+                        .child(icon("github", 20)),
                 )
                 .child(
                     external(DOCS_RS)
@@ -348,7 +348,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                 )
                 .child(
                     div().child(h4().text(t.footer_resources)).child(
-                        ul().child(ext(CRATES_IO.into(), "crates.io"))
+                        ul().child(ext(CRATES_IO.into(), "GitHub"))
                             .child(ext(DOCS_RS.into(), "docs.rs"))
                             .child(doc("heroku-from-phone", "Heroku"))
                             .child(doc("github-pages", "GitHub Pages"))
@@ -384,8 +384,12 @@ fn install_box(t: &'static Texts) -> Element {
     div()
         .class("install-box")
         .child(span().class("prompt").text("$"))
-        .child(code().text("cargo add securite"))
-        .child(copy_button("cargo add securite", t, false))
+        .child(code().text("cargo add securite --git https://github.com/maxlestage/Securite"))
+        .child(copy_button(
+            "cargo add securite --git https://github.com/maxlestage/Securite",
+            t,
+            false,
+        ))
 }
 
 fn section_head(kicker: &'static str, title: &'static str, subtitle: &'static str) -> Element {

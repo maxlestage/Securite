@@ -28,7 +28,7 @@ pub const ECOSYSTEM: [(&str, &str); 6] = [
     ("Paquets", "https://maxlestage.github.io/Paquets/"),
     ("FerroSwift", "https://maxlestage.github.io/FerroSwift/"),
 ];
-pub const CRATES_IO: &str = "https://crates.io/crates/securite";
+pub const CRATES_IO: &str = "https://github.com/maxlestage/Securite";
 pub const DOCS_RS: &str = "https://docs.rs/securite";
 /// Background of the site (`--bg` in main.css): theme and splash screen color.
 pub const THEME: &str = "#05060a";
