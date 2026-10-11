@@ -7,7 +7,7 @@ order: 2
 
 `.github/workflows/pages.yml` builds the website and publishes a static copy on GitHub Pages at `https://<owner>.github.io/<repository>/` (for this repository: `https://maxlestage.github.io/Securite/`). It is free for public repositories and needs no secret.
 
-GitHub Pages is a static host. The pages are the ones the Vitesse server renders with [active](https://maxlestage.github.io/Active/), written to files: the animated home page, the documentation hub and every documentation page work exactly as on Heroku, in the three languages, and the copy is an installable app that works offline. The live attack playground and the live statistics need the Vitesse server: on Pages the playground says so and links to the deployment guide. Use [Heroku](/docs/heroku-from-phone) or [Docker](/docs/docker) for the full demo.
+GitHub Pages is a static host. The pages are the ones the Vitesse server renders with [Active](https://maxlestage.github.io/Active/), written to files: the animated home page, the documentation hub and every documentation page work exactly as on Heroku, in the three languages, and the copy is an installable app that works offline. The live attack playground and the live statistics need the Vitesse server: on Pages the playground says so and links to the deployment guide. Use [Heroku](/docs/heroku-from-phone) or [Docker](/docs/docker) for the full demo.
 
 ## One-time setup from your phone
 
@@ -35,12 +35,12 @@ GitHub Pages does not let you send HTTP headers, so the export writes what HTML 
 | Protection | How |
 |---|---|
 | Content-Security-Policy | `<meta http-equiv>` with `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `worker-src 'self'`, `manifest-src 'self'` and the same strict `script-src` and `style-src` as the server |
-| Inline scripts and style | the WebAssembly loader, the service worker registration and the small style of active are allowed by their SHA-256 hashes, computed for each page during the export, never with `'unsafe-inline'` |
+| Inline scripts and style | the WebAssembly loader, the service worker registration and the small style of Active are allowed by their SHA-256 hashes, computed for each page during the export, never with `'unsafe-inline'` |
 | WebAssembly | `'wasm-unsafe-eval'` only, no `'unsafe-eval'` |
 | Referrer-Policy | `<meta name="referrer" content="strict-origin-when-cross-origin">` |
 | HTTPS | enforced by GitHub Pages (tick **Enforce HTTPS** in Settings → Pages) |
 
-> **Warning:** some protections only exist as HTTP headers: `frame-ancestors` (clickjacking), HSTS, `X-Content-Type-Options`, COOP and CORP. A browser ignores them in a `<meta>` tag. For an application that handles user data, serve it with the Vitesse server and the securite `Shield`, as on Heroku.
+> **Warning:** some protections only exist as HTTP headers: `frame-ancestors` (clickjacking), HSTS, `X-Content-Type-Options`, COOP and CORP. A browser ignores them in a `<meta>` tag. For an application that handles user data, serve it with the Vitesse server and the Securite `Shield`, as on Heroku.
 
 ## Addresses and offline use
 

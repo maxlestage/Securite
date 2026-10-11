@@ -30,7 +30,7 @@ pub trait Guard: Send + Sync + 'static {
 }
 ```
 
-Only `name()` is required. The `request` and `response` modules come from the `http` crate, which securite re-exports: `use securite::http::{request::Parts, StatusCode};` works without adding `http` to your dependencies.
+Only `name()` is required. The `request` and `response` modules come from the `http` crate, which Securite re-exports: `use securite::http::{request::Parts, StatusCode};` works without adding `http` to your dependencies.
 
 | Method | Role |
 |---|---|

@@ -1,4 +1,4 @@
-# securite
+# Securite
 
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
 [![docs.rs](https://img.shields.io/docsrs/securite)](https://docs.rs/securite)
@@ -121,7 +121,7 @@ Rust **1.85** (edition 2024).
 
 ## License
 
-securite is proprietary software: © 2026 Maxime Nathan Lestage, all rights
+Securite is proprietary software: © 2026 Maxime Nathan Lestage, all rights
 reserved. It is not open source. The source code is published on crates.io
 and GitHub so that it can be read, audited and built, and you may use it
 freely as a dependency of your own programs, commercial ones included.

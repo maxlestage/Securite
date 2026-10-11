@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-The `Dockerfile` at the repository root builds this website: pages rendered on the server with [active](https://maxlestage.github.io/Active/) and WebAssembly islands, served by a Vitesse server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
+The `Dockerfile` at the repository root builds this website: pages rendered on the server with [Active](https://maxlestage.github.io/Active/) and WebAssembly islands, served by a Vitesse server that protects itself with `securite`. Heroku builds the same image for you (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
 
 ## The two stages
 
@@ -49,7 +49,7 @@ Then open `http://localhost:8080`. Development mode keeps plain HTTP usable: pro
 
 ## What the server runs
 
-Every page is rendered on the server with active, in English, French and Spanish: `/` redirects to `/en/`, `/fr/` or `/es/` according to `Accept-Language`, then come `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` and `/{lang}/playground/`; the addresses of the previous version (`/docs/waf`, `/playground`) are redirected. `/manifest.webmanifest` and `/sw.js` make the site an installable app that works offline, `/sitemap.xml` and `/robots.txt` help search engines, `/static/` and `/pkg/` serve the files (cached for a year when versioned). `/api/health` answers `ok`, `/api/stats` returns the shield counters as JSON, and `/api/demo` echoes the playground payload when the WAF lets it through.
+Every page is rendered on the server with Active, in English, French and Spanish: `/` redirects to `/en/`, `/fr/` or `/es/` according to `Accept-Language`, then come `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` and `/{lang}/playground/`; the addresses of the previous version (`/docs/waf`, `/playground`) are redirected. `/manifest.webmanifest` and `/sw.js` make the site an installable app that works offline, `/sitemap.xml` and `/robots.txt` help search engines, `/static/` and `/pkg/` serve the files (cached for a year when versioned). `/api/health` answers `ok`, `/api/stats` returns the shield counters as JSON, and `/api/demo` echoes the playground payload when the WAF lets it through.
 
 | Guard | Setting |
 |---|---|
@@ -58,7 +58,7 @@ Every page is rendered on the server with active, in English, French and Spanish
 | `RateLimit` | 30 requests per second per IP, burst 150; `/api/demo` 60 per minute, burst 20 |
 | `ConcurrencyLimit` | 64 requests in flight per IP |
 | `AutoBan` | 30 strikes, `/api/demo` ignored |
-| `SecurityHeaders` | Strict CSP: the inline scripts (WebAssembly loader, service worker registration) and the inline style of active allowed by hash, `'wasm-unsafe-eval'`, `worker-src` and `manifest-src` limited to `'self'`; COEP `require-corp`, HSTS in production |
+| `SecurityHeaders` | Strict CSP: the inline scripts (WebAssembly loader, service worker registration) and the inline style of Active allowed by hash, `'wasm-unsafe-eval'`, `worker-src` and `manifest-src` limited to `'self'`; COEP `require-corp`, HSTS in production |
 | `HttpsRedirect` | Production only, `/api/health` exempt |
 | `RequestId`, `Hygiene`, `BotBlocker`, `Waf`, `Csrf`, `CookieHardening` | Defaults |
 

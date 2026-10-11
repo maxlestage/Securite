@@ -163,7 +163,7 @@ pub fn app() -> App {
 
 ### Hashes for single-page apps
 
-Vite and similar bundlers inject an inline bootstrap script into `index.html`, and server-rendered Rust front-ends write one to start their WebAssembly bundle (this website, built with [active](https://maxlestage.github.io/Active/), hashes its loader and its service worker registration this way). Hash it at startup and keep a strict `script-src`:
+Vite and similar bundlers inject an inline bootstrap script into `index.html`, and server-rendered Rust front-ends write one to start their WebAssembly bundle (this website, built with [Active](https://maxlestage.github.io/Active/), hashes its loader and its service worker registration this way). Hash it at startup and keep a strict `script-src`:
 
 ```rust
 use securite::headers::src;

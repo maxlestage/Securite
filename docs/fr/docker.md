@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [active](https://maxlestage.github.io/Active/) et des îlots WebAssembly, servis par un serveur Vitesse qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
+Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [Active](https://maxlestage.github.io/Active/) et des îlots WebAssembly, servis par un serveur Vitesse qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
 
 ## Les deux étapes
 
@@ -49,7 +49,7 @@ Ouvrez ensuite `http://localhost:8080`. Le mode développement permet de rester 
 
 ## Ce que fait le serveur
 
-Chaque page est rendue par le serveur avec active, en français, en anglais et en espagnol : `/` redirige vers `/fr/`, `/en/` ou `/es/` selon `Accept-Language`, puis viennent `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` et `/{lang}/playground/` ; les adresses de la version précédente (`/docs/waf`, `/playground`) sont redirigées. `/manifest.webmanifest` et `/sw.js` font du site une application installable qui fonctionne hors ligne, `/sitemap.xml` et `/robots.txt` aident les moteurs de recherche, `/static/` et `/pkg/` servent les fichiers (en cache pendant un an quand ils sont versionnés). `/api/health` répond `ok`, `/api/stats` renvoie les compteurs du bouclier en JSON, et `/api/demo` renvoie la charge envoyée par le playground quand le WAF la laisse passer.
+Chaque page est rendue par le serveur avec Active, en français, en anglais et en espagnol : `/` redirige vers `/fr/`, `/en/` ou `/es/` selon `Accept-Language`, puis viennent `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` et `/{lang}/playground/` ; les adresses de la version précédente (`/docs/waf`, `/playground`) sont redirigées. `/manifest.webmanifest` et `/sw.js` font du site une application installable qui fonctionne hors ligne, `/sitemap.xml` et `/robots.txt` aident les moteurs de recherche, `/static/` et `/pkg/` servent les fichiers (en cache pendant un an quand ils sont versionnés). `/api/health` répond `ok`, `/api/stats` renvoie les compteurs du bouclier en JSON, et `/api/demo` renvoie la charge envoyée par le playground quand le WAF la laisse passer.
 
 | Garde | Réglage |
 |---|---|

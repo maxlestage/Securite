@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-El `Dockerfile` de la raíz del repositorio construye este sitio: páginas renderizadas en el servidor con [active](https://maxlestage.github.io/Active/) e islas WebAssembly, servidas por un servidor Vitesse que se protege a sí mismo con `securite`. Heroku construye la misma imagen por usted (vea [Desplegar en Heroku desde el móvil](/docs/heroku-from-phone)); los comandos de esta página necesitan un ordenador o una terminal en la nube.
+El `Dockerfile` de la raíz del repositorio construye este sitio: páginas renderizadas en el servidor con [Active](https://maxlestage.github.io/Active/) e islas WebAssembly, servidas por un servidor Vitesse que se protege a sí mismo con `securite`. Heroku construye la misma imagen por usted (vea [Desplegar en Heroku desde el móvil](/docs/heroku-from-phone)); los comandos de esta página necesitan un ordenador o una terminal en la nube.
 
 ## Las dos etapas
 
@@ -49,7 +49,7 @@ Después abra `http://localhost:8080`. El modo desarrollo permite seguir en HTTP
 
 ## Qué ejecuta el servidor
 
-Cada página se renderiza en el servidor con active, en español, inglés y francés: `/` redirige a `/es/`, `/en/` o `/fr/` según `Accept-Language`, y luego vienen `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` y `/{lang}/playground/`; las direcciones de la versión anterior (`/docs/waf`, `/playground`) se redirigen. `/manifest.webmanifest` y `/sw.js` hacen del sitio una aplicación instalable que funciona sin conexión, `/sitemap.xml` y `/robots.txt` ayudan a los buscadores, `/static/` y `/pkg/` sirven los archivos (en caché durante un año cuando llevan versión). `/api/health` responde `ok`, `/api/stats` devuelve los contadores del escudo en JSON y `/api/demo` devuelve la carga del playground cuando el WAF la deja pasar.
+Cada página se renderiza en el servidor con Active, en español, inglés y francés: `/` redirige a `/es/`, `/en/` o `/fr/` según `Accept-Language`, y luego vienen `/{lang}/`, `/{lang}/docs/`, `/{lang}/docs/{slug}/` y `/{lang}/playground/`; las direcciones de la versión anterior (`/docs/waf`, `/playground`) se redirigen. `/manifest.webmanifest` y `/sw.js` hacen del sitio una aplicación instalable que funciona sin conexión, `/sitemap.xml` y `/robots.txt` ayudan a los buscadores, `/static/` y `/pkg/` sirven los archivos (en caché durante un año cuando llevan versión). `/api/health` responde `ok`, `/api/stats` devuelve los contadores del escudo en JSON y `/api/demo` devuelve la carga del playground cuando el WAF la deja pasar.
 
 | Guarda | Configuración |
 |---|---|
@@ -58,7 +58,7 @@ Cada página se renderiza en el servidor con active, en español, inglés y fran
 | `RateLimit` | 30 peticiones por segundo y por IP, ráfaga de 150; `/api/demo` 60 por minuto, ráfaga de 20 |
 | `ConcurrencyLimit` | 64 peticiones simultáneas por IP |
 | `AutoBan` | 30 penalizaciones, `/api/demo` ignorada |
-| `SecurityHeaders` | CSP estricta: los scripts inline (cargador WebAssembly, registro del service worker) y el estilo inline de active permitidos por hash, `'wasm-unsafe-eval'`, `worker-src` y `manifest-src` limitados a `'self'`; COEP `require-corp`, HSTS en producción |
+| `SecurityHeaders` | CSP estricta: los scripts inline (cargador WebAssembly, registro del service worker) y el estilo inline de Active permitidos por hash, `'wasm-unsafe-eval'`, `worker-src` y `manifest-src` limitados a `'self'`; COEP `require-corp`, HSTS en producción |
 | `HttpsRedirect` | Solo en producción, `/api/health` exenta |
 | `RequestId`, `Hygiene`, `BotBlocker`, `Waf`, `Csrf`, `CookieHardening` | Valores por defecto |
 

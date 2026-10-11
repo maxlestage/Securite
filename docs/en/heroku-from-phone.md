@@ -1,6 +1,6 @@
 ---
 title: Deploy to Heroku from your phone
-summary: Put the securite website online without a computer, with the one-tap Deploy button, GitHub Actions on every merge, or the Heroku GitHub integration.
+summary: Put the Securite website online without a computer, with the one-tap Deploy button, GitHub Actions on every merge, or the Heroku GitHub integration.
 category: deploy
 order: 1
 ---

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ securite
+# 🛡️ Securite
 
 **Middlewares de seguridad nativos para Rust: rápidos, fáciles y completos.**
 
@@ -19,7 +19,7 @@ Este repositorio contiene:
 | Carpeta | Contenido |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para Vitesse, y para tower / hyper / tonic |
-| [`site`](site) | El **sitio web**, escrito con [active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
+| [`site`](site) | El **sitio web**, escrito con [Active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
 | [`server`](server) | El servidor Vitesse que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (33 páginas × 3 idiomas), compilada en el sitio |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Imagen de contenedor y **despliegue en Heroku con un toque** |
@@ -118,7 +118,7 @@ BASE_PATH=/Securite cargo run -p securite-server -- export dist
 
 ## Licencia
 
-securite es software propietario: © 2026 Maxime Nathan Lestage, todos los
+Securite es software propietario: © 2026 Maxime Nathan Lestage, todos los
 derechos reservados. No es software de código abierto. El código fuente se
 publica en crates.io y GitHub para que pueda leerse, auditarse y compilarse,
 y puedes usarlo libremente como dependencia de tus propios programas, también

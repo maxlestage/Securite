@@ -16,13 +16,13 @@ app.middleware(Shield::recommended());
 app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
-## Por qué securite
+## Por qué Securite
 
 Ningún control detiene por sí solo todos los ataques. Securite aplica la **defensa en profundidad**: varias comprobaciones independientes y baratas, cada una de las cuales cierra un tipo distinto de debilidad, de modo que un hueco en una capa quede cubierto por la siguiente. Una petición que se mantiene por debajo del límite de tasa se topa igualmente con el WAF; un script inyectado a pesar del WAF sigue neutralizado por la Content-Security-Policy.
 
 Los valores por defecto siguen las recomendaciones de OWASP (Secure Headers Project, Core Rule Set, cheat sheets de CSRF y de gestión de sesiones) y están pensados para usarse en producción tal cual. Desactivar una protección es una decisión explícita; nunca tienes que acordarte de activarla.
 
-| OWASP Top 10 (2021) | Controles en securite |
+| OWASP Top 10 (2021) | Controles en Securite |
 |---|---|
 | A01 Broken Access Control | Filtro de IP, filtro de host, autenticación, CSRF, CORS |
 | A03 Injection | WAF, higiene HTTP, lista de tipos de contenido permitidos, CSP |
