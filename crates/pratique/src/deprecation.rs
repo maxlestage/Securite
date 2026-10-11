@@ -11,7 +11,7 @@ use crate::util::{http_date, normalize_prefix, path_matches, unix_secs};
 /// and gateways understand:
 ///
 /// * `Deprecation: @1767225600` (RFC 9745), since when;
-/// * `Sunset: Thu, 01 Jan 2027 00:00:00 GMT` (RFC 8594), when it stops working;
+/// * `Sunset: Fri, 01 Jan 2027 00:00:00 GMT` (RFC 8594), when it stops working;
 /// * `Link: <https://…>; rel="deprecation"`, where to read about it.
 ///
 /// Limit it to path prefixes with [`only`](Deprecation::only), or add it to a

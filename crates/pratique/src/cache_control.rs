@@ -5,9 +5,15 @@ use vitesse::{BoxFuture, Method, Middleware, Next, Request, Response};
 
 use crate::util::{longest_match, normalize_prefix};
 
-/// Sets `Cache-Control` on successful `GET` / `HEAD` responses that don't
-/// have one: by path prefix first (longest wins), then by content type, then
-/// the [`fallback`](CacheControl::fallback).
+/// Sets `Cache-Control` on successful `GET` / `HEAD` responses (`2xx`, `304`
+/// and permanent redirects) that don't have one: by path prefix first
+/// (longest wins), then by content type, then the
+/// [`fallback`](CacheControl::fallback).
+///
+/// Static files served by Vitesse (`ServeDir`) always carry their own
+/// `Cache-Control` (`public, max-age=0` unless `ServeDir::max_age` says
+/// otherwise): set it there, or use [`overwrite`](CacheControl::overwrite)
+/// so that these rules replace it.
 ///
 /// ```
 /// use pratique::prelude::*;
@@ -103,8 +109,10 @@ impl Middleware for CacheControl {
         let path = req.path().to_owned();
         Box::pin(async move {
             let mut res = next.run(req).await;
-            let status = res.status_code();
-            if !(status.is_success() || status.is_redirection()) {
+            // Success, permanent redirects and `304`: a temporary redirect
+            // (`302`, `303`, `307`) must not be cached as long as a page.
+            let status = res.status_code().as_u16();
+            if !matches!(status, 200..=299 | 301 | 304 | 308) {
                 return res;
             }
             if !self.overwrite && res.headers().contains_key(header::CACHE_CONTROL) {

@@ -24,7 +24,9 @@ impl Lang {
 /// matches `fr`), else the default (the first supported language).
 ///
 /// Handlers read it with `req.get::<Lang>()`; responses get
-/// `Content-Language` (when they have none) and `Vary: Accept-Language`.
+/// `Content-Language` (when they have none) and `Vary: Accept-Language`,
+/// plus `Cookie` while the cookie source is on (turn it off with
+/// `.cookie(None)` to let CDNs cache the pages).
 ///
 /// ```
 /// use pratique::prelude::*;
@@ -104,32 +106,48 @@ impl Locale {
 
     /// The best supported tag for an `Accept-Language` header.
     fn negotiate(&self, accept: &str) -> Option<&str> {
-        let mut ranges: Vec<(&str, f32)> = accept
-            .split(',')
-            .filter_map(|part| {
-                let mut pieces = part.split(';');
-                let tag = pieces.next()?.trim();
-                let q = pieces
-                    .find_map(|p| p.trim().strip_prefix("q="))
-                    .map_or(Some(1.0), |q| q.trim().parse::<f32>().ok())?;
-                (!tag.is_empty() && q > 0.0).then_some((tag, q))
-            })
-            .collect();
+        let mut ranges: Vec<(&str, f32)> = Vec::new();
+        // `q=0` means "not this one", even through a regional variant.
+        let mut refused: Vec<&str> = Vec::new();
+        for part in accept.split(',') {
+            let mut pieces = part.split(';');
+            let tag = pieces.next().unwrap_or("").trim();
+            if tag.is_empty() {
+                continue;
+            }
+            let q = pieces
+                .map(str::trim)
+                .find(|p| p.get(..2).is_some_and(|k| k.eq_ignore_ascii_case("q=")))
+                .map_or(Some(1.0), |p| p[2..].trim().parse::<f32>().ok());
+            match q {
+                Some(q) if q > 0.0 => ranges.push((tag, q)),
+                Some(_) => refused.push(tag),
+                None => {}
+            }
+        }
+        let allowed = |tag: &str| !refused.iter().any(|r| r.eq_ignore_ascii_case(tag));
         // Stable: equal weights keep the browser's order.
         ranges.sort_by(|a, b| b.1.total_cmp(&a.1));
         for (tag, _) in ranges {
             if tag == "*" {
-                return Some(&self.default);
+                let default = Some(self.default.as_str()).filter(|d| allowed(d));
+                return default.or_else(|| {
+                    self.supported
+                        .iter()
+                        .map(String::as_str)
+                        .find(|s| allowed(s))
+                });
             }
-            if let Some(found) = self.find(tag) {
+            if let Some(found) = self.find(tag).filter(|f| allowed(f)) {
                 return Some(found);
             }
             // `fr-CA` → `fr`, and `fr` → `fr-FR` when only a regional variant exists.
             let primary = tag.split('-').next().unwrap_or(tag);
             let regional = self.supported.iter().find(|s| {
-                s.split('-')
-                    .next()
-                    .is_some_and(|p| p.eq_ignore_ascii_case(primary))
+                allowed(s)
+                    && s.split('-')
+                        .next()
+                        .is_some_and(|p| p.eq_ignore_ascii_case(primary))
             });
             if let Some(found) = regional {
                 return Some(found);
@@ -173,6 +191,11 @@ impl Middleware for Locale {
                     .or_insert(value);
             }
             add_vary(&mut res, "accept-language");
+            // The language cookie chooses too: a shared cache must not give
+            // the French page of a visitor's cookie to everyone else.
+            if self.cookie.is_some() {
+                add_vary(&mut res, "cookie");
+            }
             res
         })
     }
@@ -192,6 +215,10 @@ mod tests {
         assert_eq!(l.negotiate("PT-br"), Some("pt-BR"));
         assert_eq!(l.negotiate("de, *;q=0.1"), Some("en"));
         assert_eq!(l.negotiate("fr;q=0, de"), None);
+        assert_eq!(l.negotiate("fr;Q=0, en"), Some("en"));
+        assert_eq!(l.negotiate("fr;q=0, fr-CA"), None);
+        assert_eq!(l.negotiate("en;q=0, *"), Some("fr"));
+        assert_eq!(l.negotiate("fr;q=1.0;level=1"), Some("fr"));
         assert_eq!(l.negotiate(""), None);
     }
 

@@ -37,4 +37,4 @@ redis = { version = "1.7", default-features = false, features = ["tokio-comp", "
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "net", "io-util"] }

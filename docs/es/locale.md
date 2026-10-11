@@ -18,7 +18,7 @@ Gana la primera fuente que indique un idioma admitido:
 
 Los valores no admitidos se ignoran y nunca se reflejan en la respuesta. El resultado es siempre una de tus etiquetas, escrita tal como la escribiste.
 
-Los handlers lo leen con `req.get::<Lang>()`. La respuesta recibe `Content-Language` (salvo que el handler haya puesto uno) y `Vary: Accept-Language`, para que las cachés guarden una copia por idioma.
+Los handlers lo leen con `req.get::<Lang>()`. La respuesta recibe `Content-Language` (salvo que el handler haya puesto uno) y `Vary: Accept-Language`, más `Cookie` mientras la fuente de la cookie esté activada, para que las cachés compartidas nunca den el idioma de un visitante a otro. Todos los valores de `Vary` acaban en una sola línea.
 
 ## Inicio rápido
 
@@ -65,7 +65,9 @@ app.get("/lang/:tag", |req: Request| async move {
 
 ## Errores comunes y consejos
 
-- Las páginas cuyo contenido depende del idioma no deben compartirse a través de una caché que ignore `Vary`. [ResponseCache](/docs/response-cache) omite las respuestas con `Vary`.
+- Añade `Locale` antes de una [ResponseCache](/docs/response-cache): así cada idioma tiene su propia entrada, sea cual sea el `Accept-Language` que envíe el navegador.
+- La mayoría de las CDN no almacenan en caché las respuestas con `Vary: Cookie`. Para las páginas que deba almacenar una CDN, desactiva la cookie con `.cookie(None)` y usa enlaces `?lang=` o una dirección por idioma.
+- Un idioma rechazado con `q=0` nunca se elige, ni siquiera a través de una variante regional: `fr;q=0, fr-CA` da el idioma por defecto.
 - Para los buscadores, es preferible una dirección por idioma (`/fr/…`, `/en/…`) y usar `Locale` para elegir el destino de la redirección en `/`.
 
 ## Páginas relacionadas

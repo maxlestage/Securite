@@ -236,7 +236,8 @@ async fn health_checks() {
     let body: serde_json_value::Value = res.json();
     assert_eq!(body["status"], "pass");
     assert_eq!(body["version"], "1.2.3");
-    assert_eq!(body["checks"]["database"]["status"], "pass");
+    assert_eq!(body["checks"]["database"][0]["status"], "pass");
+    assert_eq!(body["checks"]["uptime"][0]["observedUnit"], "s");
 
     up.store(false, Ordering::SeqCst);
     let res = c.get("/health").await;

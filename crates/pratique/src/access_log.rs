@@ -237,8 +237,9 @@ fn combined_line(l: &Line) -> String {
     quoted(&mut s, Some(&request));
     s.push_str(&format!(" {} ", l.status));
     match l.bytes {
-        Some(bytes) => s.push_str(&bytes.to_string()),
-        None => s.push('-'),
+        // Like Apache's `%b`: `-` when no byte of body was sent.
+        Some(bytes) if bytes > 0 => s.push_str(&bytes.to_string()),
+        _ => s.push('-'),
     }
     s.push(' ');
     quoted(&mut s, l.referer.as_deref());
@@ -259,10 +260,8 @@ impl Middleware for AccessLog {
             time,
             ip: self.client_ip(&req),
             method: req.method().to_string(),
-            target: req
-                .uri()
-                .path_and_query()
-                .map_or_else(|| req.path().to_owned(), |pq| pq.as_str().to_owned()),
+            // As received: `req.uri()` turns targets that `Uri` rejects into `/`.
+            target: crate::util::target(&req),
             version: req.version(),
             status: 0,
             bytes: None,
@@ -271,10 +270,17 @@ impl Middleware for AccessLog {
             user_agent: header(header::USER_AGENT),
             request_id: header(HeaderName::from_static("x-request-id")),
         };
+        let head = *req.method() == vitesse::Method::HEAD;
         Box::pin(async move {
             let res = next.run(req).await;
             line.status = res.status_code().as_u16();
-            line.bytes = res.body().size();
+            // Bytes of body sent: none for `HEAD`, `204` and `304`.
+            let status = line.status;
+            line.bytes = if head || status == 204 || status == 304 {
+                Some(0)
+            } else {
+                res.body().size()
+            };
             line.duration_ms = start.elapsed().as_secs_f64() * 1000.0;
             if line.request_id.is_none() {
                 line.request_id = res.get_header("x-request-id").map(str::to_owned);

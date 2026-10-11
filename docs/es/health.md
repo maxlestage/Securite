@@ -10,13 +10,22 @@ Los balanceadores de carga, los orquestadores (Kubernetes, Nomad, Fly.io, Heroku
 ## La respuesta
 
 ```json
-{"status":"pass","uptime":3600,"version":"1.4.0","checks":{"database":{"status":"pass"},"cache":{"status":"pass"}}}
+{
+  "checks": {
+    "database": [{ "status": "pass" }],
+    "uptime": [{ "componentType": "system", "observedUnit": "s", "observedValue": 3600, "status": "pass" }]
+  },
+  "status": "pass",
+  "version": "1.4.0"
+}
 ```
+
+Cada comprobación es una lista de mediciones, tal como las define el formato `application/health+json`; la comprobación `uptime` (segundos desde que arrancó la aplicación) siempre está presente.
 
 - `200 OK` con `"status":"pass"` cuando todas las comprobaciones pasan;
 - `503 Service Unavailable` con `"status":"fail"` en cuanto una falla, para que el balanceador de carga deje de enviar tráfico a esta instancia.
 
-El tipo de contenido es `application/health+json` y la respuesta nunca se almacena en caché (`Cache-Control: no-store`). Solo se responde a `GET` y `HEAD` en la ruta exacta; todo lo demás va a tus rutas.
+El tipo de contenido es `application/health+json` y la respuesta nunca se almacena en caché (`Cache-Control: no-store`). Solo se responde a `GET` y `HEAD` en la ruta (con o sin `/` final); todo lo demás va a tus rutas.
 
 ## Inicio rápido
 
@@ -33,7 +42,7 @@ curl -i https://example.com/health
 # HTTP/1.1 200 OK
 # content-type: application/health+json
 #
-# {"status":"pass","uptime":42,"version":"1.4.0"}
+# {"checks":{"uptime":[{"componentType":"system","observedUnit":"s","observedValue":42,"status":"pass"}]},"status":"pass","version":"1.4.0"}
 ```
 
 ## Configuración
