@@ -1,9 +1,10 @@
 //! Small helpers shared by the middlewares.
 
+use std::borrow::Cow;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use vitesse::Response;
 use vitesse::http::header::{self, HeaderValue};
+use vitesse::{Request, Response};
 
 /// Normalises a user provided path prefix (`api` -> `/api`).
 pub(crate) fn normalize_prefix(p: impl Into<String>) -> String {
@@ -36,20 +37,70 @@ pub(crate) fn longest_match<'a, T>(routes: &'a [(String, T)], path: &str) -> Opt
         .map(|(_, v)| v)
 }
 
-/// Adds `token` to the `Vary` header of `res` (once).
+/// Adds `token` to the `Vary` header of `res` (once), merging every `Vary`
+/// line into one: some middlewares only read the first line.
 pub(crate) fn add_vary(res: &mut Response, token: &str) {
     let headers = res.headers_mut();
-    let present = headers
+    let lines = headers.get_all(header::VARY).iter().count();
+    let mut tokens: Vec<String> = headers
         .get_all(header::VARY)
         .iter()
         .filter_map(|v| v.to_str().ok())
         .flat_map(|v| v.split(','))
-        .any(|v| v.trim() == "*" || v.trim().eq_ignore_ascii_case(token));
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let present = tokens
+        .iter()
+        .any(|t| t == "*" || t.eq_ignore_ascii_case(token));
+    if present && lines <= 1 {
+        return;
+    }
     if !present {
-        if let Ok(value) = HeaderValue::from_str(token) {
-            headers.append(header::VARY, value);
+        tokens.push(token.to_owned());
+    }
+    if let Ok(value) = HeaderValue::from_str(&tokens.join(", ")) {
+        headers.insert(header::VARY, value);
+    }
+}
+
+/// The path and query string of `req` as the client sent them.
+///
+/// `req.uri()` falls back to `/` for targets that `http::Uri` rejects (a `"`
+/// or a `<` in the query …), while Vitesse routes on the raw path: always use
+/// this for keys, logs and redirects.
+pub(crate) fn target(req: &Request) -> String {
+    match req.query_string() {
+        Some(query) => format!("{}?{query}", req.path()),
+        None => req.path().to_owned(),
+    }
+}
+
+/// Percent-encodes the bytes that may not appear as such in a URI path or
+/// query (`"`, `<`, space, non-ASCII …), so the result is a valid `Uri` and a
+/// clean `Location`. Existing `%XX` escapes are kept.
+pub(crate) fn encode_target(s: &str) -> Cow<'_, str> {
+    let allowed = |b: u8| b.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=:@/?%".contains(&b);
+    if s.bytes().all(allowed) {
+        return Cow::Borrowed(s);
+    }
+    let mut out = String::with_capacity(s.len() + 16);
+    for b in s.bytes() {
+        if allowed(b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
         }
     }
+    Cow::Owned(out)
+}
+
+/// A path that browsers cannot read as another site: leading `/` and `\`
+/// collapse into one `/` (`//evil.example` and `/\evil.example` are
+/// protocol-relative addresses).
+pub(crate) fn local_path(path: &str) -> String {
+    format!("/{}", path.trim_start_matches(['/', '\\']))
 }
 
 /// 64-bit FNV-1a: stable across builds and platforms (unlike `DefaultHasher`),
@@ -166,6 +217,42 @@ mod tests {
     fn fnv_is_stable() {
         assert_eq!(fnv1a(b""), 0xcbf2_9ce4_8422_2325);
         assert_eq!(fnv1a(b"a"), 0xaf63_dc4c_8601_ec8c);
+    }
+
+    #[test]
+    fn targets() {
+        assert_eq!(encode_target("/a?b=c&d=%20"), "/a?b=c&d=%20");
+        assert_eq!(
+            encode_target("/a b?q=\"x\"<é>"),
+            "/a%20b?q=%22x%22%3C%C3%A9%3E"
+        );
+        assert!(
+            encode_target("/a?q=\"x\"")
+                .parse::<vitesse::http::Uri>()
+                .is_ok()
+        );
+        assert_eq!(local_path("//evil.example"), "/evil.example");
+        assert_eq!(local_path("/\\evil.example/x"), "/evil.example/x");
+        assert_eq!(local_path("/ok/x"), "/ok/x");
+        assert_eq!(local_path(""), "/");
+    }
+
+    #[test]
+    fn vary_is_merged() {
+        let mut res = Response::new()
+            .append_header("vary", "Cookie")
+            .append_header("vary", "origin");
+        add_vary(&mut res, "accept-language");
+        let lines: Vec<_> = res.headers().get_all("vary").iter().collect();
+        assert_eq!(lines, ["Cookie, origin, accept-language"]);
+        add_vary(&mut res, "Accept-Language");
+        assert_eq!(
+            res.get_header("vary"),
+            Some("Cookie, origin, accept-language")
+        );
+        let mut star = Response::new().header("vary", "*");
+        add_vary(&mut star, "cookie");
+        assert_eq!(star.get_header("vary"), Some("*"));
     }
 
     #[test]

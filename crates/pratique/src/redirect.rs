@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use vitesse::http::header::{self, HeaderValue};
 use vitesse::{BoxFuture, Middleware, Next, Request, Response, StatusCode};
 
-use crate::util::{normalize_prefix, path_matches};
+use crate::util::{encode_target, local_path, normalize_prefix, path_matches};
 
 /// Redirects old addresses to new ones before the routes run.
 ///
@@ -94,8 +94,10 @@ impl Redirects {
     /// Where `req` goes, if a rule applies.
     fn target(&self, req: &Request) -> Option<(String, StatusCode)> {
         let path = req.path();
-        let query = req.uri().query();
-        let with_query = |target: String| match query {
+        // The raw query string (`req.uri()` drops targets that `Uri` rejects),
+        // encoded like the path so the `Location` is a valid address.
+        let query = req.query_string().map(encode_target);
+        let with_query = |target: String| match &query {
             Some(q) if !target.contains('?') => format!("{target}?{q}"),
             _ => target,
         };
@@ -115,7 +117,7 @@ impl Redirects {
                 .map(str::to_ascii_lowercase);
             if let Some(origin) = host.and_then(|h| self.hosts.get(&h)) {
                 return Some((
-                    with_query(format!("{origin}{path}")),
+                    with_query(format!("{origin}{}", encode_target(path))),
                     StatusCode::PERMANENT_REDIRECT,
                 ));
             }
@@ -132,11 +134,12 @@ impl Redirects {
                 path_matches(path, from) && (to.is_empty() || !path_matches(path, to))
             })?;
         let rest = &path[from.trim_end_matches('/').len()..];
-        let target = format!("{to}{rest}");
-        let target = if target.is_empty() {
-            "/".to_owned()
+        // The rest of the path comes from the client: `/old//evil.example`
+        // with `prefix("/old", "/")` must stay on this site.
+        let target = if to.is_empty() || to.starts_with('/') {
+            encode_target(&local_path(&format!("{to}{rest}"))).into_owned()
         } else {
-            target
+            format!("{to}{}", encode_target(rest))
         };
         Some((with_query(target), *status))
     }

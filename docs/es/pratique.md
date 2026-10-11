@@ -48,7 +48,7 @@ fn main() -> std::io::Result<()> {
 |---|---|---|
 | Caché | [`ETag`](/docs/etag) | `ETag` a partir del cuerpo, `304 Not Modified` con `If-None-Match` |
 | | [`CacheControl`](/docs/cache-control) | `Cache-Control` por prefijo de ruta y tipo de contenido |
-| | [`ResponseCache`](/docs/response-cache) | Caché en memoria de respuestas `GET` completas, con un handle de purga |
+| | [`ResponseCache`](/docs/response-cache) | Caché de respuestas `GET` completas, en memoria o compartida en Redis, con una entrada por idioma y por variante |
 | Observabilidad | [`AccessLog`](/docs/access-log) | Una línea por petición, en JSON o en formato combinado de Apache |
 | | [`Metrics`](/docs/metrics) | `/metrics` de Prometheus: contadores, histograma de latencia, peticiones en curso |
 | | [`ResponseTime`](/docs/response-time) | `X-Response-Time` y `Server-Timing` |

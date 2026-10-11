@@ -30,7 +30,7 @@
 //! |-----------------|--------------------------------------------------|--------------|
 //! | Caching         | [`ETag`](etag::ETag)                             | `ETag` from the body, `304 Not Modified` on `If-None-Match` |
 //! |                 | [`CacheControl`](cache_control::CacheControl)    | `Cache-Control` by path prefix and content type |
-//! |                 | [`ResponseCache`](cache::ResponseCache)          | In-memory cache of whole `GET` responses, with TTL and purge |
+//! |                 | [`ResponseCache`](cache::ResponseCache)          | Cache of whole `GET` responses, in memory or shared in Redis (`redis` feature), `Vary`-aware |
 //! | Observability   | [`AccessLog`](access_log::AccessLog)             | JSON lines or Apache combined access logs |
 //! |                 | [`Metrics`](metrics::Metrics)                    | Prometheus `/metrics`: counts, latency histogram, in-flight |
 //! |                 | [`ResponseTime`](timing::ResponseTime)           | `X-Response-Time` and `Server-Timing` |
@@ -51,6 +51,14 @@
 //! the response of your routes (`ETag`, `CacheControl`, `ResponseCache`).
 //! With [Securite](https://docs.rs/securite), add the `Shield` before the
 //! endpoints you want to protect (`/metrics`).
+//!
+//! ## Cargo features
+//!
+//! * `redis`: [`RedisStore`](cache::RedisStore), a response cache shared by
+//!   every instance of the app (Rust 1.88 or later, like the `redis` crate).
+//! * `redis-tls`: `rediss://` addresses for it.
+//!
+//! Without features, the crate only depends on Vitesse and supports Rust 1.85.
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -76,7 +84,9 @@ mod util;
 /// Every middleware, in one import.
 pub mod prelude {
     pub use crate::access_log::AccessLog;
-    pub use crate::cache::{CacheHandle, ResponseCache};
+    #[cfg(feature = "redis")]
+    pub use crate::cache::RedisStore;
+    pub use crate::cache::{CacheHandle, CacheStore, MemoryStore, ResponseCache};
     pub use crate::cache_control::CacheControl;
     pub use crate::deprecation::Deprecation;
     pub use crate::etag::ETag;

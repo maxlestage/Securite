@@ -13,7 +13,14 @@ type Check = Arc<dyn Fn() -> bool + Send + Sync>;
 /// in your handlers), in the `application/health+json` format:
 ///
 /// ```json
-/// {"status":"pass","version":"1.4.0","uptime":3600,"checks":{"database":{"status":"pass"}}}
+/// {
+///   "checks": {
+///     "database": [{ "status": "pass" }],
+///     "uptime": [{ "componentType": "system", "observedUnit": "s", "observedValue": 3600, "status": "pass" }]
+///   },
+///   "status": "pass",
+///   "version": "1.4.0"
+/// }
 /// ```
 ///
 /// Every [`check`](Health::check) must pass for a `200`; otherwise the answer
@@ -97,23 +104,30 @@ impl Health {
     }
 
     fn response(&self) -> Response {
+        // `application/health+json`: every check is a list of measurements.
         let mut checks = Map::new();
+        checks.insert(
+            "uptime".into(),
+            json!([{
+                "componentType": "system",
+                "observedValue": self.started.elapsed().as_secs(),
+                "observedUnit": "s",
+                "status": "pass",
+            }]),
+        );
         let mut healthy = true;
         for (name, check) in &self.checks {
             let pass = check();
             healthy &= pass;
             let status = if pass { "pass" } else { "fail" };
-            checks.insert(name.clone(), json!({ "status": status }));
+            checks.insert(name.clone(), json!([{ "status": status }]));
         }
         let mut body = json!({
             "status": if healthy { "pass" } else { "fail" },
-            "uptime": self.started.elapsed().as_secs(),
+            "checks": checks,
         });
         if let Some(version) = &self.version {
             body["version"] = Value::from(version.as_str());
-        }
-        if !checks.is_empty() {
-            body["checks"] = Value::Object(checks);
         }
         let status = if healthy {
             StatusCode::OK
@@ -133,7 +147,10 @@ impl Health {
 
 impl Middleware for Health {
     fn handle(&'static self, req: Request, next: Next) -> BoxFuture<Response> {
-        if req.path() != self.path || !matches!(*req.method(), Method::GET | Method::HEAD) {
+        // `/health` and `/health/`, like the routes of Vitesse.
+        let path = req.path();
+        let on_path = path == self.path || path.strip_suffix('/') == Some(self.path.as_str());
+        if !on_path || !matches!(*req.method(), Method::GET | Method::HEAD) {
             return next.run(req);
         }
         Box::pin(std::future::ready(self.response()))

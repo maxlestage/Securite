@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use vitesse::http::header::{self, HeaderValue};
 use vitesse::{BoxFuture, Method, Middleware, Next, Request, Response};
@@ -21,7 +21,8 @@ struct Registry {
     requests: [[AtomicU64; CLASSES.len()]; METHODS.len()],
     /// Per bucket (not cumulative), plus `+Inf` at the end.
     buckets: [AtomicU64; BUCKETS.len() + 1],
-    sum_micros: AtomicU64,
+    /// Nanoseconds: microseconds would drop every fast request.
+    sum_nanos: AtomicU64,
     in_flight: AtomicI64,
     started: Instant,
 }
@@ -31,7 +32,7 @@ impl Registry {
         Self {
             requests: Default::default(),
             buckets: Default::default(),
-            sum_micros: AtomicU64::new(0),
+            sum_nanos: AtomicU64::new(0),
             in_flight: AtomicI64::new(0),
             started: Instant::now(),
         }
@@ -44,16 +45,17 @@ impl Registry {
             .unwrap_or(METHODS.len() - 1)
     }
 
-    fn record(&self, method: usize, status: u16, seconds: f64) {
+    fn record(&self, method: usize, status: u16, elapsed: Duration) {
         let class = usize::from(status / 100).clamp(1, 5) - 1;
         self.requests[method][class].fetch_add(1, Ordering::Relaxed);
+        let seconds = elapsed.as_secs_f64();
         let bucket = BUCKETS
             .iter()
             .position(|le| seconds <= *le)
             .unwrap_or(BUCKETS.len());
         self.buckets[bucket].fetch_add(1, Ordering::Relaxed);
-        self.sum_micros
-            .fetch_add((seconds * 1e6) as u64, Ordering::Relaxed);
+        let nanos = u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX);
+        self.sum_nanos.fetch_add(nanos, Ordering::Relaxed);
     }
 
     fn total(&self) -> u64 {
@@ -92,7 +94,7 @@ impl Registry {
             );
         }
         cumulative += self.buckets[BUCKETS.len()].load(Ordering::Relaxed);
-        let sum = self.sum_micros.load(Ordering::Relaxed) as f64 / 1e6;
+        let sum = self.sum_nanos.load(Ordering::Relaxed) as f64 / 1e9;
         let _ = writeln!(
             out,
             "{prefix}_request_duration_seconds_bucket{{le=\"+Inf\"}} {cumulative}\n\
@@ -216,7 +218,10 @@ impl Metrics {
 
 impl Middleware for Metrics {
     fn handle(&'static self, req: Request, next: Next) -> BoxFuture<Response> {
-        if req.path() == self.path && *req.method() == Method::GET {
+        // `/metrics` and `/metrics/`, like the routes of Vitesse; `HEAD` too.
+        let path = req.path();
+        let on_path = path == self.path || path.strip_suffix('/') == Some(self.path.as_str());
+        if on_path && matches!(*req.method(), Method::GET | Method::HEAD) {
             let mut res = Response::new().send(self.registry.render(&self.prefix));
             let headers = res.headers_mut();
             headers.insert(
@@ -233,11 +238,7 @@ impl Middleware for Metrics {
         let guard = InFlight(&registry.in_flight);
         Box::pin(async move {
             let res = next.run(req).await;
-            registry.record(
-                method,
-                res.status_code().as_u16(),
-                start.elapsed().as_secs_f64(),
-            );
+            registry.record(method, res.status_code().as_u16(), start.elapsed());
             drop(guard);
             res
         })
@@ -299,12 +300,20 @@ mod tests {
     #[test]
     fn exposition_format() {
         let r = Registry::new();
-        r.record(Registry::method_index(&Method::GET), 200, 0.003);
-        r.record(Registry::method_index(&Method::POST), 503, 20.0);
+        r.record(
+            Registry::method_index(&Method::GET),
+            200,
+            Duration::from_millis(3),
+        );
+        r.record(
+            Registry::method_index(&Method::POST),
+            503,
+            Duration::from_secs(20),
+        );
         r.record(
             Registry::method_index(&Method::from_bytes(b"PURGE").unwrap()),
             404,
-            0.0,
+            Duration::from_nanos(300),
         );
         let text = r.render("http");
         assert!(text.contains("http_requests_total{method=\"GET\",status=\"2xx\"} 1\n"));

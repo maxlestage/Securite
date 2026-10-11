@@ -25,8 +25,8 @@ Vitesse's `middleware::logger()` prints colourful lines for humans. `AccessLog` 
 |---|---|
 | `time` | When the request arrived, UTC, RFC 3339 with milliseconds. |
 | `ip` | Client address (see below). |
-| `method`, `path`, `version` | Request line; `path` includes the query string. |
-| `status`, `bytes` | Status and body size of the response (`bytes` is absent for streamed bodies). |
+| `method`, `path`, `version` | Request line; `path` includes the query string, exactly as the client sent it (even characters that are not valid in an address, which attack probes often contain). |
+| `status`, `bytes` | Status and body bytes sent: `0` for `HEAD`, `204` and `304` (`-` in the combined format, like Apache), absent for streamed bodies. |
 | `duration_ms` | Time to produce the response head. |
 | `referer`, `user_agent` | Request headers. |
 | `request_id` | `X-Request-Id` of the request, or of the response (Securite's `RequestId`). |

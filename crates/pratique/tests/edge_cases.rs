@@ -1,5 +1,6 @@
 //! Edge cases: middlewares combined, HEAD requests, expiry and eviction.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -38,8 +39,8 @@ async fn head_requests_share_get_entries_and_tags() {
 #[tokio::test]
 async fn entries_expire_and_are_evicted() {
     static CALLS: AtomicUsize = AtomicUsize::new(0);
-    let cache = ResponseCache::new(Duration::from_millis(50)).max_entries(2);
-    let handle = cache.handle();
+    let store = Arc::new(MemoryStore::new().max_entries(4));
+    let cache = ResponseCache::new(Duration::from_millis(50)).store(store.clone());
     let mut app = App::new();
     app.middleware(cache);
     app.get("/:n", |req: Request| async move {
@@ -50,8 +51,10 @@ async fn entries_expire_and_are_evicted() {
     for p in ["/a", "/b", "/c"] {
         c.get(p).await;
     }
-    assert_eq!(handle.len(), 2);
+    // Room for two paths (a `Vary` record and a response each): `/a` went.
+    assert_eq!(store.len(), 4);
     assert_eq!(c.get("/c").await.header("x-cache"), Some("HIT"));
+    assert_eq!(c.get("/b").await.header("x-cache"), Some("HIT"));
     tokio::time::sleep(Duration::from_millis(80)).await;
     assert_eq!(c.get("/c").await.header("x-cache"), Some("MISS"));
     // `Cache-Control: no-cache` from the client refreshes the entry.
@@ -63,6 +66,7 @@ async fn entries_expire_and_are_evicted() {
         Some("MISS")
     );
     assert_eq!(CALLS.load(Ordering::SeqCst), 5);
+    assert!(c.get("/a").await.header("x-cache") == Some("MISS"));
 }
 
 #[tokio::test]
