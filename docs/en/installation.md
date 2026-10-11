@@ -1,6 +1,6 @@
 ---
 title: Installation
-summary: Add securite to your project, choose the right features for Vitesse, hyper or tonic, and give the shield the real client IP address.
+summary: Add Securite to your project, choose the right features for Vitesse, hyper or tonic, and give the shield the real client IP address.
 category: start
 order: 2
 ---
@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### tonic
 
-tonic records the peer address in its own `TcpConnectInfo` extension, which securite does not read. Add a `map_request` step in front of the shield that copies `remote_addr()` into `PeerAddr`, exactly like the hyper example, then add the shield with `Server::builder().layer(...)`.
+tonic records the peer address in its own `TcpConnectInfo` extension, which Securite does not read. Add a `map_request` step in front of the shield that copies `remote_addr()` into `PeerAddr`, exactly like the hyper example, then add the shield with `Server::builder().layer(...)`.
 
 ### Behind a reverse proxy
 

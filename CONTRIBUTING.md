@@ -14,7 +14,7 @@ Thanks for helping make Rust services safer!
    cargo test --workspace
    ```
 
-   The website (`site/`, written with [active](https://maxlestage.github.io/Active/))
+   The website (`site/`, written with [Active](https://maxlestage.github.io/Active/))
    is rendered by `server/`. To see it, build the browser bundle, then run the server
    (needs `rustup target add wasm32-unknown-unknown` and
    `cargo install wasm-bindgen-cli --version 0.2.129`):
@@ -34,6 +34,6 @@ Thanks for helping make Rust services safer!
    update the three languages.
 4. New WAF rules need a test with the payload **and** a false-positive test.
 
-securite is proprietary software by Maxime Nathan Lestage (see [LICENSE](LICENSE)).
+Securite is proprietary software by Maxime Nathan Lestage (see [LICENSE](LICENSE)).
 By contributing you assign the rights in your contribution to the author, as
 section 3 of the license states; contributions are welcome under those terms.

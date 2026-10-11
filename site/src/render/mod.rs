@@ -160,8 +160,8 @@ impl Site {
     pub fn manifest(&self) -> Manifest {
         let base = &self.base;
         let t = Lang::En.t();
-        Manifest::new("securite")
-            .short_name("securite")
+        Manifest::new("Securite")
+            .short_name("Securite")
             .description(t.site_description)
             .id(format!("{base}/"))
             .start_url(format!("{base}/"))
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn the_manifest_is_valid_json_with_the_base_path() {
         let json = site("/Securite").manifest().to_json();
-        assert!(json.starts_with(r#"{"name":"securite","short_name":"securite""#));
+        assert!(json.starts_with(r#"{"name":"Securite","short_name":"Securite""#));
         assert!(json.ends_with("]}"));
         assert!(json.contains(r#""start_url":"/Securite/""#));
         assert!(json.contains(r#""scope":"/Securite/""#));

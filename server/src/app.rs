@@ -447,7 +447,7 @@ mod tests {
         let res = get(&client, "/manifest.webmanifest").await;
         assert_eq!(res.status(), StatusCode::OK);
         assert_eq!(h(&res, "content-type"), "application/manifest+json");
-        assert!(res.text().starts_with(r#"{"name":"securite""#));
+        assert!(res.text().starts_with(r#"{"name":"Securite""#));
         let res = get(&client, "/sw.js").await;
         assert_eq!(res.status(), StatusCode::OK);
         assert_eq!(h(&res, "content-type"), "text/javascript; charset=utf-8");

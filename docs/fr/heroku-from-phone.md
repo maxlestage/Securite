@@ -1,6 +1,6 @@
 ---
 title: Déployer sur Heroku depuis votre téléphone
-summary: Mettez le site securite en ligne sans ordinateur, avec le bouton Deploy en un geste, GitHub Actions à chaque fusion ou l'intégration GitHub de Heroku.
+summary: Mettez le site Securite en ligne sans ordinateur, avec le bouton Deploy en un geste, GitHub Actions à chaque fusion ou l'intégration GitHub de Heroku.
 category: deploy
 order: 1
 ---

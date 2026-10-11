@@ -19,15 +19,15 @@ All notable changes to this project are documented here. The format follows
   (insert a `PeerAddr`). The examples (`vitesse_basic`, `vitesse_advanced`), the
   integration tests and the documentation use Vitesse; the website's own server
   runs on Vitesse too.
-- License: securite is proprietary software by Maxime Nathan Lestage, all rights
+- License: Securite is proprietary software by Maxime Nathan Lestage, all rights
   reserved (see `LICENSE`); it is free to use as a dependency, commercially too,
   but not to modify or redistribute. The MIT/Apache-2.0 dual license is withdrawn.
 - Credits: Maxime Nathan Lestage is named as the author in the crate metadata, the
   README and the website's footer, which now links the six projects of the
   ecosystem.
 - `securite::VERSION`, the version of the crate.
-- Website rewritten with [active](https://maxlestage.github.io/Active/) instead of
-  Yew and Trunk: the web server (protected by securite itself) renders every page
+- Website rewritten with [Active](https://maxlestage.github.io/Active/) instead of
+  Yew and Trunk: the web server (protected by Securite itself) renders every page
   with complete SEO tags (canonical address, `hreflang` alternates, Open Graph,
   JSON-LD, sitemap) under `/{fr,en,es}/…`, and only the interactive parts
   (typewriter, middleware filter, code tabs, live attack playground, live shield

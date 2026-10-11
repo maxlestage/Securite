@@ -1,6 +1,6 @@
 ---
 title: Publish the crate on crates.io
-summary: Release a new version of the securite crate from your phone with a crates.io token, one GitHub secret and the Publish crate workflow, and manage versions safely.
+summary: Release a new version of the Securite crate from your phone with a crates.io token, one GitHub secret and the Publish crate workflow, and manage versions safely.
 category: deploy
 order: 4
 ---

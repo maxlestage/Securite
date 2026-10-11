@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ securite
+# 🛡️ Securite
 
 **Fast, easy, batteries-included security middlewares for Rust.**
 
@@ -19,7 +19,7 @@ This repository contains:
 | Folder | What |
 |---|---|
 | [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for Vitesse, and for tower / hyper / tonic |
-| [`site`](site) | The **website**, written with [active](https://maxlestage.github.io/Active/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
+| [`site`](site) | The **website**, written with [Active](https://maxlestage.github.io/Active/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
 | [`server`](server) | The Vitesse server that renders and hosts the website and its playground API — protected by `securite` itself |
 | [`docs`](docs) | The **documentation** (33 pages × 3 languages), compiled into the website |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Container image and **one-tap Heroku deployment** |
@@ -116,7 +116,7 @@ BASE_PATH=/Securite cargo run -p securite-server -- export dist
 
 ## License
 
-securite is proprietary software: © 2026 Maxime Nathan Lestage, all rights
+Securite is proprietary software: © 2026 Maxime Nathan Lestage, all rights
 reserved. It is not open source. The source code is published on crates.io
 and GitHub so that it can be read, audited and built, and you may use it
 freely as a dependency of your own programs, commercial ones included.

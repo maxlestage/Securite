@@ -16,13 +16,13 @@ app.middleware(Shield::recommended());
 app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
-## Pourquoi securite
+## Pourquoi Securite
 
 Aucun contrôle ne bloque à lui seul toutes les attaques. Securite applique le principe de **défense en profondeur** : plusieurs vérifications indépendantes et peu coûteuses, chacune fermant une catégorie de faiblesses différente, de sorte qu'une faille dans une couche soit couverte par la suivante. Une requête qui reste sous la limite de débit se heurte encore au WAF ; un script injecté malgré le WAF reste neutralisé par la Content-Security-Policy.
 
 Les valeurs par défaut suivent les recommandations de l'OWASP (Secure Headers Project, Core Rule Set, aide-mémoire sur le CSRF et la gestion de session) et sont pensées pour la production telles quelles. Désactiver une protection est un choix explicite ; vous n'avez jamais à penser à l'activer.
 
-| OWASP Top 10 (2021) | Contrôles dans securite |
+| OWASP Top 10 (2021) | Contrôles dans Securite |
 |---|---|
 | A01 Broken Access Control | Filtre IP, filtre d'hôte, authentification, CSRF, CORS |
 | A03 Injection | WAF, hygiène HTTP, liste d'autorisation des types de contenu, CSP |

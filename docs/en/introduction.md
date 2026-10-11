@@ -16,13 +16,13 @@ app.middleware(Shield::recommended());
 app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
-## Why securite
+## Why Securite
 
 No single control stops every attack. Securite applies **defense in depth**: several independent, inexpensive checks, each closing a different class of weakness, so that a gap in one layer is covered by the next. A request that slips under the rate limit still meets the WAF; a script injected despite the WAF is still neutralised by the Content-Security-Policy.
 
 The defaults follow OWASP guidance (Secure Headers Project, Core Rule Set, CSRF and session management cheat sheets) and are meant for production as they are. You opt out of a protection explicitly; you never have to remember to opt in.
 
-| OWASP Top 10 (2021) | Controls in securite |
+| OWASP Top 10 (2021) | Controls in Securite |
 |---|---|
 | A01 Broken Access Control | IP filter, host filter, authentication, CSRF, CORS |
 | A03 Injection | WAF, hygiene, content-type allow-list, CSP |

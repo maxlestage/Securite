@@ -208,7 +208,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                 .href(ctx.doc("quick-start"))
                 .child(span().text(t.footer_start))
                 .child(Node::from(" "))
-                .child(em().text("securite"))
+                .child(em().text("Securite"))
                 .child(icon("arrow-right", 28)),
         )
         .child(install_box(t).attr(
@@ -221,7 +221,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
         .child(p().class("muted").text(t.footer_tagline))
         .child(
             ul().class("footer-badges")
-                .attr("aria-label", "securite")
+                .attr("aria-label", "Securite")
                 .child(
                     li().class("chip chip-ok")
                         .text(format!("v{}", securite::VERSION)),
@@ -311,7 +311,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
         .class("wordmark")
         .attr("aria-hidden", "true")
         .children(
-            "securite"
+            "Securite"
                 .chars()
                 .enumerate()
                 .map(|(i, c)| span().style(format!("--i:{i}")).text(c.to_string())),
@@ -1005,7 +1005,7 @@ fn json(s: &str) -> String {
 fn seo(ctx: &Ctx<'_>) -> Seo {
     let (t, lang, route) = (ctx.t(), ctx.lang(), ctx.route);
     let base = Seo::new()
-        .site_name("securite")
+        .site_name("Securite")
         .title_template("%s · securite")
         .base_url(ctx.public)
         .locale(lang.locale())
@@ -1027,7 +1027,7 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
             .title_template("securite · %s")
             .description(t.site_description)
             .json_ld(format!(
-                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"securite","description":{},"url":{},"programmingLanguage":"Rust","license":"{}{LICENSE_PATH}","author":{{"@type":"Person","name":"{AUTHOR}"}},"inLanguage":"{}"}}"#,
+                r#"{{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Securite","description":{},"url":{},"programmingLanguage":"Rust","license":"{}{LICENSE_PATH}","author":{{"@type":"Person","name":"{AUTHOR}"}},"inLanguage":"{}"}}"#,
                 json(t.site_description),
                 json(&url),
                 ctx.public,
@@ -1040,7 +1040,7 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
                 .description(page.summary)
                 .og_type("article")
                 .json_ld(format!(
-                    r#"{{"@context":"https://schema.org","@type":"TechArticle","headline":{},"description":{},"url":{},"inLanguage":"{}","isPartOf":{{"@type":"WebSite","name":"securite"}}}}"#,
+                    r#"{{"@context":"https://schema.org","@type":"TechArticle","headline":{},"description":{},"url":{},"inLanguage":"{}","isPartOf":{{"@type":"WebSite","name":"Securite"}}}}"#,
                     json(page.title),
                     json(page.summary),
                     json(&url),
@@ -1162,7 +1162,7 @@ fn language_redirect(base: &str, target: &str) -> String {
 pub fn language_picker(site: &Site, public: &str, target: &str) -> String {
     let base = &site.base;
     let seo = Seo::new()
-        .title("securite")
+        .title("Securite")
         .description(Lang::En.t().site_description)
         .base_url(public)
         .canonical(format!("/en/{target}"))
@@ -1171,7 +1171,7 @@ pub fn language_picker(site: &Site, public: &str, target: &str) -> String {
         .id("main")
         .class("not-found container")
         .child(div().class("nf-code").child(icon("shield-check", 64)))
-        .child(h1().text("securite"))
+        .child(h1().text("Securite"))
         .child(div().class("hero-ctas").children(Lang::ALL.map(|l| {
             a().href(format!("{base}/{}/{target}", l.code()))
                 .class("btn btn-ghost btn-lg")

@@ -1,6 +1,6 @@
 ---
 title: Instalación
-summary: Añade securite a tu proyecto, elige las features adecuadas para Vitesse, hyper o tonic y dale al shield la dirección IP real del cliente.
+summary: Añade Securite a tu proyecto, elige las features adecuadas para Vitesse, hyper o tonic y dale al shield la dirección IP real del cliente.
 category: start
 order: 2
 ---

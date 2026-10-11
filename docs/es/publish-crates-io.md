@@ -1,6 +1,6 @@
 ---
 title: Publicar el crate en crates.io
-summary: Publique una nueva versión del crate securite desde el móvil con un token de crates.io, un secreto de GitHub y el workflow Publish crate, y gestione sus versiones con seguridad.
+summary: Publique una nueva versión del crate Securite desde el móvil con un token de crates.io, un secreto de GitHub y el workflow Publish crate, y gestione sus versiones con seguridad.
 category: deploy
 order: 4
 ---

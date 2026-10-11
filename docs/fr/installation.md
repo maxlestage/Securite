@@ -1,6 +1,6 @@
 ---
 title: Installation
-summary: Ajoutez securite à votre projet, choisissez les bonnes features pour Vitesse, hyper ou tonic, et donnez au shield la véritable adresse IP du client.
+summary: Ajoutez Securite à votre projet, choisissez les bonnes features pour Vitesse, hyper ou tonic, et donnez au shield la véritable adresse IP du client.
 category: start
 order: 2
 ---

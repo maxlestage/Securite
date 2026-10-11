@@ -1,6 +1,6 @@
 ---
 title: Desplegar en Heroku desde el móvil
-summary: Ponga en línea el sitio de securite sin ordenador, con el botón Deploy en un toque, GitHub Actions en cada fusión o la integración de Heroku con GitHub.
+summary: Ponga en línea el sitio de Securite sin ordenador, con el botón Deploy en un toque, GitHub Actions en cada fusión o la integración de Heroku con GitHub.
 category: deploy
 order: 1
 ---
