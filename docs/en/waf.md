@@ -81,17 +81,17 @@ You can see the result yourself with `securite::waf::normalize(input, is_query)`
 ## Quick start
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/search", get(|| async { "results" }))
-    .layer(
-        Shield::builder()
-            .guard(RequestId::new())
-            .guard(Waf::new())
-            .build(),
-    );
+let mut app = App::new();
+app.middleware(
+    Shield::builder()
+        .guard(RequestId::new())
+        .guard(Waf::new())
+        .build(),
+);
+app.get("/search", |_req: Request| async { "results" });
 ```
 
 To customise the firewall of a preset, add your own `Waf`: a guard with the same name replaces the preset one.
@@ -177,14 +177,9 @@ Ordinary traffic such as `/blog/2024/10/union-of-sets-in-rust`, `/search?q=what%
 Guards only see the request head, so JSON documents, form fields or GraphQL queries are inspected from your handlers. Share the same `Waf` (it is cheap to clone) between the shield and your state:
 
 ```rust
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use securite::prelude::*;
 use serde::Deserialize;
-
-#[derive(Clone)]
-struct AppState {
-    waf: Waf,
-}
+use vitesse::prelude::*;
 
 #[derive(Deserialize)]
 struct NewComment {
@@ -192,27 +187,25 @@ struct NewComment {
     text: String,
 }
 
-async fn create_comment(
-    State(state): State<AppState>,
-    Json(comment): Json<NewComment>,
-) -> StatusCode {
+async fn create_comment(req: Request) -> Result<StatusCode, Error> {
+    let comment: NewComment = req.json().await?;
     // Inspect the decoded values, not the raw JSON text.
     for field in [&comment.author, &comment.text] {
-        let verdict = state.waf.inspect_text(field);
+        let verdict = req.state::<Waf>().inspect_text(field);
         if verdict.blocked {
             tracing::warn!(score = verdict.score, rules = ?verdict.rules, "comment rejected by the WAF");
-            return StatusCode::UNPROCESSABLE_ENTITY;
+            return Ok(StatusCode::UNPROCESSABLE_ENTITY);
         }
     }
     // ... store the comment
-    StatusCode::CREATED
+    Ok(StatusCode::CREATED)
 }
 
 let waf = Waf::new();
-let app: Router = Router::new()
-    .route("/comments", post(create_comment))
-    .with_state(AppState { waf: waf.clone() })
-    .layer(Shield::builder().guard(waf).build());
+let mut app = App::new();
+app.state(waf.clone());
+app.middleware(Shield::builder().guard(waf).build());
+app.post("/comments", create_comment);
 ```
 
 A `Verdict` exposes everything the firewall decided:
@@ -282,19 +275,19 @@ let shield = ShieldBuilder::recommended()
 3. Tune with `disable_rules`, `skip_paths` or `skip_headers`.
 4. Remove `.monitor()` and keep watching the blocked counter.
 
-> **Tip:** To evaluate a stricter paranoia level while the current one keeps enforcing, add a second firewall in monitor mode as a standalone layer below your shield: `router.layer(Waf::new().paranoia(Paranoia::High).monitor()).layer(shield)`. Its findings are logged under the `securite` tracing target.
+> **Tip:** To evaluate a stricter paranoia level while the current one keeps enforcing, add a second firewall in monitor mode as a standalone middleware after your shield: `app.middleware(shield); app.middleware(Shield::from(Waf::new().paranoia(Paranoia::High).monitor()));`. Its findings are logged under the `securite` tracing target.
 
-## Standalone layer
+## Standalone guard
 
 Like every guard, `Waf` is a tower layer on its own:
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(Waf::new().paranoia(Paranoia::Medium));
+let mut app = App::new();
+app.middleware(Shield::from(Waf::new().paranoia(Paranoia::Medium)));
+app.get("/", |_req: Request| async { "home" });
 ```
 
 A standalone layer builds an internal shield with default settings: problem+json errors, client IP from the TCP peer, logging enabled, and no access to your `on_event` hook or statistics. Register the WAF in your `Shield` when you need those.

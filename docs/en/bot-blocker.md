@@ -43,12 +43,12 @@ interactsh, censysinspect, "httpx - open-source",
 `BotBlocker::new()` is part of the `recommended`, `strict` and `api` presets. To use it in your own shield:
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(Shield::builder().guard(BotBlocker::new()).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(BotBlocker::new()).build());
+app.get("/", |_req: Request| async { "home" });
 ```
 
 ## Configuration
@@ -119,15 +119,15 @@ let shield = ShieldBuilder::recommended()
     .build();
 ```
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(BotBlocker::new().block_empty(true));
+let mut app = App::new();
+app.middleware(Shield::from(BotBlocker::new().block_empty(true)));
+app.get("/", |_req: Request| async { "home" });
 ```
 
 ## Pitfalls and tips

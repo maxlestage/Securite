@@ -1,19 +1,19 @@
 ---
 title: Introduction
-summary: Securite protects tower, axum and hyper services with a single layer, the Shield, that runs fast security guards on every request and hardens every response.
+summary: Securite protects Vitesse applications, and any tower or hyper service, with a single middleware, the Shield, that runs fast security guards on every request and hardens every response.
 category: start
 order: 1
 ---
 
-`securite` is a security toolkit for Rust web services built on tower. It bundles the protections every internet-facing application needs (security headers, rate limiting, a web application firewall, CSRF and CORS, IP filtering, automatic banning, authentication, webhook signatures) behind one layer that you add in a single line.
+`securite` is a security toolkit for Rust web services, written for Vitesse and for the tower ecosystem. It bundles the protections every internet-facing application needs (security headers, rate limiting, a web application firewall, CSRF and CORS, IP filtering, automatic banning, authentication, webhook signatures) behind one layer that you add in a single line.
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "Hello, secure world!" });
 ```
 
 ## Why securite
@@ -121,14 +121,13 @@ All WAF signatures are compiled into a single Aho-Corasick automaton, so the cos
 
 ## Compatibility
 
-`Shield` implements `tower::Layer`, so it plugs into anything that accepts tower layers:
+`Shield` is a Vitesse middleware and implements `tower::Layer`, so it plugs into anything that accepts tower layers:
 
 | Stack | Integration |
 |---|---|
-| axum 0.8 | `Router::layer(shield)`; the default `axum` feature reads `ConnectInfo<SocketAddr>` |
+| Vitesse | `app.middleware(shield)`; the shield reads the address of each connection itself |
 | hyper 1 | Wrap your service with `tower::ServiceBuilder` and insert `PeerAddr` |
 | tonic | `Server::builder().layer(shield)` |
 | tower | `ServiceBuilder::new().layer(shield)` |
-| Loco, Leptos, Dioxus fullstack | These frameworks serve axum routers: add the layer to the router |
 
-Every guard is also a standalone layer, for example `router.layer(Waf::new())`. Continue with [Installation](/docs/installation), then the [Quick start](/docs/quick-start).
+Every guard is also a standalone middleware, for example `app.middleware(Shield::from(Waf::new()))`. Continue with [Installation](/docs/installation), then the [Quick start](/docs/quick-start).

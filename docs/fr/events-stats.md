@@ -145,17 +145,13 @@ let shield = ShieldBuilder::recommended()
 Conservez un clone du shield (c'est un `Arc`) et servez l'instantané derrière une authentification :
 
 ```rust
-use axum::{extract::State, http::header, response::IntoResponse, routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn security_stats(State(shield): State<Shield>) -> impl IntoResponse {
-    (
-        [
-            (header::CONTENT_TYPE, "application/json"),
-            (header::CACHE_CONTROL, "no-store"),
-        ],
-        shield.stats().to_json(),
-    )
+async fn security_stats(req: Request) -> Response {
+    res::send(req.state::<Shield>().stats().to_json())
+        .header("content-type", "application/json")
+        .header("cache-control", "no-store")
 }
 
 let admin_token = std::env::var("ADMIN_TOKEN").expect("ADMIN_TOKEN must be set");
@@ -163,10 +159,10 @@ let shield = ShieldBuilder::recommended()
     .guard(Auth::bearer().token("ops", &admin_token).protect(["/admin"]))
     .build();
 
-let app: Router = Router::new()
-    .route("/admin/security/stats", get(security_stats))
-    .with_state(shield.clone())
-    .layer(shield);
+let mut app = App::new();
+app.state(shield.clone());
+app.middleware(shield);
+app.get("/admin/security/stats", security_stats);
 ```
 
 ```json

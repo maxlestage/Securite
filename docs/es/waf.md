@@ -81,17 +81,17 @@ Puede ver el resultado con `securite::waf::normalize(input, is_query)`.
 ## Inicio rápido
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/search", get(|| async { "results" }))
-    .layer(
-        Shield::builder()
-            .guard(RequestId::new())
-            .guard(Waf::new())
-            .build(),
-    );
+let mut app = App::new();
+app.middleware(
+    Shield::builder()
+        .guard(RequestId::new())
+        .guard(Waf::new())
+        .build(),
+);
+app.get("/search", |_req: Request| async { "results" });
 ```
 
 Para personalizar el firewall de un preset, añada su propio `Waf`: un guard con el mismo nombre sustituye al del preset.
@@ -177,14 +177,9 @@ El tráfico normal, como `/blog/2024/10/union-of-sets-in-rust`, `/search?q=what%
 Los guards solo ven la cabecera de la petición, así que los documentos JSON, los campos de formulario o las consultas GraphQL se inspeccionan desde sus handlers. Comparta el mismo `Waf` (clonarlo es barato) entre el escudo y el estado de su aplicación:
 
 ```rust
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use securite::prelude::*;
 use serde::Deserialize;
-
-#[derive(Clone)]
-struct AppState {
-    waf: Waf,
-}
+use vitesse::prelude::*;
 
 #[derive(Deserialize)]
 struct NewComment {
@@ -192,27 +187,25 @@ struct NewComment {
     text: String,
 }
 
-async fn create_comment(
-    State(state): State<AppState>,
-    Json(comment): Json<NewComment>,
-) -> StatusCode {
+async fn create_comment(req: Request) -> Result<StatusCode, Error> {
+    let comment: NewComment = req.json().await?;
     // Inspect the decoded values, not the raw JSON text.
     for field in [&comment.author, &comment.text] {
-        let verdict = state.waf.inspect_text(field);
+        let verdict = req.state::<Waf>().inspect_text(field);
         if verdict.blocked {
             tracing::warn!(score = verdict.score, rules = ?verdict.rules, "comment rejected by the WAF");
-            return StatusCode::UNPROCESSABLE_ENTITY;
+            return Ok(StatusCode::UNPROCESSABLE_ENTITY);
         }
     }
     // ... store the comment
-    StatusCode::CREATED
+    Ok(StatusCode::CREATED)
 }
 
 let waf = Waf::new();
-let app: Router = Router::new()
-    .route("/comments", post(create_comment))
-    .with_state(AppState { waf: waf.clone() })
-    .layer(Shield::builder().guard(waf).build());
+let mut app = App::new();
+app.state(waf.clone());
+app.middleware(Shield::builder().guard(waf).build());
+app.post("/comments", create_comment);
 ```
 
 Un `Verdict` expone todo lo que ha decidido el firewall:
@@ -282,19 +275,19 @@ let shield = ShieldBuilder::recommended()
 3. Ajuste con `disable_rules`, `skip_paths` o `skip_headers`.
 4. Quite `.monitor()` y siga vigilando el contador de bloqueos.
 
-> **Consejo:** para evaluar un nivel de paranoia más estricto mientras el actual sigue bloqueando, añada un segundo firewall en modo monitorización como capa independiente por debajo de su escudo: `router.layer(Waf::new().paranoia(Paranoia::High).monitor()).layer(shield)`. Sus detecciones se registran bajo el target de tracing `securite`.
+> **Consejo:** para evaluar un nivel de paranoia más estricto mientras el actual sigue bloqueando, añada un segundo firewall en modo monitorización como middleware independiente después de su escudo: `app.middleware(shield); app.middleware(Shield::from(Waf::new().paranoia(Paranoia::High).monitor()));`. Sus detecciones se registran bajo el target de tracing `securite`.
 
-## Uso como capa independiente
+## Uso como guard independiente
 
 Como todos los guards, `Waf` es por sí mismo una capa de tower:
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(Waf::new().paranoia(Paranoia::Medium));
+let mut app = App::new();
+app.middleware(Shield::from(Waf::new().paranoia(Paranoia::Medium)));
+app.get("/", |_req: Request| async { "home" });
 ```
 
 Una capa independiente construye un escudo interno con la configuración por defecto: errores en formato problem+json, IP del cliente tomada del par TCP, registro activado y sin acceso a su hook `on_event` ni a sus estadísticas. Registre el WAF en su `Shield` cuando los necesite.

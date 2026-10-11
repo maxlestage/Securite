@@ -5,7 +5,7 @@ category: traffic
 order: 4
 ---
 
-Securite fournit deux outils complémentaires contre les corps de requête surdimensionnés. `BodyLimit` est un garde qui rejette les requêtes dont le `Content-Length` déclaré est trop grand, avant la lecture du moindre octet du corps. `BodyLimitLayer` est une couche tower qui applique la limite pendant la lecture du flux, ce qui couvre aussi les envois chunked qui ne déclarent aucune longueur.
+Securite fournit deux outils complémentaires contre les corps de requête surdimensionnés. `BodyLimit` est un garde qui rejette les requêtes dont le `Content-Length` déclaré est trop grand, avant la lecture du moindre octet du corps. La limite en flux, qui couvre aussi les envois chunked qui ne déclarent aucune longueur, est celle du serveur : `app.body_limit` de Vitesse, ou la couche tower `BodyLimitLayer` dans les autres services.
 
 ## Menaces couvertes
 
@@ -21,28 +21,32 @@ request head ----> BodyLimit (guard, priority 80)
                      no Content-Length, Transfer-Encoding set,
                      POST/PUT/PATCH and require_content_length(true)
                                          -> 411 length_required
-body stream -----> BodyLimitLayer (Limited body)
-                     more than max bytes read -> error, 413 with axum extractors
+body stream -----> Vitesse: app.body_limit (1 MiB by default)
+                   tower services: BodyLimitLayer (Limited body)
+                     more than max bytes read -> 413
 ```
 
 * `BodyLimit` ne regarde que les en-têtes : le rejet ne coûte rien et intervient avant votre handler, le WAF ou l'authentification.
 * Les limites par route s'appliquent à des préfixes de chemin comparés segment par segment ; **le préfixe correspondant le plus long l'emporte**, la limite par défaut s'applique ailleurs.
-* Un corps chunked n'a pas de `Content-Length` : `BodyLimit` ne peut donc pas juger sa taille. Refusez ces corps avec `require_content_length(true)` ou ajoutez `BodyLimitLayer`, qui enveloppe le corps dans `http_body_util::Limited` : lire au-delà de la limite échoue, et les extracteurs d'axum transforment cette erreur en `413 Payload Too Large`.
+* Un corps chunked n'a pas de `Content-Length` : `BodyLimit` ne peut donc pas juger sa taille. Refusez ces corps avec `require_content_length(true)` ou comptez sur la limite en flux : `app.body_limit(octets)` de Vitesse (1 Mio par défaut) arrête la lecture au-delà de la limite et répond `413 Payload Too Large` ; dans les services tower, `BodyLimitLayer` enveloppe le corps dans `http_body_util::Limited` de la même façon.
 
 ## Démarrage rapide
 
 ```rust
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     // 1 MiB for every request body.
     .guard(BodyLimit::new(1024 * 1024))
     .build();
 
-let app: Router = Router::new()
-    .route("/comments", post(|body: String| async move { format!("{} bytes", body.len()) }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.post("/comments", |req: Request| async move {
+    let body = req.text().await?;
+    Ok::<_, Error>(format!("{} bytes", body.len()))
+});
 ```
 
 Les préréglages incluent déjà une limite : 2 Mio pour `Shield::recommended()`, 1 Mio pour `Shield::strict()` et `Shield::api()`.
@@ -64,17 +68,15 @@ Les préréglages incluent déjà une limite : 2 Mio pour `Shield::recommended()
 |---|---|---|
 | `BodyLimitLayer::new(max_bytes)` | – | Nombre maximal d'octets du corps que votre service peut lire (`usize`). |
 
-`BodyLimitLayer` est une simple couche tower, pas un garde : on ne peut pas l'enregistrer avec `Shield::builder().guard()`, et ses dépassements ne sont pas signalés comme événements de sécurité.
+`BodyLimitLayer` est une simple couche tower pour les services sans Vitesse (qui a `app.body_limit`), pas un garde : on ne peut pas l'enregistrer avec `Shield::builder().guard()`, et ses dépassements ne sont pas signalés comme événements de sécurité.
 
 ## Exemples
 
 ### Petits corps d'API, gros envois de fichiers
 
 ```rust
-use axum::body::Bytes;
-use axum::extract::DefaultBodyLimit;
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     .guard(
@@ -85,12 +87,17 @@ let shield = Shield::builder()
     )
     .build();
 
-let app: Router = Router::new()
-    .route("/upload/files", post(|body: Bytes| async move { format!("{} bytes", body.len()) }))
-    .route("/upload/avatar", post(|body: Bytes| async move { format!("{} bytes", body.len()) }))
-    // axum's own extractor limit (2 MB by default) must be raised as well.
-    .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
-    .layer(shield);
+async fn upload(req: Request) -> Result<String, Error> {
+    let body = req.bytes().await?;
+    Ok(format!("{} bytes", body.len()))
+}
+
+let mut app = App::new();
+// La limite propre à Vitesse (1 Mio par défaut) doit être relevée aussi.
+app.body_limit(50 * 1024 * 1024);
+app.middleware(shield);
+app.post("/upload/files", upload);
+app.post("/upload/avatar", upload);
 ```
 
 ### Envois chunked
@@ -98,27 +105,29 @@ let app: Router = Router::new()
 Lorsque des clients envoient légitimement des corps sans `Content-Length` (clients HTTP/2, encodeurs chunked), conservez `require_content_length(false)` et ajoutez la couche de streaming en filet de sécurité :
 
 ```rust
-use axum::body::Bytes;
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/ingest", post(|body: Bytes| async move { format!("{} bytes", body.len()) }))
-    // Hard cap on what the handler can ever read, chunked or not.
-    .layer(BodyLimitLayer::new(1024 * 1024))
-    // Fast path: honest Content-Length values are rejected before any read.
-    .layer(Shield::builder().guard(BodyLimit::new(1024 * 1024)).build());
+let mut app = App::new();
+// Hard cap on what the handler can ever read, chunked or not.
+app.body_limit(1024 * 1024);
+// Fast path: honest Content-Length values are rejected before any read.
+app.middleware(Shield::builder().guard(BodyLimit::new(1024 * 1024)).build());
+app.post("/ingest", |req: Request| async move {
+    let body = req.bytes().await?;
+    Ok::<_, Error>(format!("{} bytes", body.len()))
+});
 ```
 
-## Utilisation en couche autonome
+## Utilisation en guard autonome
 
 ```rust
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/comments", post(|body: String| async move { body }))
-    .layer(BodyLimit::new(64 * 1024));
+let mut app = App::new();
+app.middleware(Shield::from(BodyLimit::new(64 * 1024)));
+app.post("/comments", |req: Request| async move { req.text().await });
 ```
 
 ## En-têtes de réponse
@@ -139,12 +148,12 @@ cache-control: no-store
 {"type":"about:blank","title":"Payload Too Large","status":413,"code":"body_too_large","detail":"Request body too large (max 262144 bytes)."}
 ```
 
-Les dépassements détectés par `BodyLimitLayer` reçoivent la réponse de votre framework (axum : un `413` en texte brut).
+Les dépassements détectés en flux reçoivent la réponse du serveur : Vitesse envoie son erreur `413` (personnalisable avec `app.on_error`) ; un service tower répond avec sa propre erreur pour `BodyLimitLayer`.
 
 ## Pièges et conseils
 
-* **Deux limites s'appliquent avec axum** : les extracteurs `Bytes`, `String`, `Json` et `Form` conservent la limite par défaut d'axum de 2 Mo. Relevez-la avec `DefaultBodyLimit::max` sur les routes d'envoi, sinon les fichiers de plus de 2 Mo échouent même quand Securite les autorise.
-* **`BodyLimit` seul ne couvre pas les corps chunked** : utilisez `require_content_length(true)` ou `BodyLimitLayer`.
+* **Deux limites s'appliquent avec Vitesse** : `req.bytes()`, `req.text()`, `req.json()` et `req.form()` s'arrêtent à la limite propre du serveur, 1 Mio par défaut. Relevez-la avec `app.body_limit` pour les routes d'envoi, sinon les fichiers de plus de 1 Mio échouent même quand Securite les autorise.
+* **`BodyLimit` seul ne couvre pas les corps chunked** : utilisez `require_content_length(true)` ou la limite en flux (`app.body_limit`, `BodyLimitLayer`).
 * `require_content_length(true)` peut casser les clients HTTP/2 et les envois en streaming qui omettent légitimement `Content-Length`. Testez vos clients avant de l'activer.
 * Les préfixes de route sont comparés segment par segment : `/upload` couvre `/upload/files` mais pas `/uploads`.
 * Les envois multipart comptent tout le corps encodé, délimiteurs et en-têtes compris : gardez une marge au-dessus du plus gros fichier accepté.

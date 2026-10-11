@@ -33,13 +33,14 @@ La política se genera y se valida una sola vez, al construir el guard: un valor
 ## Inicio rápido
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "Hello" }))
-        .layer(Shield::builder().guard(SecurityHeaders::new()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(SecurityHeaders::new()).build());
+    app.get("/", |_req: Request| async { "Hello" });
+    app
 }
 ```
 
@@ -139,10 +140,11 @@ pub fn headers() -> SecurityHeaders {
 ### Nonces en páginas renderizadas en el servidor
 
 ```rust
-use axum::{Extension, Router, response::Html, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn index(Extension(CspNonce(nonce)): Extension<CspNonce>) -> Html<String> {
+async fn index(req: Request) -> Html<String> {
+    let nonce = req.get::<CspNonce>().map(|n| n.0.clone()).unwrap_or_default();
     Html(format!(
         r#"<!doctype html>
 <script nonce="{nonce}">console.log("runs: it carries the nonce");</script>
@@ -150,11 +152,12 @@ async fn index(Extension(CspNonce(nonce)): Extension<CspNonce>) -> Html<String> 
     ))
 }
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let headers = SecurityHeaders::new().csp(ContentSecurityPolicy::strict().with_nonce());
-    Router::new()
-        .route("/", get(index))
-        .layer(Shield::builder().guard(headers).build())
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(headers).build());
+    app.get("/", index);
+    app
 }
 ```
 
@@ -163,17 +166,21 @@ pub fn app() -> Router {
 Vite y otros bundlers similares inyectan un script de arranque inline en `index.html`, y los front-ends Rust renderizados en el servidor escriben uno para arrancar su bundle WebAssembly (este sitio, construido con [active](https://maxlestage.github.io/Active/), permite así su cargador y el registro de su service worker). Calcule su hash al arrancar y mantenga un `script-src` estricto:
 
 ```rust
-use axum::{Router, response::Html, routing::get};
 use securite::headers::src;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn spa(index_html: String) -> Router {
+pub fn spa(index_html: String) -> App {
     let csp = ContentSecurityPolicy::strict()
         .add_sources("script-src", ContentSecurityPolicy::hashes_for_inline_scripts(&index_html))
         .add_sources("script-src", [src::WASM_UNSAFE_EVAL]); // Rust/WASM front-ends
-    Router::new()
-        .route("/", get(move || async move { Html(index_html) }))
-        .layer(SecurityHeaders::new().csp(csp))
+    let mut app = App::new();
+    app.middleware(Shield::from(SecurityHeaders::new().csp(csp)));
+    app.get("/", move |_req: Request| {
+        let html = index_html.clone();
+        async move { Html(html) }
+    });
+    app
 }
 ```
 
@@ -219,14 +226,12 @@ Recoja las infracciones durante unos días, corríjalas y después elimine `repo
 Por defecto prevalecen las cabeceras que define el handler, de modo que una ruta puede ser la excepción:
 
 ```rust
-use axum::response::{Html, IntoResponse};
+use vitesse::prelude::*;
 
 // This widget may be framed by a partner site; CSP frame-ancestors overrides X-Frame-Options.
-pub async fn widget() -> impl IntoResponse {
-    (
-        [("content-security-policy", "default-src 'self'; frame-ancestors https://partner.example.com")],
-        Html("<p>Embeddable widget</p>"),
-    )
+pub async fn widget(_req: Request) -> Response {
+    res::html("<p>Embeddable widget</p>")
+        .header("content-security-policy", "default-src 'self'; frame-ancestors https://partner.example.com")
 }
 ```
 
@@ -253,16 +258,17 @@ pub fn headers(dev: bool) -> SecurityHeaders {
 }
 ```
 
-## Uso como capa independiente
+## Uso como guard independiente
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "ok" }))
-        .layer(SecurityHeaders::strict())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(SecurityHeaders::strict()));
+    app.get("/", |_req: Request| async { "ok" });
+    app
 }
 ```
 
@@ -276,7 +282,7 @@ pub fn app() -> Router {
 - **COEP**: `require-corp`, incluido en `strict()`, bloquea los recursos cross-origin que no lo aceptan mediante CORP o CORS. `credentialless` es una alternativa más flexible.
 - **Nonces**: `with_nonce()` también añade el nonce a `style-src`, donde `'unsafe-inline'` pasa a ignorarse. Los atributos `style="…"` inline necesitan `style_src_attr([src::UNSAFE_INLINE])`. Si la política no tiene `script-src`, `with_nonce()` añade uno formado por las fuentes de `default-src` y el nonce (`script-src 'self' 'nonce-…'` tras `default-src 'self'`), de modo que los ficheros de script del mismo origen se siguen cargando.
 - **Caché**: no deje nunca que una caché compartida almacene una página HTML con nonce. El HTML estático debe usar hashes.
-- **Extensión ausente**: extraer `Extension<CspNonce>` sin `with_nonce()` hace que axum responda 500.
+- **Nonce ausente**: sin `with_nonce()`, `req.get::<CspNonce>()` es `None`.
 - **HTTP sin cifrar**: `upgrade-insecure-requests` rompe los subrecursos de un sitio servido por HTTP simple, por ejemplo en una dirección de la red local. Elimínela en ese caso con `ContentSecurityPolicy::strict().remove_directive("upgrade-insecure-requests")`, como en el ejemplo de desarrollo local anterior.
 - **Sobrescritura**: por defecto prevalecen las cabeceras de los handlers. Use `.overwrite(true)` si ninguna ruta debe poder debilitar la política.
 - **Proxies**: las cabeceras de identificación solo se eliminan de las respuestas que atraviesan la capa; un proxy inverso puede añadir su propia cabecera `Server`.

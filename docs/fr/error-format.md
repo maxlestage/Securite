@@ -75,7 +75,7 @@ Uniquement le code de statut et les en-têtes, sans corps. À utiliser lorsque v
 
 ### Custom
 
-Votre closure reçoit la `Rejection` et le `Context` de la requête, et renvoie une `http::Response<bytes::Bytes>` (`http` est réexporté sous `securite::http` ; ajoutez le crate `bytes` à vos dépendances ou utilisez la réexportation d'axum `axum::body::Bytes`). Une page HTML aux couleurs de votre site :
+Votre closure reçoit la `Rejection` et le `Context` de la requête, et renvoie une `http::Response<bytes::Bytes>` (`http` est réexporté sous `securite::http` ; ajoutez le crate `bytes` à vos dépendances ou utilisez la réexportation de Vitesse `vitesse::Bytes`). Une page HTML aux couleurs de votre site :
 
 ```rust
 use bytes::Bytes;
@@ -159,9 +159,9 @@ Certains courts-circuits ne sont pas des attaques : un preflight CORS auquel on 
 
 Un guard personnalisé renvoie `Rejection::new(status, code, message)`. Le message est envoyé aux clients : gardez-le générique et n'y incluez jamais de saisie utilisateur ni de secret. Placez les diagnostics dans `.with_details(…)` et les en-têtes de réponse supplémentaires dans `.with_header(name, value)`.
 
-## Couches autonomes
+## Guards autonomes
 
-Un guard utilisé seul (`router.layer(Waf::new())`) construit un shield interne avec le format par défaut : ses rejets sont donc toujours en problem+json. Il en va de même pour `SignatureLayer`. Pour choisir le format, enregistrez vos guards dans un `Shield` construit avec `error_format`.
+Un guard utilisé seul (`app.middleware(Shield::from(Waf::new()))`) construit un shield interne avec le format par défaut : ses rejets sont donc toujours en problem+json. Il en va de même pour `SignatureLayer`. Pour choisir le format, enregistrez vos guards dans un `Shield` construit avec `error_format`.
 
 ## Pièges et conseils
 

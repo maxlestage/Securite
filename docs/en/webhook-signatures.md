@@ -40,21 +40,19 @@ For Stripe, every `v1` entry of the header is tried, which keeps working while y
 ## Quick start
 
 ```rust
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let secret = std::env::var("GITHUB_WEBHOOK_SECRET").expect("GITHUB_WEBHOOK_SECRET must be set");
 
-let app: Router = Router::new()
-    .route(
-        "/webhooks/github",
-        post(|body: String| async move {
-            // Only reached when the signature is valid.
-            format!("received {} bytes", body.len())
-        }),
-    )
-    .layer(SignatureLayer::new(SignatureVerifier::github(secret)).paths(["/webhooks/github"]))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.middleware(SignatureLayer::new(SignatureVerifier::github(secret)).paths(["/webhooks/github"]));
+app.post("/webhooks/github", |req: Request| async move {
+    // Only reached when the signature is valid.
+    let body = req.text().await?;
+    Ok::<_, Error>(format!("received {} bytes", body.len()))
+});
 ```
 
 The shield is added last, so it runs first: rate limiting, IP filtering and header checks happen before any body is buffered.
@@ -79,46 +77,50 @@ Stack one layer per provider, each restricted to its own path:
 ```rust
 use std::time::Duration;
 
-use axum::{routing::post, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let env = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
 
-let app: Router = Router::new()
-    .route("/webhooks/github", post(|body: String| async move { body.len().to_string() }))
-    .route("/webhooks/stripe", post(|body: String| async move { body.len().to_string() }))
-    .route("/webhooks/slack", post(|body: String| async move { body.len().to_string() }))
-    .layer(
-        SignatureLayer::new(SignatureVerifier::github(env("GITHUB_WEBHOOK_SECRET")))
-            .paths(["/webhooks/github"]),
+async fn size(req: Request) -> Result<String, Error> {
+    Ok(req.text().await?.len().to_string())
+}
+
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.middleware(
+    SignatureLayer::new(SignatureVerifier::github(env("GITHUB_WEBHOOK_SECRET")))
+        .paths(["/webhooks/github"]),
+);
+app.middleware(
+    SignatureLayer::new(
+        SignatureVerifier::stripe(env("STRIPE_WEBHOOK_SECRET"))
+            .tolerance(Duration::from_secs(120))
+            .max_body(256 * 1024),
     )
-    .layer(
-        SignatureLayer::new(
-            SignatureVerifier::stripe(env("STRIPE_WEBHOOK_SECRET"))
-                .tolerance(Duration::from_secs(120))
-                .max_body(256 * 1024),
-        )
-        .paths(["/webhooks/stripe"]),
-    )
-    .layer(
-        SignatureLayer::new(SignatureVerifier::slack(env("SLACK_SIGNING_SECRET")))
-            .paths(["/webhooks/slack"]),
-    )
-    .layer(Shield::recommended());
+    .paths(["/webhooks/stripe"]),
+);
+app.middleware(
+    SignatureLayer::new(SignatureVerifier::slack(env("SLACK_SIGNING_SECRET")))
+        .paths(["/webhooks/slack"]),
+);
+app.post("/webhooks/github", size);
+app.post("/webhooks/stripe", size);
+app.post("/webhooks/slack", size);
 ```
 
 ## Body requirement
 
-The layer rebuilds the request from the buffered bytes, so the request body type must implement `http_body::Body` and `From<Bytes>`. `axum::body::Body` does, which makes the layer work out of the box with axum. With a raw hyper server, `Incoming` does not: convert it first, for example with `axum::body::Body::new(incoming)`.
+With Vitesse, the middleware reads the body, checks it and gives it back to the request: handlers read it as usual. In a tower service, the layer rebuilds the request from the buffered bytes, so the request body type must implement `http_body::Body` and `From<Bytes>`; hyper's `Incoming` does not, so convert it to a body type that does (a boxed body, for instance) before the layer.
 
 ## Testing with `sign()`
 
 `sign()` computes the hex HMAC of exactly the bytes you pass, which makes signed test requests easy to build:
 
 ```rust
-use axum::{body::Body, http::{Request, StatusCode}, routing::post, Router};
 use securite::prelude::*;
-use tower::ServiceExt;
+use vitesse::prelude::*;
+use vitesse::test::TestClient;
 
 #[tokio::test]
 async fn accepts_signed_github_payload() {
@@ -126,16 +128,18 @@ async fn accepts_signed_github_payload() {
     let payload = r#"{"action":"opened"}"#;
     let signature = format!("sha256={}", verifier.sign(payload.as_bytes()));
 
-    let app: Router = Router::new()
-        .route("/webhooks/github", post(|body: String| async move { body }))
-        .layer(SignatureLayer::new(verifier).paths(["/webhooks/github"]));
+    let mut app = App::new();
+    app.middleware(SignatureLayer::new(verifier).paths(["/webhooks/github"]));
+    app.post("/webhooks/github", |req: Request| async move { req.text().await });
 
-    let request = Request::post("/webhooks/github")
-        .header("x-hub-signature-256", signature)
-        .body(Body::from(payload))
-        .unwrap();
-    let response = app.oneshot(request).await.unwrap();
+    let client = TestClient::new(app);
+    let response = client
+        .post("/webhooks/github")
+        .header("x-hub-signature-256", &signature)
+        .body(payload)
+        .await;
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.text(), payload);
 }
 ```
 

@@ -26,24 +26,24 @@ Le guard s'exécute tard dans la chaîne, après la limitation de débit, le blo
 ## Démarrage rapide
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let token = std::env::var("API_TOKEN").expect("API_TOKEN must be set");
 
-let app: Router = Router::new()
-    .route("/api/health", get(|| async { "ok" }))
-    .route("/api/orders", get(|| async { "[]" }))
-    .layer(
-        ShieldBuilder::recommended()
-            .guard(
-                Auth::bearer()
-                    .token("ci-pipeline", &token)
-                    .protect(["/api"])
-                    .public(["/api/health"]),
-            )
-            .build(),
-    );
+let mut app = App::new();
+app.middleware(
+    ShieldBuilder::recommended()
+        .guard(
+            Auth::bearer()
+                .token("ci-pipeline", &token)
+                .protect(["/api"])
+                .public(["/api/health"]),
+        )
+        .build(),
+);
+app.get("/api/health", |_req: Request| async { "ok" });
+app.get("/api/orders", |_req: Request| async { "[]" });
 ```
 
 ```bash
@@ -136,22 +136,25 @@ let auth = Auth::basic("Admin area")
 ## L'extension `Principal`
 
 ```rust
-use axum::{routing::get, Extension, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn whoami(Extension(principal): Extension<Principal>) -> String {
+async fn whoami(req: Request) -> String {
     // name: the credential label (or the Basic user name)
     // scheme: "bearer", "api_key", "basic" or "custom"
-    format!("authenticated as {} via {}", principal.name, principal.scheme)
+    match req.get::<Principal>() {
+        Some(principal) => format!("authenticated as {} via {}", principal.name, principal.scheme),
+        None => "anonymous".to_owned(),
+    }
 }
 
 let token = std::env::var("API_TOKEN").expect("API_TOKEN must be set");
-let app: Router = Router::new()
-    .route("/api/whoami", get(whoami))
-    .layer(Shield::builder().guard(Auth::bearer().token("ci-pipeline", &token)).build());
+let mut app = App::new();
+app.middleware(Shield::builder().guard(Auth::bearer().token("ci-pipeline", &token)).build());
+app.get("/api/whoami", whoami);
 ```
 
-`Principal` n'est inséré que sur les chemins protégés. L'extraire depuis une route publique conduit axum à répondre `500 Internal Server Error`, faute d'extension.
+`Principal` n'est inséré que sur les chemins protégés : sur une route publique, `req.get::<Principal>()` vaut `None`.
 
 ## Le défi `WWW-Authenticate`
 
@@ -204,28 +207,28 @@ Le validateur s'exécute sur le chemin de la requête : limitez-le à du calcul 
 
 ## Plusieurs schémas dans une même application
 
-Un `Shield` ne contient qu'un guard par nom : un second `Auth` remplacerait le premier. Utilisez plutôt des couches autonomes sur des routeurs distincts, avec `route_layer` pour que les URL inconnues répondent toujours `404` :
+Un `Shield` ne contient qu'un guard par nom : un second `Auth` remplacerait le premier. Utilisez plutôt des shields à un seul guard sur des routeurs distincts : chacun ne protège que ce qui se trouve sous son préfixe de montage :
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let admin_password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
 let partner_key = std::env::var("PARTNER_ACME_KEY").expect("PARTNER_ACME_KEY must be set");
 
-let admin = Router::new()
-    .route("/admin/dashboard", get(|| async { "admin" }))
-    .route_layer(Auth::basic("Admin area").user("admin", &admin_password));
+let mut admin = Router::new();
+admin.middleware(Shield::from(Auth::basic("Admin area").user("admin", &admin_password)));
+admin.get("/dashboard", |_req: Request| async { "admin" });
 
-let partners = Router::new()
-    .route("/partners/orders", get(|| async { "[]" }))
-    .route_layer(Auth::api_key("x-api-key").token("partner-acme", &partner_key));
+let mut partners = Router::new();
+partners.middleware(Shield::from(Auth::api_key("x-api-key").token("partner-acme", &partner_key)));
+partners.get("/orders", |_req: Request| async { "[]" });
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "public home" }))
-    .merge(admin)
-    .merge(partners)
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/", |_req: Request| async { "public home" });
+app.mount("/admin", admin);
+app.mount("/partners", partners);
 ```
 
 ## Pièges et conseils

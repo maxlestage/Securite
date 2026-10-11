@@ -5,7 +5,7 @@ category: start
 order: 4
 ---
 
-A `Shield` is an immutable, cheaply clonable pipeline of guards. You get one from a preset or from `ShieldBuilder`, then add it to your service with `.layer()`. `Shield::recommended()` is simply `ShieldBuilder::recommended().build()`, and the same goes for `strict()` and `api()`.
+A `Shield` is an immutable, cheaply clonable pipeline of guards. You get one from a preset or from `ShieldBuilder`, then add it to your app with `app.middleware()` (or to a tower service with `.layer()`). `Shield::recommended()` is simply `ShieldBuilder::recommended().build()`, and the same goes for `strict()` and `api()`.
 
 ## The three presets
 
@@ -132,23 +132,23 @@ Because `.guard()` replaces by name, configuring a preset never produces duplica
 
 The order is deliberate. The request id comes first so that every event carries one. Banned and filtered IPs are dropped before any real work, cheap protocol checks run before the WAF, the HTTPS redirect follows the host filter so that its `Location` is built from a validated host, and rate limiting cuts floods before the more expensive inspection. Response decoration follows the same order, so security headers and cookie hardening act last on the final response. `shield.guard_names()` returns the names in execution order.
 
-## Standalone layers
+## Standalone guards
 
-Every guard implements `tower::Layer` and converts into a `Shield`, so a single protection can be used on its own:
+Every guard converts into a `Shield` (and implements `tower::Layer`), so a single protection can be used on its own:
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "ok" }))
-    .layer(SecurityHeaders::strict())
-    .layer(RateLimit::per_minute(120));
+let mut app = App::new();
+app.middleware(Shield::from(SecurityHeaders::strict()));
+app.middleware(Shield::from(RateLimit::per_minute(120)));
+app.get("/", |_req: Request| async { "ok" });
 
 let waf_only = Shield::from(Waf::new());
 ```
 
-> **Warning:** Each standalone layer is an independent one-guard shield: it uses the default error format and keeps its own statistics. It resolves the client IP from the TCP peer address, unless an outer shield already did: behind a proxy, make `Shield::builder().client_ip(ClientIpSource::heroku()).build()` (or your platform's source) the outermost layer, see [Client IP](/docs/client-ip). Layers do not decorate each other's rejections either: in axum the last `.layer()` call is the outermost, so the `429` responses above carry no security headers. Prefer a single `Shield` built with `.guard()`.
+> **Warning:** Each standalone guard is an independent one-guard shield: it uses the default error format and keeps its own statistics. It resolves the client IP from the TCP peer address, unless an outer shield already did: behind a proxy, make `Shield::builder().client_ip(ClientIpSource::heroku()).build()` (or your platform's source) the first middleware, see [Client IP](/docs/client-ip). Shields do not decorate each other's rejections either: the first middleware added is the outermost, so the `429` responses above carry no security headers. Prefer a single `Shield` built with `.guard()`.
 
 ## Inspecting a shield
 

@@ -40,13 +40,14 @@ Un `Content-Type` absent ou refusé donne un `415` avec le code `unsupported_med
 ## Démarrage rapide
 
 ```rust
-use axum::{Router, routing::post};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/orders", post(|body: String| async move { body }))
-        .layer(Shield::builder().guard(ContentTypeGuard::json()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(ContentTypeGuard::json()).build());
+    app.post("/orders", |req: Request| async move { req.text().await });
+    app
 }
 ```
 
@@ -105,32 +106,33 @@ content-type: application/problem+json
 cache-control: no-store
 ```
 
-## Utilisation comme couche autonome
+## Utilisation comme guard autonome
 
 Appliquez le guard à un sous-routeur seulement, par exemple une API JSON montée à côté de pages HTML :
 
 ```rust
-use axum::{Router, routing::{get, post}};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    let api = Router::new()
-        .route("/orders", post(|body: String| async move { body }))
-        .layer(ContentTypeGuard::json());
+pub fn app() -> App {
+    let mut api = Router::new();
+    api.middleware(Shield::from(ContentTypeGuard::json()));
+    api.post("/orders", |req: Request| async move { req.text().await });
 
-    Router::new()
-        .route("/", get(|| async { "home" }))
-        .nest("/api", api)
+    let mut app = App::new();
+    app.get("/", |_req: Request| async { "home" });
+    app.mount("/api", api);
+    app
 }
 ```
 
-Dans un routeur imbriqué, axum retire le préfixe de montage du chemin : les préfixes de `skip` sont donc relatifs à ce point de montage (`/orders`, et non `/api/orders`).
+Le guard voit le chemin complet de la requête, préfixe de montage compris : écrivez les préfixes de `skip` tels que le client les envoie (`/api/orders`).
 
 ## Pièges et conseils
 
 > **Attention :** en HTTP/2 et HTTP/3, un `POST`, `PUT`, `PATCH` ou `DELETE` sans `Content-Length` est vérifié comme s'il portait un corps : un corps envoyé en flux ne peut donc pas passer entre les mailles. Une telle requête sans corps, par exemple un `DELETE` envoyé sans `Content-Length: 0` ni `Content-Type`, reçoit `415` : faites envoyer `Content-Length: 0` par le client ou ignorez le chemin.
 
-- **Défense en profondeur** : les extracteurs `Json` et `Form` d'axum vérifient déjà le type de contenu, mais pas `String`, `Bytes` ni les extracteurs personnalisés. Le guard les protège tous d'un coup.
+- **Défense en profondeur** : un handler qui analyse lui-même du JSON vérifie rarement le type de contenu au préalable ; le guard refuse les types inattendus avant toute lecture du corps, pour toutes les routes à la fois.
 - `allow()` ne fait qu'ajouter des types. Pour en accepter moins que `new()`, partez de `json()` et ajoutez ce dont vous avez besoin.
 - `*/*` ou un `text/*` trop large réduit la protection à néant ; autorisez des types précis.
 - Les corps des requêtes `GET` ne sont pas vérifiés ; ceux des requêtes `DELETE` le sont.

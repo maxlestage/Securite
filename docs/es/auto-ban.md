@@ -42,8 +42,8 @@ El estado vive en un almacén en memoria particionado y acotado (64 particiones,
 ```rust
 use std::time::Duration;
 
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     .guard(
@@ -54,9 +54,9 @@ let shield = Shield::builder()
     )
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuración
@@ -90,7 +90,7 @@ Todos los clones de un `AutoBan` comparten el mismo estado. Conserve uno para ge
 ```rust
 use std::time::Duration;
 
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 let shield = Shield::builder()
@@ -119,30 +119,30 @@ Los inicios de sesión fallidos producen `401` y, cuando se agota la cuota de in
 use std::net::IpAddr;
 use std::time::Duration;
 
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::Router;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn list_bans(State(ban): State<AutoBan>) -> String {
-    ban.banned()
+async fn list_bans(req: Request) -> String {
+    req.state::<AutoBan>()
+        .banned()
         .into_iter()
         .map(|(ip, left)| format!("{ip}\t{}s\n", left.as_secs()))
         .collect()
 }
 
-async fn ban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.ban(ip, Duration::from_secs(24 * 3600));
-    StatusCode::NO_CONTENT
+async fn ban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().ban(ip, Duration::from_secs(24 * 3600));
+    Ok(StatusCode::NO_CONTENT)
 }
 
-async fn unban_ip(State(ban): State<AutoBan>, Path(ip): Path<IpAddr>) -> StatusCode {
-    ban.unban(ip);
-    StatusCode::NO_CONTENT
+async fn unban_ip(req: Request) -> Result<StatusCode, Error> {
+    let ip: IpAddr = req.param_as("ip")?;
+    req.state::<AutoBan>().unban(ip);
+    Ok(StatusCode::NO_CONTENT)
 }
 
-fn app() -> Router {
+fn app() -> App {
     let ban = AutoBan::new();
     let shield = Shield::builder()
         // Only the internal network may reach /admin.
@@ -150,27 +150,29 @@ fn app() -> Router {
         .guard(ban.clone())
         .build();
 
-    Router::new()
-        .route("/admin/bans", get(list_bans))
-        .route("/admin/bans/{ip}", post(ban_ip).delete(unban_ip))
-        .with_state(ban)
-        .layer(shield)
+    let mut app = App::new();
+    app.state(ban);
+    app.middleware(shield);
+    app.get("/admin/bans", list_bans);
+    app.post("/admin/bans/:ip", ban_ip);
+    app.delete("/admin/bans/:ip", unban_ip);
+    app
 }
 ```
 
-## Uso como capa independiente
+## Uso como guard independiente
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_second(10))
-    .layer(AutoBan::new()); // outermost: sees the 429s of the inner layer
+let mut app = App::new();
+app.middleware(Shield::from(AutoBan::new())); // el más externo: ve los 429 del middleware interior
+app.middleware(Shield::from(RateLimit::per_second(10)));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
-Con axum, la última llamada a `.layer()` es la capa más externa. Coloque `AutoBan` por fuera de las capas cuyos rechazos deban contar: así, además, detiene a los clientes bloqueados antes de que lleguen a ellas. Entre capas separadas solo cuentan los estados penalizables: un `413` de un `BodyLimit` independiente no penaliza, salvo que lo añada con `count_status(413)`. Dentro de un mismo `Shield`, cada bloqueo cuenta.
+Con Vitesse, el primer middleware añadido es el más externo. Añada `AutoBan` antes de los middlewares cuyos rechazos deban contar: así, además, detiene a los clientes bloqueados antes de que lleguen a ellos. Entre middlewares separados solo cuentan los estados penalizables: un `413` de un `BodyLimit` independiente no penaliza, salvo que lo añada con `count_status(413)`. Dentro de un mismo `Shield`, cada bloqueo cuenta.
 
 ## Cabeceras de respuesta
 

@@ -34,18 +34,19 @@ Les origines sont comparées sans tenir compte de la casse, et une éventuelle b
 ```rust
 use std::time::Duration;
 
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let cors = Cors::new()
         .allow_origin("https://app.example.com")
         .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
-    Router::new()
-        .route("/api/me", get(|| async { "{}" }))
-        .layer(Shield::builder().guard(cors).build())
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(cors).build());
+    app.get("/api/me", |_req: Request| async { "{}" });
+    app
 }
 ```
 
@@ -75,10 +76,10 @@ Une application monopage hébergée sur `app.example.com` appelle `api.example.c
 ```rust
 use std::time::Duration;
 
-use axum::{Router, routing::{get, post}};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn api() -> Router {
+pub fn api() -> App {
     let shield = ShieldBuilder::recommended()
         .guard(
             Cors::new()
@@ -91,17 +92,18 @@ pub fn api() -> Router {
         .guard(Csrf::new().trusted_origin("https://app.example.com"))
         .build();
 
-    Router::new()
-        .route("/me", get(|| async { "{}" }))
-        .route("/orders", post(|| async { "created" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/me", |_req: Request| async { "{}" });
+    app.post("/orders", |_req: Request| async { "created" });
+    app
 }
 ```
 
 ### API publique en lecture seule
 
 ```rust
-use axum::http::Method;
+use securite::http::Method;
 use securite::prelude::*;
 
 pub fn public_cors() -> Cors {
@@ -144,20 +146,21 @@ access-control-allow-credentials: true
 vary: origin
 ```
 
-## Utilisation comme couche autonome
+## Utilisation comme guard autonome
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/api/items", get(|| async { "[]" }))
-        .layer(Cors::new().allow_origin("https://app.example.com"))
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(Cors::new().allow_origin("https://app.example.com")));
+    app.get("/api/items", |_req: Request| async { "[]" });
+    app
 }
 ```
 
-Avec axum, le dernier appel à `.layer()` correspond à la couche la plus externe. Si vous empilez des couches autonomes, ajoutez `Cors` après toute couche d'authentification : les preflights, qui ne portent jamais d'identifiants, reçoivent ainsi leur réponse avant de l'atteindre. Au sein d'un même `Shield`, cet ordre est automatique.
+Avec Vitesse, le premier middleware ajouté correspond au plus externe. Si vous empilez des guards autonomes, ajoutez `Cors` avant tout middleware d'authentification : les preflights, qui ne portent jamais d'identifiants, reçoivent ainsi leur réponse avant de l'atteindre. Au sein d'un même `Shield`, cet ordre est automatique.
 
 ## Pièges et conseils
 

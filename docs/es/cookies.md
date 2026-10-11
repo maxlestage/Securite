@@ -37,13 +37,16 @@ Las cookies que añaden otros guards, como la cookie del token [CSRF](/docs/csrf
 ## Inicio rápido
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", get(|| async { ([("set-cookie", "sid=abc; Path=/")], "welcome") }))
-        .layer(Shield::builder().guard(CookieHardening::new()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(CookieHardening::new()).build());
+    app.get("/login", |_req: Request| async {
+        res::text("welcome").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 
@@ -121,19 +124,22 @@ fn session_cookie_is_hardened() {
 }
 ```
 
-## Uso como capa independiente
+## Uso como guard independiente
 
-El guard solo ve las cabeceras `Set-Cookie` que existen cuando la respuesta lo atraviesa. En axum, la última llamada a `.layer()` es la más externa, así que añádalo después de las capas que fijan cookies:
+El guard solo ve las cabeceras `Set-Cookie` que existen cuando la respuesta lo atraviesa. En Vitesse, el primer middleware añadido es el más externo, así que añádalo antes de los middlewares que fijan cookies:
 
 ```rust
-use axum::{Router, routing::post};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", post(|| async { ([("set-cookie", "sid=abc; Path=/")], "ok") }))
-        // .layer(session_layer)       // sets the session cookie
-        .layer(CookieHardening::new()) // outer layer: sees the final Set-Cookie headers
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(CookieHardening::new())); // primero: ve las cabeceras Set-Cookie definitivas
+    // app.middleware(session_middleware);               // fija la cookie de sesión
+    app.post("/login", |_req: Request| async {
+        res::text("ok").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 

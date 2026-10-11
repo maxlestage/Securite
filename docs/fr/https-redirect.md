@@ -33,18 +33,19 @@ Si la requête est en HTTP simple et que son chemin n'est pas exempté, le shiel
 ## Démarrage rapide
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let shield = Shield::builder()
         .guard(HttpsRedirect::new())
         .guard(SecurityHeaders::new()) // HSTS for the following visits
         .build();
 
-    Router::new()
-        .route("/", get(|| async { "secure" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/", |_req: Request| async { "secure" });
+    app
 }
 ```
 
@@ -67,20 +68,21 @@ Les préfixes respectent les limites de segment : `/health` couvre `/health` et 
 Heroku, Render, Fly.io, AWS ALB et Cloudflare terminent TLS et positionnent `X-Forwarded-Proto`. Les sondes de santé passent souvent en HTTP simple : exemptez-les.
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
+pub fn app() -> App {
     let shield = Shield::builder()
         .client_ip(ClientIpSource::heroku())
         .guard(HttpsRedirect::new().exempt("/health"))
         .guard(SecurityHeaders::new())
         .build();
 
-    Router::new()
-        .route("/", get(|| async { "secure" }))
-        .route("/health", get(|| async { "ok" }))
-        .layer(shield)
+    let mut app = App::new();
+    app.middleware(shield);
+    app.get("/", |_req: Request| async { "secure" });
+    app.get("/health", |_req: Request| async { "ok" });
+    app
 }
 ```
 
@@ -102,39 +104,41 @@ location: https://example.com/path?x=1
 Si l'application sert elle-même HTTPS et n'écoute sur le port 80 que pour rediriger, les requêtes reçues sur ce port ne portent aucune information de schéma. Marquez-les comme HTTP simple avant le passage du shield, et ajoutez `HostFilter` au même shield pour que l'hôte soit validé avant la redirection :
 
 ```rust
-use axum::{Router, extract::Request, http::{HeaderValue, StatusCode}, middleware::map_request};
+use securite::http::HeaderValue;
 use securite::prelude::*;
-
-async fn mark_plain_http(mut req: Request) -> Request {
-    req.headers_mut()
-        .insert("x-forwarded-proto", HeaderValue::from_static("http"));
-    req
-}
+use vitesse::prelude::*;
 
 // Served on port 80 only; the real application listens on 443.
-pub fn port_80_app() -> Router {
+pub fn port_80_app() -> App {
     let shield = Shield::builder()
         .guard(HostFilter::new(["example.com", "www.example.com"])) // priority 70
         .guard(HttpsRedirect::new()) // priority 75: only sees allowed hosts
         .build();
 
-    Router::new()
-        .fallback(|| async { StatusCode::NOT_FOUND }) // reached by exempt paths only
-        .layer(shield)
-        .layer(map_request(mark_plain_http)) // outermost: runs first
+    let mut app = App::new();
+    // Premier middleware, donc exécuté en premier : tout arrive ici en HTTP en clair.
+    app.middleware(|mut req: Request, next: Next| async move {
+        req.headers_mut()
+            .insert("x-forwarded-proto", HeaderValue::from_static("http"));
+        next.run(req).await
+    });
+    app.middleware(shield);
+    app.fallback(|_req: Request| async { StatusCode::NOT_FOUND }); // reached by exempt paths only
+    app
 }
 ```
 
-## Utilisation comme couche autonome
+## Utilisation comme guard autonome
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/", get(|| async { "ok" }))
-        .layer(HttpsRedirect::new())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(HttpsRedirect::new()));
+    app.get("/", |_req: Request| async { "ok" });
+    app
 }
 ```
 

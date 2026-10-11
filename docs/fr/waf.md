@@ -81,17 +81,17 @@ Vous pouvez observer le résultat avec `securite::waf::normalize(input, is_query
 ## Démarrage rapide
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/search", get(|| async { "results" }))
-    .layer(
-        Shield::builder()
-            .guard(RequestId::new())
-            .guard(Waf::new())
-            .build(),
-    );
+let mut app = App::new();
+app.middleware(
+    Shield::builder()
+        .guard(RequestId::new())
+        .guard(Waf::new())
+        .build(),
+);
+app.get("/search", |_req: Request| async { "results" });
 ```
 
 Pour personnaliser le pare-feu d'un préréglage, ajoutez votre propre `Waf` : un guard portant le même nom remplace celui du préréglage.
@@ -177,14 +177,9 @@ Le trafic ordinaire, comme `/blog/2024/10/union-of-sets-in-rust`, `/search?q=wha
 Les guards ne voient que l'en-tête de la requête : les documents JSON, champs de formulaire ou requêtes GraphQL s'inspectent donc depuis vos handlers. Partagez le même `Waf` (il se clone à moindre coût) entre le shield et l'état de votre application :
 
 ```rust
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use securite::prelude::*;
 use serde::Deserialize;
-
-#[derive(Clone)]
-struct AppState {
-    waf: Waf,
-}
+use vitesse::prelude::*;
 
 #[derive(Deserialize)]
 struct NewComment {
@@ -192,27 +187,25 @@ struct NewComment {
     text: String,
 }
 
-async fn create_comment(
-    State(state): State<AppState>,
-    Json(comment): Json<NewComment>,
-) -> StatusCode {
+async fn create_comment(req: Request) -> Result<StatusCode, Error> {
+    let comment: NewComment = req.json().await?;
     // Inspect the decoded values, not the raw JSON text.
     for field in [&comment.author, &comment.text] {
-        let verdict = state.waf.inspect_text(field);
+        let verdict = req.state::<Waf>().inspect_text(field);
         if verdict.blocked {
             tracing::warn!(score = verdict.score, rules = ?verdict.rules, "comment rejected by the WAF");
-            return StatusCode::UNPROCESSABLE_ENTITY;
+            return Ok(StatusCode::UNPROCESSABLE_ENTITY);
         }
     }
     // ... store the comment
-    StatusCode::CREATED
+    Ok(StatusCode::CREATED)
 }
 
 let waf = Waf::new();
-let app: Router = Router::new()
-    .route("/comments", post(create_comment))
-    .with_state(AppState { waf: waf.clone() })
-    .layer(Shield::builder().guard(waf).build());
+let mut app = App::new();
+app.state(waf.clone());
+app.middleware(Shield::builder().guard(waf).build());
+app.post("/comments", create_comment);
 ```
 
 Un `Verdict` expose tout ce que le pare-feu a décidé :
@@ -282,19 +275,19 @@ let shield = ShieldBuilder::recommended()
 3. Ajustez avec `disable_rules`, `skip_paths` ou `skip_headers`.
 4. Retirez `.monitor()` et continuez à surveiller le compteur de blocages.
 
-> **Astuce :** pour évaluer un niveau de paranoïa plus strict pendant que le niveau actuel continue de bloquer, ajoutez un second pare-feu en mode surveillance comme couche autonome sous votre shield : `router.layer(Waf::new().paranoia(Paranoia::High).monitor()).layer(shield)`. Ses détections sont journalisées sous la cible tracing `securite`.
+> **Astuce :** pour évaluer un niveau de paranoïa plus strict pendant que le niveau actuel continue de bloquer, ajoutez un second pare-feu en mode surveillance comme middleware autonome après votre shield : `app.middleware(shield); app.middleware(Shield::from(Waf::new().paranoia(Paranoia::High).monitor()));`. Ses détections sont journalisées sous la cible tracing `securite`.
 
-## Utilisation comme couche autonome
+## Utilisation comme guard autonome
 
 Comme tous les guards, `Waf` est à lui seul une couche tower :
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "home" }))
-    .layer(Waf::new().paranoia(Paranoia::Medium));
+let mut app = App::new();
+app.middleware(Shield::from(Waf::new().paranoia(Paranoia::Medium)));
+app.get("/", |_req: Request| async { "home" });
 ```
 
 Une couche autonome construit un shield interne avec les réglages par défaut : erreurs au format problem+json, IP client lue sur le pair TCP, journalisation activée, et aucun accès à votre hook `on_event` ni à vos statistiques. Enregistrez le WAF dans votre `Shield` lorsque vous en avez besoin.

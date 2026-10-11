@@ -37,13 +37,16 @@ Cookies added by other guards, such as the [CSRF](/docs/csrf) token cookie, are 
 ## Quick start
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", get(|| async { ([("set-cookie", "sid=abc; Path=/")], "welcome") }))
-        .layer(Shield::builder().guard(CookieHardening::new()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(CookieHardening::new()).build());
+    app.get("/login", |_req: Request| async {
+        res::text("welcome").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 
@@ -121,19 +124,22 @@ fn session_cookie_is_hardened() {
 }
 ```
 
-## Standalone layer
+## Standalone guard
 
-The guard only sees `Set-Cookie` headers that exist when the response passes through it. With axum the last `.layer()` call is the outermost, so add it after the layers that set cookies:
+The guard only sees `Set-Cookie` headers that exist when the response passes through it. With Vitesse the first middleware added is the outermost, so add it before the middlewares that set cookies:
 
 ```rust
-use axum::{Router, routing::post};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", post(|| async { ([("set-cookie", "sid=abc; Path=/")], "ok") }))
-        // .layer(session_layer)       // sets the session cookie
-        .layer(CookieHardening::new()) // outer layer: sees the final Set-Cookie headers
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(CookieHardening::new())); // first: sees the final Set-Cookie headers
+    // app.middleware(session_middleware);               // sets the session cookie
+    app.post("/login", |_req: Request| async {
+        res::text("ok").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 

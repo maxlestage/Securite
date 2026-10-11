@@ -41,10 +41,10 @@ let shield = ShieldBuilder::recommended()
     .build();
 
 // Akamai, or any edge that sets a single-IP header.
-// (axum::http re-exports the http crate.)
+// (securite::http réexporte la crate http.)
 let shield = ShieldBuilder::recommended()
     .client_ip(ClientIpSource::Header(
-        axum::http::HeaderName::from_static("true-client-ip"),
+        securite::http::HeaderName::from_static("true-client-ip"),
     ))
     .build();
 ```
@@ -96,47 +96,47 @@ La fonction `securite::ip::mask` applique le même regroupement dans votre propr
 Le shield insère une extension `ClientIp` dans chaque requête dont il a résolu l'adresse. Elle contient l'adresse complète, et non le groupe `/64` :
 
 ```rust
-use axum::{Extension, Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn whoami(ip: Option<Extension<ClientIp>>) -> String {
-    match ip {
-        Some(Extension(ClientIp(ip))) => format!("your address: {ip}"),
+async fn whoami(req: Request) -> String {
+    match req.get::<ClientIp>() {
+        Some(ClientIp(ip)) => format!("your address: {ip}"),
         None => "unknown address".to_owned(),
     }
 }
 
-let app: Router = Router::new()
-    .route("/whoami", get(whoami))
-    .layer(Shield::recommended());
+let mut app = App::new();
+app.middleware(Shield::recommended());
+app.get("/whoami", whoami);
 ```
 
 Dans un [guard personnalisé](/docs/custom-guards), lisez-la avec `ctx.client_ip()`.
 
-## Shields imbriqués et couches autonomes
+## Shields imbriqués et guards autonomes
 
-Quand une requête porte déjà une extension `ClientIp`, posée par un shield extérieur, le shield réutilise cette adresse au lieu de la résoudre à nouveau. Les shields intérieurs et les couches autonomes s'accordent donc avec le plus externe. Pour utiliser des couches autonomes derrière un proxy, ajoutez en couche la plus externe un shield sans guard qui se contente de résoudre l'adresse :
+Quand une requête porte déjà une extension `ClientIp`, posée par un shield extérieur, le shield réutilise cette adresse au lieu de la résoudre à nouveau. Les shields intérieurs et les guards autonomes s'accordent donc avec le plus externe. Pour utiliser des guards autonomes derrière un proxy, ajoutez en premier middleware un shield sans guard qui se contente de résoudre l'adresse :
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(RateLimit::per_minute(120))
-    .layer(AutoBan::new())
-    // Outermost (last `.layer()` call): resolves the client IP once,
-    // and the layers added before it reuse its `ClientIp`.
-    .layer(Shield::builder().client_ip(ClientIpSource::heroku()).build());
+let mut app = App::new();
+// Le plus externe (premier middleware ajouté) : il détermine l'IP du client une fois,
+// et les middlewares ajoutés après lui réutilisent son `ClientIp`.
+app.middleware(Shield::builder().client_ip(ClientIpSource::heroku()).build());
+app.middleware(Shield::from(AutoBan::new()));
+app.middleware(Shield::from(RateLimit::per_minute(120)));
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 > **Attention :** seul compte le réglage `client_ip` du shield le plus externe. S'il conserve la source par défaut `Peer`, chaque shield intérieur réutilise l'adresse du proxy résolue par celui-ci, quel que soit son propre réglage : configurez la source sur le shield le plus externe.
 
 ## Solutions de repli
 
-Quand l'en-tête configuré est absent, mal formé ou contient trop peu d'entrées, le shield se rabat sur l'adresse du pair TCP. Celle-ci est cherchée, dans l'ordre, dans `ConnectInfo<SocketAddr>` d'axum (avec la feature `axum`), dans une extension `PeerAddr` et dans une extension `SocketAddr` brute.
+Quand l'en-tête configuré est absent, mal formé ou contient trop peu d'entrées, le shield se rabat sur l'adresse du pair TCP. Celle-ci est l'adresse de la connexion, que Vitesse fournit au shield ; dans un service tower, elle est cherchée dans une extension `PeerAddr`, puis dans une extension `SocketAddr` brute.
 
-Quand aucune adresse n'est trouvée, le shield journalise une seule fois un avertissement (cible `securite`) recommandant `into_make_service_with_connect_info::<SocketAddr>()` avec axum ou une extension `PeerAddr` avec hyper, et les guards se dégradent ainsi :
+Quand aucune adresse n'est trouvée (un service tower sans `PeerAddr`), le shield journalise une seule fois un avertissement (cible `securite`) recommandant une extension `PeerAddr`, et les guards se dégradent ainsi :
 
 | Guard | Comportement sans IP client |
 |---|---|

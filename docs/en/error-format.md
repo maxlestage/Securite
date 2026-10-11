@@ -75,7 +75,7 @@ Only the status code and headers, no body. Use it when you prefer to reveal as l
 
 ### Custom
 
-Your closure receives the `Rejection` and the request `Context`, and returns an `http::Response<bytes::Bytes>` (`http` is re-exported as `securite::http`; add the `bytes` crate to your dependencies or use axum's re-export `axum::body::Bytes`). A branded HTML page for a website:
+Your closure receives the `Rejection` and the request `Context`, and returns an `http::Response<bytes::Bytes>` (`http` is re-exported as `securite::http`; add the `bytes` crate to your dependencies or use Vitesse's re-export `vitesse::Bytes`). A branded HTML page for a website:
 
 ```rust
 use bytes::Bytes;
@@ -159,9 +159,9 @@ Some short-circuits are not attacks: a CORS preflight answered with `204 No Cont
 
 A custom guard returns `Rejection::new(status, code, message)`. The message is sent to clients, so keep it generic and never include user input or secrets. Put diagnostics in `.with_details(…)`, and extra response headers in `.with_header(name, value)`.
 
-## Standalone layers
+## Standalone guards
 
-A guard used on its own (`router.layer(Waf::new())`) builds an internal shield with the default format, so its rejections are always problem+json. The same is true for `SignatureLayer`. To choose the format, register your guards in a `Shield` built with `error_format`.
+A guard used on its own (`app.middleware(Shield::from(Waf::new()))`) builds an internal shield with the default format, so its rejections are always problem+json. The same is true for `SignatureLayer`. To choose the format, register your guards in a `Shield` built with `error_format`.
 
 ## Pitfalls and tips
 

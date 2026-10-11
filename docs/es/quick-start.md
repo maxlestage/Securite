@@ -1,19 +1,18 @@
 ---
 title: Inicio rápido
-summary: Protege una aplicación axum con Shield::recommended(), revisa las cabeceras que añade, comprueba cómo bloquea una inyección SQL y adapta el preset.
+summary: Protege una aplicación Vitesse con Shield::recommended(), revisa las cabeceras que añade, comprueba cómo bloquea una inyección SQL y adapta el preset.
 category: start
 order: 3
 ---
 
-En cinco minutos pondrás una aplicación axum detrás del shield recomendado, verás qué cambia en los intercambios HTTP y ajustarás el preset a tus necesidades.
+En cinco minutos pondrás una aplicación Vitesse detrás del shield recomendado, verás qué cambia en los intercambios HTTP y ajustarás el preset a tus necesidades.
 
 ## Crear el proyecto
 
 ```bash
 cargo new secure-app
 cd secure-app
-cargo add securite axum
-cargo add tokio --features macros,rt-multi-thread,net
+cargo add securite vitesse
 ```
 
 ## Añadir el shield
@@ -21,33 +20,21 @@ cargo add tokio --features macros,rt-multi-thread,net
 Sustituye el contenido de `src/main.rs` por:
 
 ```rust
-use std::net::SocketAddr;
-
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-#[tokio::main]
-async fn main() {
-    let app = Router::new()
-        .route("/", get(|| async { "Hello, secure world!" }))
-        // Security headers, WAF, rate limiting, CSRF, request ids …
-        .layer(Shield::recommended());
+fn main() -> std::io::Result<()> {
+    let mut app = App::new();
+    // Security headers, WAF, rate limiting, CSRF, request ids …
+    app.middleware(Shield::recommended());
+    app.get("/", |_req: Request| async { "Hello, secure world!" });
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
-    println!("listening on http://{}", listener.local_addr().unwrap());
-    axum::serve(
-        listener,
-        // Gives the shield the real client IP.
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+    println!("listening on http://127.0.0.1:3000");
+    app.run("127.0.0.1:3000")
 }
 ```
 
-Hay dos detalles importantes. `.layer()` va después de las rutas, porque axum solo envuelve las rutas registradas antes. `into_make_service_with_connect_info` expone la dirección del peer TCP, que necesitan los guards que trabajan por IP (consulta [Instalación](/docs/installation)).
+Hay dos detalles importantes. Los middlewares globales se ejecutan antes del enrutado, para cada petición, en el orden en que se añadieron: el shield va primero para verlo todo. La dirección de cada conexión llega al shield por sí sola, algo que necesitan los guards que trabajan por IP (consulta [Instalación](/docs/installation)).
 
 ## Ejecutarla
 
@@ -149,9 +136,8 @@ WARN securite: request blocked guard="waf" code="waf_blocked" status=403 ip=Some
 ```rust
 use std::time::Duration;
 
-use axum::http::Method;
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = ShieldBuilder::recommended()
     // Same name as the preset's limiter ("rate_limit"): it replaces it.
@@ -168,12 +154,12 @@ let shield = ShieldBuilder::recommended()
 
 println!("{:?}", shield.guard_names());
 // ["request_id", "ban", "hygiene", "method", "body_limit", "rate_limit",
-//  "bot_blocker", "waf", "security_headers", "cookies"]
+// "bot_blocker", "waf", "security_headers", "cookies"]
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "Hello, secure world!" }))
-    .route("/health", get(|| async { "ok" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "Hello, secure world!" });
+app.get("/health", |_req: Request| async { "ok" });
 ```
 
 > **Atención:** Elimina `csrf` solo si ningún endpoint que modifique estado depende de cookies u otras credenciales que el navegador envía automáticamente. Los navegadores adjuntan las cookies a las peticiones entre sitios; la protección CSRF es lo que impide que otro sitio se aproveche de ellas.

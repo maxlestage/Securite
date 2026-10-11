@@ -37,13 +37,16 @@ Les cookies ajoutés par d'autres guards, comme le cookie de jeton [CSRF](/docs/
 ## Démarrage rapide
 
 ```rust
-use axum::{Router, routing::get};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", get(|| async { ([("set-cookie", "sid=abc; Path=/")], "welcome") }))
-        .layer(Shield::builder().guard(CookieHardening::new()).build())
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::builder().guard(CookieHardening::new()).build());
+    app.get("/login", |_req: Request| async {
+        res::text("welcome").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 
@@ -121,19 +124,22 @@ fn session_cookie_is_hardened() {
 }
 ```
 
-## Utilisation comme couche autonome
+## Utilisation comme guard autonome
 
-Le guard ne voit que les en-têtes `Set-Cookie` présents au moment où la réponse le traverse. Avec axum, le dernier appel à `.layer()` est le plus externe : ajoutez-le donc après les couches qui posent des cookies.
+Le guard ne voit que les en-têtes `Set-Cookie` présents au moment où la réponse le traverse. Avec Vitesse, le premier middleware ajouté est le plus externe : ajoutez-le donc avant les middlewares qui posent des cookies.
 
 ```rust
-use axum::{Router, routing::post};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-pub fn app() -> Router {
-    Router::new()
-        .route("/login", post(|| async { ([("set-cookie", "sid=abc; Path=/")], "ok") }))
-        // .layer(session_layer)       // sets the session cookie
-        .layer(CookieHardening::new()) // outer layer: sees the final Set-Cookie headers
+pub fn app() -> App {
+    let mut app = App::new();
+    app.middleware(Shield::from(CookieHardening::new())); // en premier : il voit les en-têtes Set-Cookie définitifs
+    // app.middleware(session_middleware);               // pose le cookie de session
+    app.post("/login", |_req: Request| async {
+        res::text("ok").header("set-cookie", "sid=abc; Path=/")
+    });
+    app
 }
 ```
 

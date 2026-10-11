@@ -48,16 +48,16 @@ The lists sit behind a read-write lock shared by every clone of the filter. Requ
 ## Quick start
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
 let shield = Shield::builder()
     .guard(IpFilter::new().deny(["203.0.113.0/24", "2001:db8:bad::/48"]))
     .build();
 
-let app: Router = Router::new()
-    .route("/", get(|| async { "hello" }))
-    .layer(shield);
+let mut app = App::new();
+app.middleware(shield);
+app.get("/", |_req: Request| async { "hello" });
 ```
 
 ## Configuration
@@ -103,30 +103,29 @@ Everybody can reach the public site; only the listed networks reach `/admin` and
 ### Block a network during an incident
 
 ```rust
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::post;
-use axum::Router;
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-async fn block(State(filter): State<IpFilter>, Path(cidr): Path<String>) -> StatusCode {
-    // `cidr` arrives percent-decoded, e.g. "203.0.113.0/24" sent as 203.0.113.0%2F24.
-    match filter.deny_now(&cidr) {
+async fn block(req: Request) -> Result<StatusCode, Error> {
+    // The network to block is the body of the request, e.g. "203.0.113.0/24".
+    let cidr = req.text().await?;
+    Ok(match req.state::<IpFilter>().deny_now(cidr.trim()) {
         Ok(()) => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::BAD_REQUEST,
-    }
+    })
 }
 
-fn app() -> Router {
+fn app() -> App {
     let filter = IpFilter::new();
     let admin = IpFilter::new().allow_private().only_paths(["/admin"]);
+    let mut app = App::new();
+    app.state(filter.clone());
     // Both guards are named "ip_filter": the second would replace the first in
-    // one shield, so each one gets its own layer.
-    Router::new()
-        .route("/admin/block/{cidr}", post(block))
-        .with_state(filter.clone())
-        .layer(admin)
-        .layer(Shield::builder().guard(filter).build())
+    // one shield, so each one gets its own middleware.
+    app.middleware(Shield::builder().guard(filter).build());
+    app.middleware(Shield::from(admin));
+    app.post("/admin/block", block);
+    app
 }
 ```
 
@@ -162,15 +161,15 @@ fn spawn_refresher(filter: IpFilter) {
 
 Call `spawn_refresher(filter.clone())` and give `filter` to the shield. An invalid file is ignored and the previous list stays active.
 
-## Standalone layer
+## Standalone guard
 
 ```rust
-use axum::{routing::get, Router};
 use securite::prelude::*;
+use vitesse::prelude::*;
 
-let app: Router = Router::new()
-    .route("/metrics", get(|| async { "up 1" }))
-    .layer(IpFilter::new().allow_private());
+let mut app = App::new();
+app.middleware(Shield::from(IpFilter::new().allow_private()));
+app.get("/metrics", |_req: Request| async { "up 1" });
 ```
 
 ## Response headers
