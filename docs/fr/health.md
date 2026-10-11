@@ -10,13 +10,22 @@ Les répartiteurs de charge, les orchestrateurs (Kubernetes, Nomad, Fly.io, Hero
 ## La réponse
 
 ```json
-{"status":"pass","uptime":3600,"version":"1.4.0","checks":{"database":{"status":"pass"},"cache":{"status":"pass"}}}
+{
+  "checks": {
+    "database": [{ "status": "pass" }],
+    "uptime": [{ "componentType": "system", "observedUnit": "s", "observedValue": 3600, "status": "pass" }]
+  },
+  "status": "pass",
+  "version": "1.4.0"
+}
 ```
+
+Chaque vérification est une liste de mesures, comme le définit le format `application/health+json` ; la vérification `uptime` (nombre de secondes écoulées depuis le démarrage de l'application) est toujours présente.
 
 - `200 OK` avec `"status":"pass"` lorsque toutes les vérifications réussissent ;
 - `503 Service Unavailable` avec `"status":"fail"` dès que l'une d'elles échoue, pour que le répartiteur de charge cesse d'envoyer du trafic à cette instance.
 
-Le type de contenu est `application/health+json` et la réponse n'est jamais mise en cache (`Cache-Control: no-store`). Seuls les `GET` et `HEAD` sur le chemin exact reçoivent une réponse ; tout le reste part vers vos routes.
+Le type de contenu est `application/health+json` et la réponse n'est jamais mise en cache (`Cache-Control: no-store`). Seuls les `GET` et `HEAD` sur le chemin (avec ou sans `/` final) reçoivent une réponse ; tout le reste part vers vos routes.
 
 ## Démarrage rapide
 
@@ -33,7 +42,7 @@ curl -i https://example.com/health
 # HTTP/1.1 200 OK
 # content-type: application/health+json
 #
-# {"status":"pass","uptime":42,"version":"1.4.0"}
+# {"checks":{"uptime":[{"componentType":"system","observedUnit":"s","observedValue":42,"status":"pass"}]},"status":"pass","version":"1.4.0"}
 ```
 
 ## Configuration
