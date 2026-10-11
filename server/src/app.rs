@@ -385,6 +385,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn every_page_ends_with_the_signature_footer() {
+        let app = test_app(false);
+        for (lang, rights, here) in [
+            ("fr", "Tous droits réservés", "Vous êtes ici"),
+            ("en", "All rights reserved", "You are here"),
+            ("es", "Todos los derechos reservados", "Estás aquí"),
+        ] {
+            let (status, _, body) = get(&app, &format!("/{lang}/")).await;
+            assert_eq!(status, StatusCode::OK, "{lang}");
+            let footer = body.split("<footer").nth(1).expect("a footer");
+            // The author's signature, the legal line and the license.
+            assert!(footer.contains(r#"class="credits-name""#), "{lang}");
+            assert!(footer.contains("Maxime Nathan Lestage"), "{lang}");
+            assert!(footer.contains(rights), "{lang}");
+            assert!(
+                footer.contains(
+                    r#"href="https://github.com/maxlestage/Securite/blob/master/LICENSE""#
+                ),
+                "{lang}"
+            );
+            assert!(!footer.contains("MIT"), "{lang}");
+            // The install command and the version of the crate.
+            assert!(footer.contains("cargo add securite"), "{lang}");
+            assert!(
+                footer.contains(&format!("v{}", securite::VERSION)),
+                "{lang}"
+            );
+            // The six projects of the ecosystem, this one marked as the current page.
+            for project in [
+                "Active",
+                "Vitesse",
+                "Securite",
+                "Memoire",
+                "Paquets",
+                "FerroSwift",
+            ] {
+                assert!(
+                    footer.contains(&format!(
+                        r#"href="https://maxlestage.github.io/{project}/""#
+                    )),
+                    "{lang} {project}"
+                );
+            }
+            assert!(footer.contains(r#"aria-current="page""#), "{lang}");
+            assert!(footer.contains(here), "{lang}");
+            // The author is named in the metadata too.
+            assert!(
+                body.contains(r#"content="Maxime Nathan Lestage""#),
+                "{lang}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn every_page_passes_the_shield() {
         let site = Arc::new(Site::load(&site_dir(), "", None, true));
         let app = app(site.clone(), false);

@@ -3,7 +3,7 @@ name = "securite-site"
 version = "0.1.0"
 description = "Pages, islands and browser bundle of the securite website, written with active."
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
 repository.workspace = true
 publish = false
 
@@ -15,6 +15,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 active = { git = "https://github.com/maxlestage/Active" }
+
+# The server side shows the version of the crate in the footer.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+securite = { path = "../crates/securite", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 active = { git = "https://github.com/maxlestage/Active", features = ["client"] }

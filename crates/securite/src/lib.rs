@@ -76,6 +76,9 @@
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+/// The version of this crate, e.g. `"0.1.0"`: handy for a footer or a `Server` header.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod auth;
 pub mod ban;
 pub mod body;

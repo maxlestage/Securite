@@ -3,7 +3,7 @@ name = "securite-server"
 version = "0.1.0"
 description = "Web server of the securite website: pages rendered with active, live attack playground, protected by the securite crate (dogfooding)."
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
 repository.workspace = true
 publish = false
 
