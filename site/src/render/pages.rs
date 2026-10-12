@@ -1034,7 +1034,7 @@ fn seo(ctx: &Ctx<'_>) -> Seo {
         .site_name("Securite")
         .title_template("%s · securite")
         .base_url(ctx.public)
-        .image("/static/og-image.png")
+        .image("/static/og-image.jpg")
         .meta_property("og:image:width", "1200")
         .meta_property("og:image:height", "630")
         .meta_property(
@@ -1198,7 +1198,7 @@ pub fn language_picker(site: &Site, public: &str, target: &str) -> String {
         .title("Securite")
         .description(Lang::En.t().site_description)
         .base_url(public)
-        .image("/static/og-image.png")
+        .image("/static/og-image.jpg")
         .meta_property("og:image:width", "1200")
         .meta_property("og:image:height", "630")
         .meta_property(

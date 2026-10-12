@@ -23,6 +23,7 @@ pub fn content_type(path: &str) -> &'static str {
         "wasm" => "application/wasm",
         "svg" => "image/svg+xml",
         "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
         "ico" => "image/x-icon",
         "woff2" => "font/woff2",
         "txt" => "text/plain; charset=utf-8",

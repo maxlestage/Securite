@@ -364,7 +364,7 @@ mod tests {
             let body = res.text();
             let footer = body.split("<footer").nth(1).expect("a footer");
             // The card of a shared link: the image, its size and its description.
-            assert!(body.contains(r#"/static/og-image.png"/>"#), "{lang}");
+            assert!(body.contains(r#"/static/og-image.jpg"/>"#), "{lang}");
             assert!(body.contains(r#"<meta property="og:image:width" content="1200"/>"#));
             assert!(body.contains(r#"<meta property="og:image:height" content="630"/>"#));
             assert!(body.contains(r#"<meta property="og:image:alt" content="#));
