@@ -1,5 +1,7 @@
 <div align="center">
 
+[![Securite : protégez vos API Rust contre le XSS, l'injection SQL et les robots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+
 # 🛡️ Securite
 
 **Des middlewares de sécurité natifs pour Rust : rapides, faciles et complets.**

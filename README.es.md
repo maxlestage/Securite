@@ -1,5 +1,7 @@
 <div align="center">
 
+[![Securite: protege tus API Rust contra el XSS, la inyección SQL y los bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+
 # 🛡️ Securite
 
 **Middlewares de seguridad nativos para Rust: rápidos, fáciles y completos.**
