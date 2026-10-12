@@ -1,3 +1,5 @@
+[![Securite: armor your Rust APIs against XSS, SQL injection and bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+
 # Securite
 
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
