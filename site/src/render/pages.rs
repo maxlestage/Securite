@@ -384,12 +384,34 @@ fn install_box(t: &'static Texts) -> Element {
     div()
         .class("install-box")
         .child(span().class("prompt").text("$"))
-        .child(code().text("cargo add securite --git https://github.com/maxlestage/Securite"))
+        .child(command(
+            "cargo add securite --git https://github.com/maxlestage/Securite",
+        ))
         .child(copy_button(
             "cargo add securite --git https://github.com/maxlestage/Securite",
             t,
             false,
         ))
+}
+
+/// A shell command in `<code>`, whose URL may break after its slashes on a narrow screen:
+/// `<wbr>` adds nothing to what is selected and copied.
+fn command(text: &str) -> Element {
+    let mut code = code();
+    let mut part = String::new();
+    let mut chars = text.chars().peekable();
+    let mut previous = ' ';
+    while let Some(c) = chars.next() {
+        part.push(c);
+        let next = chars.peek().copied();
+        if c == '/' && previous != '/' && next.is_some_and(|n| n != '/') {
+            code = code
+                .child(Node::from(std::mem::take(&mut part)))
+                .child(wbr());
+        }
+        previous = c;
+    }
+    code.child(Node::from(part))
 }
 
 fn section_head(kicker: &'static str, title: &'static str, subtitle: &'static str) -> Element {
