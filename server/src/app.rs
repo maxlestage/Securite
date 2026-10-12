@@ -363,6 +363,12 @@ mod tests {
             assert_eq!(res.status(), StatusCode::OK, "{lang}");
             let body = res.text();
             let footer = body.split("<footer").nth(1).expect("a footer");
+            // The card of a shared link: the image, its size and its description.
+            assert!(body.contains(r#"/static/og-image.png"/>"#), "{lang}");
+            assert!(body.contains(r#"<meta property="og:image:width" content="1200"/>"#));
+            assert!(body.contains(r#"<meta property="og:image:height" content="630"/>"#));
+            assert!(body.contains(r#"<meta property="og:image:alt" content="#));
+            assert!(body.contains(r#"<meta name="twitter:card" content="summary_large_image"/>"#));
             // The author's signature, the legal line and the license.
             assert!(footer.contains(r#"class="credits-name""#), "{lang}");
             assert!(footer.contains("Maxime Nathan Lestage"), "{lang}");

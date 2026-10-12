@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Website: a card for shared links. Every page, the root included, has a share
+  image (1200×630) with its size and description, shown large by WhatsApp,
+  iMessage, LinkedIn, X or Slack.
 - **New crate `pratique`** (`crates/pratique`): everyday Vitesse middlewares that
   have nothing to do with security. Caching: `ETag` (body hash, `304 Not
   Modified`), `CacheControl` (by path prefix and content type), `ResponseCache`
