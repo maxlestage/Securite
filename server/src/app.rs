@@ -379,6 +379,11 @@ mod tests {
                 footer.contains("cargo add securite --git https://github.com/maxlestage/Securite"),
                 "{lang}"
             );
+            // On a phone, the command wraps after the slashes of its URL.
+            assert!(
+                footer.contains("https://github.com/<wbr/>maxlestage/<wbr/>Securite</code>"),
+                "{lang}"
+            );
             assert!(
                 footer.contains(&format!("v{}", securite::VERSION)),
                 "{lang}"

@@ -656,6 +656,8 @@ active-island {
   min-height: calc(100vh - var(--nav-h));
   min-height: calc(100svh - var(--nav-h));
   display: grid;
+  /* The column is the screen's width, never the width of its longest line. */
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   overflow: hidden;
   isolation: isolate;
@@ -810,6 +812,13 @@ active-island {
 
 .install-box .prompt {
   color: var(--emerald);
+}
+
+/* The command wraps inside the box (after the slashes of its URL) instead of widening it. */
+.install-box code {
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .copy-btn {
@@ -2012,6 +2021,7 @@ pre code {
 .cta {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 18px;
   text-align: center;
