@@ -99,8 +99,13 @@ Llama a una rama `wip/...` para excluirla.
 1. crates.io → *Account settings* → *API Tokens* → nuevo token (permiso de publicación).
 2. GitHub → *Settings* → *Secrets and variables* → *Actions* → añadir
    `CARGO_REGISTRY_TOKEN`.
-3. App de GitHub → *Actions* → *Publish crate* → *Run workflow* (desmarca
-   *dry run*), o envía un tag `v0.1.0`.
+3. Cambia la versión en `crates/securite/Cargo.toml`, escribe su sección en
+   `CHANGELOG.md` y envía los cambios. Cuando la CI de `master` está en verde,
+   *Publish crate* pone el tag de la versión (`v0.1.0`), crea la release de
+   GitHub con esa sección como notas y publica la crate. Sin el secreto, o
+   mientras `vitesse` no esté en crates.io, la publicación espera: más tarde,
+   app de GitHub → *Actions* → *Publish crate* → *Run workflow* (desmarca
+   *dry run*).
 
 ## Desarrollo local
 

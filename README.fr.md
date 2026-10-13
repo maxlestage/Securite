@@ -100,8 +100,13 @@ Nommez une branche `wip/...` pour l'exclure.
 1. crates.io → *Account settings* → *API Tokens* → nouveau jeton (droit de publication).
 2. GitHub → *Settings* → *Secrets and variables* → *Actions* → ajouter
    `CARGO_REGISTRY_TOKEN`.
-3. Application GitHub → *Actions* → *Publish crate* → *Run workflow*
-   (décochez *dry run*), ou poussez un tag `v0.1.0`.
+3. Changez la version dans `crates/securite/Cargo.toml`, écrivez sa section
+   dans `CHANGELOG.md` et poussez. Une fois la CI de `master` au vert,
+   *Publish crate* pose le tag de la version (`v0.1.0`), crée la release GitHub
+   avec cette section pour notes et publie la crate. Sans le secret, ou tant que
+   `vitesse` n'est pas sur crates.io, la publication attend : plus tard,
+   application GitHub → *Actions* → *Publish crate* → *Run workflow* (décochez
+   *dry run*).
 
 ## Développement local
 

@@ -4,18 +4,22 @@ Securite is published on [crates.io](https://crates.io/crates/securite) as the `
 crate, under its [proprietary license](LICENSE): the source is visible there so that it can
 be audited and built, and anyone may depend on it.
 
-## One release = one tag
+## One release = one version bump
 
-1. Bump `version` in [`crates/securite/Cargo.toml`](crates/securite/Cargo.toml), update
-   [`CHANGELOG.md`](CHANGELOG.md) and commit.
-2. Push the tag `vX.Y.Z` (the same version with a `v` in front), or open **Actions →
-   Publish crate → Run workflow** and uncheck *dry run*.
+1. Bump `version` in [`crates/securite/Cargo.toml`](crates/securite/Cargo.toml), write its
+   `## [X.Y.Z]` section in [`CHANGELOG.md`](CHANGELOG.md) and commit.
+2. Push to `master`. That is all.
 
-The [`publish.yml`](.github/workflows/publish.yml) workflow runs the tests, checks that the
-tag matches the version and publishes the crate. It works from the GitHub app on a phone;
-nothing is installed locally. Started by hand, it is a dry run by default (the package is
-built and checked, nothing is uploaded). The full guide:
-[`docs/en/publish-crates-io.md`](docs/en/publish-crates-io.md).
+Once CI is green on `master`, the [`publish.yml`](.github/workflows/publish.yml) workflow
+sees a version without a tag: it tags it `vX.Y.Z`, creates the GitHub release with that
+version's CHANGELOG section as notes (GitHub's generated notes if there is none), runs the
+tests and publishes the crate. Without the `CARGO_REGISTRY_TOKEN` secret, or while `vitesse`
+is not on crates.io yet, the tag and the release are still made and the publication is
+postponed: open **Actions → Publish crate → Run workflow** later and uncheck *dry run*.
+Pushing a tag `vX.Y.Z` by hand still publishes too (the workflow checks that the tag matches
+the version). It all works from the GitHub app on a phone; nothing is installed locally.
+Started by hand, it is a dry run by default (the package is built and checked, nothing is
+uploaded). The full guide: [`docs/en/publish-crates-io.md`](docs/en/publish-crates-io.md).
 
 ## One-time setup
 

@@ -30,6 +30,9 @@ jobs:
     name: Merge into master
     needs: ci
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     concurrency:
       group: merge-into-master
       cancel-in-progress: false
@@ -53,3 +56,8 @@ jobs:
           git merge --no-ff --no-edit "$SHA" -m "Merge branch '$BRANCH' into master (auto-merge)"
           git push origin HEAD:master
           echo "::notice title=Auto-merge::$BRANCH merged into master"
+      # A push made with GITHUB_TOKEN starts no workflow: release a new version by hand.
+      - name: Release a new version (tag, GitHub release, crates.io)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref master --repo "$GITHUB_REPOSITORY" -f release=true

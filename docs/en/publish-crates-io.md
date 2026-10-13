@@ -1,11 +1,11 @@
 ---
 title: Publish the crate on crates.io
-summary: Release a new version of the Securite crate from your phone with a crates.io token, one GitHub secret and the Publish crate workflow, and manage versions safely.
+summary: Release a new version of the Securite crate by pushing its version and changelog: the Publish crate workflow tags it, creates the GitHub release and publishes it on crates.io, from your phone, and you manage versions safely.
 category: deploy
 order: 4
 ---
 
-The `securite` crate in `crates/securite` is ready for crates.io. Publishing runs in GitHub Actions (`.github/workflows/publish.yml`), so a phone is enough.
+The `securite` crate in `crates/securite` is ready for crates.io. Publishing runs in GitHub Actions (`.github/workflows/publish.yml`) and starts on its own when a new version reaches `master`, so a phone is enough.
 
 ## What is already in place
 
@@ -32,6 +32,16 @@ The GitHub mobile app cannot edit secrets, so use the mobile browser: repository
 
 ## Publish a version
 
+### Automatically, from master
+
+Change the version, write its section in `CHANGELOG.md`, push (see the checklist below). Nothing else to fill in: once CI is green on a push to `master`, the **Publish crate** workflow reads the version of `securite` and, if it has no tag yet:
+
+1. tags the commit `v` followed by the version (`v0.1.0` for `0.1.0`);
+2. creates the GitHub release of that tag, with the `## [0.1.0]` section of `CHANGELOG.md` as notes (GitHub's generated notes when there is no such section);
+3. runs `cargo test -p securite`, then `cargo publish -p securite`.
+
+A version that already has its tag is left alone, so ordinary pushes publish nothing. Without the `CARGO_REGISTRY_TOKEN` secret, or while `vitesse` (a dependency of the default `vitesse` feature) is not on crates.io yet, the tag and the release are still made and the publication is postponed: the run ends with a notice, and you publish later from the Actions tab.
+
 ### From the Actions tab
 
 1. GitHub app → repository → **Actions** → **Publish crate** → **Run workflow**.
@@ -40,9 +50,11 @@ The GitHub mobile app cannot edit secrets, so use the mobile browser: repository
 
 Left ticked, which is the default, the workflow only runs `cargo publish --dry-run`: a safe rehearsal before the real upload.
 
-### From a release tag
+Use it for a postponed publication, once the secret is in place or `vitesse` is online.
 
-In the mobile browser: **Releases** → **Draft a new release** → **Choose a tag**, type `v0.1.0` and select **Create new tag on publish**, target `master`, write the notes, **Publish release**. The new tag starts the workflow, which checks that the tag equals `v` followed by the crate version and fails otherwise. A tag always publishes for real.
+### From a tag
+
+Pushing a tag `v0.1.0` yourself still starts the workflow, which checks that the tag equals `v` followed by the crate version and fails otherwise. A tag always publishes for real. The automatic release usually makes this unnecessary.
 
 A few minutes after the upload, docs.rs builds the documentation at [docs.rs/securite](https://docs.rs/securite).
 
@@ -50,9 +62,9 @@ A few minutes after the upload, docs.rs builds the documentation at [docs.rs/sec
 
 1. Bump `version` in `crates/securite/Cargo.toml`, following semantic versioning.
 2. Set the same version on the `securite` entry of the root `Cargo.lock` (the line after `name = "securite"`). The Docker build uses `--locked` and fails when the lockfile is out of date.
-3. Describe the changes in `CHANGELOG.md` at the repository root (Keep a Changelog format): the website footer links to it.
+3. Describe the changes in `CHANGELOG.md` at the repository root (Keep a Changelog format), under a `## [0.1.1]` heading: this section becomes the notes of the GitHub release. The website footer links to the file.
 4. Commit on a branch and let [CI and auto-merge](/docs/ci-auto-merge) bring it into `master`.
-5. Publish with a release tag, or from the Actions tab.
+5. Nothing more: once CI is green on `master`, the workflow tags `v0.1.1`, creates the release and publishes the crate.
 
 ```toml
 [package]
