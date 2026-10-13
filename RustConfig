@@ -7,4 +7,4 @@
 # succeeded, heroku-build.sh builds them into site/pkg.
 VERSION=stable
 RUST_CARGO_BUILD_FLAGS="--release --locked -p securite-server"
-trap 'status=$?; if [ "$status" -eq 0 ]; then "$BUILD_DIR/heroku-build.sh" || exit 1; fi' EXIT
+trap 'status=$?; if [ "$status" -eq 0 ]; then bash "$BUILD_DIR/heroku-build.sh" || exit 1; fi' EXIT
