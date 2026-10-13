@@ -60,7 +60,7 @@ Lisez le [README de la crate](crates/securite/README.md) et la [documentation](d
 **Option A — en un geste.** Ouvrez `https://heroku.com/deploy?template=https://github.com/maxlestage/Securite` sur votre téléphone, choisissez un nom d'application, touchez
 *Deploy app*. Heroku compile le site avec le
 [buildpack emk/rust](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust)
-sur la stack `heroku-24`, comme l'indiquent `RustConfig` et `Procfile`
+sur la stack `heroku-26`, comme l'indiquent `RustConfig`, `heroku-build.sh` et `Procfile`
 (≈ 10–15 min la première fois), puis le démarre.
 
 **Option B — déploiement automatique à chaque merge.**
@@ -75,7 +75,7 @@ sur la stack `heroku-24`, comme l'indiquent `RustConfig` et `Procfile`
    `docker` à la variable de dépôt `HEROKU_BUILD` pour construire plutôt le
    `Dockerfile` (`heroku.yml`).
 
-Depuis un ordinateur : `heroku create --stack heroku-24 --buildpack emk/rust`,
+Depuis un ordinateur : `heroku create --stack heroku-26 --buildpack emk/rust`,
 puis `git push heroku master:main`.
 
 Guide complet : [docs/fr/heroku-from-phone.md](docs/fr/heroku-from-phone.md).

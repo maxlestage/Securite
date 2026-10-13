@@ -2,7 +2,7 @@
 # Used when the repository variable HEROKU_BUILD is docker: then
 # .github/workflows/deploy.yml does `heroku stack:set container` for you. By
 # default, Heroku builds with the emk/rust buildpack (RustConfig, Procfile,
-# app.json for the Deploy button) on the heroku-24 stack.
+# app.json for the Deploy button) on the heroku-26 stack.
 build:
   docker:
     web: Dockerfile
