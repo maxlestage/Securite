@@ -1,11 +1,11 @@
 ---
 title: Publicar el crate en crates.io
-summary: Publique una nueva versión del crate Securite desde el móvil con un token de crates.io, un secreto de GitHub y el workflow Publish crate, y gestione sus versiones con seguridad.
+summary: Publique una nueva versión del crate Securite enviando su versión y su changelog: el workflow Publish crate pone la etiqueta, crea la release de GitHub y publica en crates.io, desde el móvil, y usted gestiona sus versiones con seguridad.
 category: deploy
 order: 4
 ---
 
-El crate `securite`, en `crates/securite`, está listo para crates.io. La publicación se ejecuta en GitHub Actions (`.github/workflows/publish.yml`), así que basta con un móvil.
+El crate `securite`, en `crates/securite`, está listo para crates.io. La publicación se ejecuta en GitHub Actions (`.github/workflows/publish.yml`) y arranca sola cuando una nueva versión llega a `master`, así que basta con un móvil.
 
 ## Lo que ya está preparado
 
@@ -32,6 +32,16 @@ La aplicación de GitHub no permite editar secretos, así que use el navegador m
 
 ## Publicar una versión
 
+### Automáticamente, desde master
+
+Cambie la versión, redacte su sección en `CHANGELOG.md` y envíe los cambios (vea la lista de comprobación más abajo). Ningún formulario que rellenar: cuando la CI está en verde en un push a `master`, el workflow **Publish crate** lee la versión de `securite` y, si aún no tiene etiqueta:
+
+1. pone en el commit la etiqueta `v` seguida de la versión (`v0.1.0` para `0.1.0`);
+2. crea la release de GitHub de esa etiqueta, con la sección `## [0.1.0]` de `CHANGELOG.md` como notas (las notas generadas por GitHub si esa sección no existe);
+3. ejecuta `cargo test -p securite` y luego `cargo publish -p securite`.
+
+Una versión que ya tiene su etiqueta se deja tal cual: los pushes normales no publican nada. Sin el secreto `CARGO_REGISTRY_TOKEN`, o mientras `vitesse` (dependencia de la feature por defecto `vitesse`) no esté en crates.io, la etiqueta y la release se crean igualmente y la publicación se aplaza: la ejecución termina con un aviso, y usted publica más tarde desde la pestaña Actions.
+
 ### Desde la pestaña Actions
 
 1. Aplicación de GitHub → repositorio → **Actions** → **Publish crate** → **Run workflow**.
@@ -40,9 +50,11 @@ La aplicación de GitHub no permite editar secretos, así que use el navegador m
 
 Si la casilla sigue marcada, que es lo predeterminado, el workflow solo ejecuta `cargo publish --dry-run`: un ensayo sin riesgo antes de la subida real.
 
-### Desde una etiqueta de versión
+Úsela para una publicación aplazada, una vez configurado el secreto o con `vitesse` ya publicado.
 
-En el navegador móvil: **Releases** → **Draft a new release** → **Choose a tag**, escriba `v0.1.0` y elija **Create new tag on publish**, destino `master`, redacte las notas, **Publish release**. La nueva etiqueta lanza el workflow, que comprueba que sea `v` seguida de la versión del crate y falla en caso contrario. Una etiqueta siempre publica de verdad.
+### Desde una etiqueta
+
+Enviar usted mismo una etiqueta `v0.1.0` sigue lanzando el workflow, que comprueba que sea `v` seguida de la versión del crate y falla en caso contrario. Una etiqueta siempre publica de verdad. La publicación automática suele hacer innecesario este camino.
 
 Unos minutos después de la subida, docs.rs genera la documentación en [docs.rs/securite](https://docs.rs/securite).
 
@@ -50,9 +62,9 @@ Unos minutos después de la subida, docs.rs genera la documentación en [docs.rs
 
 1. Suba `version` en `crates/securite/Cargo.toml` siguiendo el versionado semántico.
 2. Ponga la misma versión en la entrada `securite` del `Cargo.lock` raíz (la línea que sigue a `name = "securite"`). La compilación Docker usa `--locked` y falla si el lockfile no está al día.
-3. Describa los cambios en `CHANGELOG.md`, en la raíz del repositorio (formato Keep a Changelog): el pie de página del sitio enlaza a él.
+3. Describa los cambios en `CHANGELOG.md`, en la raíz del repositorio (formato Keep a Changelog), bajo un título `## [0.1.1]`: esa sección se convierte en las notas de la release de GitHub. El pie de página del sitio enlaza al archivo.
 4. Haga commit en una rama y deje que la [CI y la fusión automática](/docs/ci-auto-merge) lo lleven a `master`.
-5. Publique con una etiqueta de versión o desde la pestaña Actions.
+5. Nada más: cuando la CI está en verde en `master`, el workflow pone la etiqueta `v0.1.1`, crea la release y publica el crate.
 
 ```toml
 [package]

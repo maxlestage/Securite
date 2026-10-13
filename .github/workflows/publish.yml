@@ -1,12 +1,26 @@
-# Publishes the `securite` crate to crates.io.
+# Publishes the `securite` crate to crates.io, on its own: once CI is green on
+# master, a version of crates/securite that has no tag yet gets its tag (v0.1.0 for
+# 0.1.0) and its GitHub release, with the notes of its section in CHANGELOG.md, then
+# the crate is published. Nothing to fill in by hand: change the version, write the
+# changelog section, push.
 #
-# From your phone: GitHub app → Actions → "Publish crate" → Run workflow
+# A branch merged by auto-merge.yml reaches master without starting CI there (a push
+# made with GITHUB_TOKEN starts no workflow): the auto-merge then runs this workflow
+# itself, with `release`, after the merge.
+#
+# By hand, from your phone: GitHub app → Actions → "Publish crate" → Run workflow
 # (uncheck "dry run"), or push a tag `vX.Y.Z` matching the crate version.
 # Needs the CARGO_REGISTRY_TOKEN secret (crates.io → Account settings → API Tokens).
-# vitesse (a dependency of the default `vitesse` feature) must be on crates.io first.
+# vitesse (a dependency of the default `vitesse` feature) must be on crates.io first;
+# until then (or without the secret) the automatic release still tags the version
+# and creates its GitHub release, and leaves the publication for later.
 name: Publish crate
 
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
   push:
     tags: ["v*"]
   workflow_dispatch:
@@ -15,19 +29,70 @@ on:
         description: "Dry run (package and verify only)"
         type: boolean
         default: true
+      release:
+        description: "Release the version of master if it has no tag yet (what the auto-merge runs)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
+  tag:
+    name: Tag the new version
+    if: >-
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      created: ${{ steps.release.outputs.created }}
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Release the version of the crate if it is new
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name=="securite") | .version')
+          TAG="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG already exists: nothing to release."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The notes: the section of this version in CHANGELOG.md.
+          awk -v head="## [$VERSION]" 'index($0, head) == 1 { on = 1; next } on && /^## \[/ { exit } on' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then
+            gh release create "$TAG" --target "$SHA" --title "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --target "$SHA" --title "$TAG" --generate-notes
+          fi
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "### 🏷️ [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG) released" >> "$GITHUB_STEP_SUMMARY"
+
   publish:
+    needs: tag
+    # `needs` skips this job for the other events unless `always()` lets them through.
+    if: >-
+      always() &&
+      (needs.tag.outputs.created == 'true' ||
+      (github.event_name != 'workflow_run' && !inputs.release))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.tag.outputs.sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Tests
-        run: cargo test -p securite
       - name: Check the tag matches the crate version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -36,10 +101,33 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match crate version $VERSION"
             exit 1
           fi
+      # On the automatic release, a missing token or vitesse missing from crates.io
+      # only postpones the publication.
+      - name: Ready to publish
+        id: ready
+        env:
+          AUTOMATIC: ${{ github.event_name == 'workflow_run' || inputs.release }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ "$AUTOMATIC" != "true" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::notice::Released on GitHub; add the CARGO_REGISTRY_TOKEN secret to publish on crates.io too, then run this workflow by hand."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif ! curl -sf -o /dev/null -A "securite-release (github.com/maxlestage/Securite)" https://crates.io/api/v1/crates/vitesse; then
+            echo "::notice::Released on GitHub; crates.io waits for vitesse (publish it from its repository, then run this workflow by hand)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Tests
+        if: steps.ready.outputs.ready == 'true'
+        run: cargo test -p securite
       - name: Publish
+        if: steps.ready.outputs.ready == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          DRY_RUN: ${{ inputs.dry_run && !inputs.release }}
         run: |
           set -euo pipefail
           if [ "$DRY_RUN" = "true" ]; then
@@ -50,4 +138,10 @@ jobs:
             echo "::error::Add the CARGO_REGISTRY_TOKEN repository secret first."
             exit 1
           fi
-          cargo publish -p securite
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name=="securite") | .version')
+          if curl -sf -o /dev/null -A "securite-release (github.com/maxlestage/Securite)" "https://crates.io/api/v1/crates/securite/$VERSION"; then
+            echo "securite $VERSION is already on crates.io."
+          else
+            cargo publish -p securite
+          fi
+          echo "### 📦 Published on [crates.io/crates/securite](https://crates.io/crates/securite)" >> "$GITHUB_STEP_SUMMARY"

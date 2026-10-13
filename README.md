@@ -97,8 +97,12 @@ Name a branch `wip/...` to opt out.
 1. crates.io → *Account settings* → *API Tokens* → new token (publish scope).
 2. GitHub → *Settings* → *Secrets and variables* → *Actions* → add
    `CARGO_REGISTRY_TOKEN`.
-3. GitHub app → *Actions* → *Publish crate* → *Run workflow* (uncheck
-   *dry run*), or push a tag `v0.1.0`.
+3. Bump the version in `crates/securite/Cargo.toml`, write its section in
+   `CHANGELOG.md` and push. Once the CI of `master` is green, *Publish crate*
+   tags the version (`v0.1.0`), creates the GitHub release with that section
+   as notes and publishes the crate. Without the secret, or while `vitesse` is
+   not on crates.io, the publication waits: later, GitHub app → *Actions* →
+   *Publish crate* → *Run workflow* (uncheck *dry run*).
 
 ## Local development
 

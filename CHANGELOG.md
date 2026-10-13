@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Automatic releases: once CI is green on `master`, a version of `securite` without
+  a tag gets its tag (`v0.1.0` for 0.1.0), its GitHub release (notes taken from its
+  section of this changelog) and its publication on crates.io. Releasing a version
+  is now: bump it, write its section here, push. Without the `CARGO_REGISTRY_TOKEN`
+  secret, or while `vitesse` is not on crates.io, the publication is postponed
+  (run *Publish crate* by hand later).
 - Website: a card for shared links. Every page, the root included, has a share
   image (1200×630) with its size and description, shown large by WhatsApp,
   iMessage, LinkedIn, X or Slack.
