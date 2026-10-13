@@ -5,7 +5,7 @@ category: deploy
 order: 1
 ---
 
-Le dépôt contient tout ce dont Heroku a besoin : un `Dockerfile`, un `heroku.yml` pour la stack container et un `app.json` pour le bouton Deploy. Toutes les étapes ci-dessous se font depuis un navigateur mobile ou l'application GitHub. Les libellés cités sont ceux des interfaces en anglais.
+Le dépôt contient tout ce dont Heroku a besoin : un `RustConfig` et un `Procfile` pour le [buildpack emk/rust](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust) sur la stack `heroku-24`, la façon dont Heroku construit le site par défaut, un `app.json` pour le bouton Deploy, et un `Dockerfile` avec un `heroku.yml` pour la stack container, l'autre façon de le construire. Toutes les étapes ci-dessous se font depuis un navigateur mobile ou l'application GitHub. Les libellés cités sont ceux des interfaces en anglais.
 
 ## Avant de commencer
 
@@ -19,7 +19,7 @@ Le dépôt contient tout ce dont Heroku a besoin : un `Dockerfile`, un `heroku.y
 3. Conservez les variables de configuration préremplies par `app.json` :
    * `SECURITE_ENV=production` active la redirection HTTPS, HSTS et `upgrade-insecure-requests`, et lit l'IP du client dans l'en-tête `X-Forwarded-For` de Heroku.
    * `RUST_LOG=info` est le filtre de journalisation ; les événements de sécurité utilisent la cible `securite`.
-4. Touchez **Deploy app**. Comme `app.json` déclare `"stack": "container"`, Heroku construit l'image décrite par `heroku.yml`, c'est-à-dire le `Dockerfile` du dépôt. Le premier build prend environ 10 à 15 minutes, car tout le code Rust est compilé à partir de zéro.
+4. Touchez **Deploy app**. Comme `app.json` déclare la stack `heroku-24` et le buildpack `emk/rust`, Heroku compile le serveur avec Cargo comme l'indique `RustConfig` (`--release --locked -p securite-server`), puis `heroku-build.sh` construit les îlots WebAssembly dans `site/pkg` ; le `Procfile` lance `target/release/securite-server`. Le premier build prend environ 10 à 15 minutes, car tout le code Rust est compilé à partir de zéro.
 5. Une fois le build terminé, touchez **View** pour ouvrir le site.
 
 Une application créée avec le bouton est un instantané : les commits suivants ne sont pas déployés. Mettez en place la méthode B avec le même nom d'application pour la tenir à jour.
@@ -43,6 +43,7 @@ L'application GitHub ne permet pas de modifier les secrets : utilisez le navigat
 2. **Secrets and variables** → **Actions** → **New repository secret**.
 3. Créez `HEROKU_API_KEY` avec la clé.
 4. Créez `HEROKU_APP_NAME` avec un nom unique, par exemple `securite-votrenom`. Une variable de dépôt portant ce nom fonctionne aussi.
+5. Facultatif : sous **Variables** → **New repository variable**, créez `HEROKU_BUILD` avec la valeur `docker` pour construire plutôt le `Dockerfile` sur la stack container. La valeur par défaut, `buildpack`, utilise le buildpack `emk/rust`.
 
 ### Ce que fait chaque exécution
 
@@ -51,8 +52,8 @@ Le workflow démarre à chaque push sur `master`, après chaque exécution réus
 Toute la CI (tests, lints, build du site) est d'abord relancée sur `master` ; rien n'est déployé si elle n'est pas verte. Ensuite :
 
 1. **Check configuration** : s'il manque un secret, l'exécution se termine avec l'avis *Heroku deploy skipped*, et non en échec.
-2. **Prepare the Heroku app** : crée l'application si elle n'existe pas, règle sa stack sur `container`, et définit `SECURITE_ENV=production` sauf si la variable existe déjà.
-3. **Push to Heroku** : un `git push --force` de `master` vers le dépôt Git Heroku de l'application. Heroku construit l'image avec `heroku.yml`.
+2. **Prepare the Heroku app** : crée l'application si elle n'existe pas. Avec `HEROKU_BUILD=buildpack`, la valeur par défaut, l'étape passe l'application sur la stack `heroku-24` si elle était sur `container` et règle son buildpack sur `emk/rust` ; avec `HEROKU_BUILD=docker`, elle règle sa stack sur `container`. Elle définit ensuite `SECURITE_ENV=production` sauf si la variable existe déjà.
+3. **Push to Heroku** : un `git push --force` de `master` vers le dépôt Git Heroku de l'application. Heroku construit le site avec le buildpack, ou l'image avec `heroku.yml`.
 4. **Smoke test** : interroge `/api/health` toutes les 10 secondes pendant 5 minutes au plus, puis affiche les en-têtes CSP, HSTS et d'identifiant de requête.
 
 Pour déployer à la main : application GitHub → dépôt → **Actions** → **Deploy to Heroku** → **Run workflow**.
@@ -63,7 +64,18 @@ Pour déployer à la main : application GitHub → dépôt → **Actions** → *
 2. Recherchez le dépôt et touchez **Connect**.
 3. Sous **Automatic deploys**, choisissez `master`, puis **Enable Automatic Deploys**. **Manual deploy** → **Deploy Branch** lance un premier build.
 
-> **Attention :** la stack de l'application doit être `container`, sinon Heroku ignore `heroku.yml` et cherche un buildpack. Les méthodes A et B la règlent pour vous ; sinon, il faut lancer `heroku stack:set container` depuis la CLI Heroku, ce qui exige un ordinateur. Préférez A ou B, et ne combinez jamais B et C sur une même application : chaque fusion déclencherait deux builds.
+> **Attention :** l'application a besoin du buildpack `emk/rust`, sur une stack comme `heroku-24`. Les méthodes A et B le règlent pour vous ; sinon, ajoutez-le dans **Settings** → **Buildpacks** → **Add buildpack** → `emk/rust`. C'est impossible tant que la stack est `container`, et seule la CLI Heroku change la stack (`heroku stack:set heroku-24`), ce qui exige un ordinateur. Préférez A ou B, et ne combinez jamais B et C sur une même application : chaque fusion déclencherait deux builds.
+
+## Avec la CLI Heroku
+
+Depuis un ordinateur, sans GitHub Actions :
+
+```bash
+heroku create --stack heroku-24 --buildpack emk/rust
+git push heroku master:main
+```
+
+Pour une application existante, lancez `heroku stack:set heroku-24`, puis `heroku buildpacks:set emk/rust`, avant le push. Pour construire plutôt le `Dockerfile`, `heroku stack:set container` suffit : `heroku.yml` prend le relais.
 
 ## Vérifier le déploiement
 
@@ -97,6 +109,8 @@ Pour changer le niveau de détail, modifiez `RUST_LOG` dans **Settings** → **R
 | Le build dure 10 à 15 minutes | Normal : chaque crate Rust est compilée en mode release. Suivez le journal de build jusqu'au bout. |
 | `H10 App crashed` | Le processus s'est arrêté au démarrage. Lisez les lignes de journal juste avant, corrigez la cause, puis **More** → **Restart all dynos**. |
 | `R10 Boot timeout` | Rien n'écoutait sur `$PORT`. Heroku définit `PORT` à chaque démarrage et le serveur le lit : ne codez jamais un port en dur dans `main.rs` ou le `Dockerfile`. |
+| `HEROKU_BUILD must be buildpack or docker` | La variable de dépôt `HEROKU_BUILD` a une autre valeur : corrigez-la, ou supprimez-la pour utiliser le buildpack. |
+| `No default language could be detected` | L'application n'a pas de buildpack (méthode C ou CLI) : ajoutez `emk/rust`, voir plus haut. |
 | Avis *Heroku deploy skipped* | `HEROKU_API_KEY` ou `HEROKU_APP_NAME` manque ou est mal orthographié. Utilisez des secrets de dépôt, pas des secrets d'environnement. |
 | `Name is already taken` | Les noms d'application sont globaux : choisissez-en un autre. |
 | Le smoke test échoue | Dans **Resources**, vérifiez que le dyno `web` est activé, puis lisez les journaux. |

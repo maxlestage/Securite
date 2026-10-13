@@ -1,0 +1,10 @@
+# Heroku with the emk/rust buildpack (https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust):
+# the website and its live demo (server/, which renders site/). heroku.yml (the
+# "container" stack, with the Dockerfile) remains the other way to deploy it.
+#
+# The buildpack sources this file, then runs `cargo build $RUST_CARGO_BUILD_FLAGS`.
+# The islands (WebAssembly) are not a Cargo binary: once that build has
+# succeeded, heroku-build.sh builds them into site/pkg.
+VERSION=stable
+RUST_CARGO_BUILD_FLAGS="--release --locked -p securite-server"
+trap 'status=$?; if [ "$status" -eq 0 ]; then "$BUILD_DIR/heroku-build.sh" || exit 1; fi' EXIT

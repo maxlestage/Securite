@@ -1,11 +1,15 @@
-# Deploys master to Heroku (container stack, heroku.yml).
+# Deploys master to Heroku, built in one of two ways:
+#   - buildpack (default): the emk/rust buildpack, configured by RustConfig and
+#     Procfile, on the heroku-24 stack;
+#   - docker: the Dockerfile, through heroku.yml, on the container stack.
 #
 # Setup, from a phone browser (see docs/en/heroku-from-phone.md):
 #   1. Heroku → Account settings → API Key → Reveal → copy.
 #   2. GitHub → Settings → Secrets and variables → Actions → New secret:
 #        HEROKU_API_KEY  = the key
 #        HEROKU_APP_NAME = a unique app name, e.g. securite-yourname
-# The app is created automatically if it does not exist yet.
+# The app is created automatically if it does not exist yet. Optional repository
+# variable HEROKU_BUILD: buildpack (default) or docker.
 name: Deploy to Heroku
 
 on:
@@ -37,6 +41,7 @@ jobs:
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME || vars.HEROKU_APP_NAME }}
+      HEROKU_BUILD: ${{ vars.HEROKU_BUILD || 'buildpack' }}
     steps:
       - name: Check configuration
         id: cfg
@@ -63,19 +68,34 @@ jobs:
               -H "Accept: application/vnd.heroku+json; version=3" \
               -H "Content-Type: application/json" "$@"
           }
+          case "$HEROKU_BUILD" in
+            buildpack) stack=heroku-24 ;;
+            docker) stack=container ;;
+            *) echo "::error::HEROKU_BUILD must be buildpack or docker, not \"$HEROKU_BUILD\"."; exit 1 ;;
+          esac
           if ! api "https://api.heroku.com/apps/$HEROKU_APP_NAME" > /dev/null 2>&1; then
             echo "Creating Heroku app $HEROKU_APP_NAME"
             api -X POST https://api.heroku.com/apps \
-              -d "{\"name\":\"$HEROKU_APP_NAME\",\"stack\":\"container\"}" > /dev/null
+              -d "{\"name\":\"$HEROKU_APP_NAME\",\"stack\":\"$stack\"}" > /dev/null
           fi
-          # heroku.yml builds need the container stack.
-          api -X PATCH "https://api.heroku.com/apps/$HEROKU_APP_NAME" -d '{"build_stack":"container"}' > /dev/null
+          current=$(api "https://api.heroku.com/apps/$HEROKU_APP_NAME" | jq -r '.build_stack.name')
+          # heroku.yml builds need the container stack; a buildpack app keeps its heroku-NN stack.
+          if { [ "$HEROKU_BUILD" = docker ] && [ "$current" != container ]; } ||
+             { [ "$HEROKU_BUILD" = buildpack ] && [ "$current" = container ]; }; then
+            echo "Switching the app from the $current stack to $stack"
+            api -X PATCH "https://api.heroku.com/apps/$HEROKU_APP_NAME" -d "{\"build_stack\":\"$stack\"}" > /dev/null
+          fi
+          if [ "$HEROKU_BUILD" = buildpack ]; then
+            echo "Buildpack: emk/rust (RustConfig, Procfile)"
+            api -X PUT "https://api.heroku.com/apps/$HEROKU_APP_NAME/buildpack-installations" \
+              -d '{"updates":[{"buildpack":"emk/rust"}]}' > /dev/null
+          fi
           # Production mode unless you configured something else.
           if ! api "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars" | jq -e '.SECURITE_ENV' > /dev/null; then
             api -X PATCH "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars" -d '{"SECURITE_ENV":"production"}' > /dev/null
           fi
 
-      - name: Push to Heroku (builds the Docker image with heroku.yml)
+      - name: Push to Heroku (built with the emk/rust buildpack, or the Docker image of heroku.yml)
         if: steps.cfg.outputs.enabled == 'true'
         run: |
           set -euo pipefail
