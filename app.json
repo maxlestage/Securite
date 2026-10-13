@@ -1,7 +1,7 @@
 {
   "name": "securite",
   "description": "Website and live demo of securite, fast security middlewares for Rust (Vitesse, hyper, tonic). Pages rendered with active, WebAssembly islands, installable PWA, protected by its own WAF, rate limiter, CSP and more.",
-  "logo": "https://maxlestage.github.io/Securite/static/favicon.svg",
+  "logo": "https://securite-2db4c1994be7.herokuapp.com/static/favicon.svg",
   "keywords": [
     "rust",
     "security",

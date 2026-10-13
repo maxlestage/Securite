@@ -34,10 +34,10 @@ vitesse = { git = "https://github.com/maxlestage/Vitesse" }
 |---|---|
 | Version actuelle | 0.1.0 |
 | Version minimale de Rust prise en charge | 1.85 (édition 2024) |
-| Licence | Propriétaire (© Maxime Nathan Lestage, tous droits réservés) : utilisation libre comme dépendance, voir [LICENSE](https://maxlestage.github.io/Securite/LICENSE.txt) |
+| Licence | Propriétaire (© Maxime Nathan Lestage, tous droits réservés) : utilisation libre comme dépendance, voir [LICENSE](https://securite-2db4c1994be7.herokuapp.com/static/LICENSE.txt) |
 | Code unsafe | Aucun, la crate est en `#![forbid(unsafe_code)]` |
 | Dépendances natives | Aucune (100 % Rust) |
-| Dépôt | `https://maxlestage.github.io/Securite/` |
+| Dépôt | `https://securite-2db4c1994be7.herokuapp.com/` |
 
 ## Features Cargo
 

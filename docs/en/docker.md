@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-The `Dockerfile` at the repository root builds this website: pages rendered on the server with [Active](https://maxlestage.github.io/Active/) and WebAssembly islands, served by a Vitesse server that protects itself with `securite`. Heroku builds the site with the Rust buildpack by default, and builds this same image for you when the deploy workflow's `HEROKU_BUILD` repository variable is `docker` (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
+The `Dockerfile` at the repository root builds this website: pages rendered on the server with [Active](https://active-c1883a966650.herokuapp.com/) and WebAssembly islands, served by a Vitesse server that protects itself with `securite`. Heroku builds the site with the Rust buildpack by default, and builds this same image for you when the deploy workflow's `HEROKU_BUILD` repository variable is `docker` (see [Deploy to Heroku from your phone](/docs/heroku-from-phone)); the commands on this page need a computer or a cloud shell.
 
 ## The two stages
 

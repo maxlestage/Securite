@@ -163,7 +163,7 @@ pub fn app() -> App {
 
 ### Empreintes pour les applications monopage
 
-Vite et les bundlers similaires injectent un script d'amorçage inline dans `index.html`, et les front-ends Rust rendus par le serveur en écrivent un pour démarrer leur bundle WebAssembly (ce site, construit avec [Active](https://maxlestage.github.io/Active/), autorise ainsi son chargeur et l'enregistrement de son service worker). Calculez son empreinte au démarrage et gardez un `script-src` strict :
+Vite et les bundlers similaires injectent un script d'amorçage inline dans `index.html`, et les front-ends Rust rendus par le serveur en écrivent un pour démarrer leur bundle WebAssembly (ce site, construit avec [Active](https://active-c1883a966650.herokuapp.com/), autorise ainsi son chargeur et l'enregistrement de son service worker). Calculez son empreinte au démarrage et gardez un `script-src` strict :
 
 ```rust
 use securite::headers::src;

@@ -163,7 +163,7 @@ pub fn app() -> App {
 
 ### Hashes para aplicaciones de una sola página
 
-Vite y otros bundlers similares inyectan un script de arranque inline en `index.html`, y los front-ends Rust renderizados en el servidor escriben uno para arrancar su bundle WebAssembly (este sitio, construido con [Active](https://maxlestage.github.io/Active/), permite así su cargador y el registro de su service worker). Calcule su hash al arrancar y mantenga un `script-src` estricto:
+Vite y otros bundlers similares inyectan un script de arranque inline en `index.html`, y los front-ends Rust renderizados en el servidor escriben uno para arrancar su bundle WebAssembly (este sitio, construido con [Active](https://active-c1883a966650.herokuapp.com/), permite así su cargador y el registro de su service worker). Calcule su hash al arrancar y mantenga un `script-src` estricto:
 
 ```rust
 use securite::headers::src;

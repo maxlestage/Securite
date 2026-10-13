@@ -2,7 +2,7 @@
 //!
 //! **Fast, easy, batteries-included security middlewares for Rust web services.**
 //!
-//! `securite` protects a [Vitesse](https://maxlestage.github.io/Vitesse/) application
+//! `securite` protects a [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) application
 //! with one line, and any [`tower`](https://docs.rs/tower) based stack (hyper, tonic,
 //! Poem, Salvo …) with one layer: the [`Shield`].
 //!

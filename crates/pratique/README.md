@@ -3,7 +3,7 @@
 ![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
 
-**Everyday middlewares for [Vitesse](https://maxlestage.github.io/Vitesse/) that have
+**Everyday middlewares for [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) that have
 nothing to do with security**: caching, observability, URLs, operations and
 internationalisation. The security side lives in its sibling crate, `securite`.
 

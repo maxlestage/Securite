@@ -23,7 +23,7 @@ type EventHook = dyn Fn(&SecurityEvent<'_>) + Send + Sync;
 /// The all-in-one security layer.
 ///
 /// A `Shield` is cheap to clone (it is an `Arc`). With
-/// [Vitesse](https://maxlestage.github.io/Vitesse/) it is a middleware,
+/// [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) it is a middleware,
 /// `app.middleware(Shield::recommended())` (feature `vitesse`, enabled by
 /// default). It also implements [`tower::Layer`](tower_layer::Layer), for
 /// hyper, tonic, `tower::ServiceBuilder` …
@@ -479,7 +479,7 @@ where
     }
 }
 
-/// The shield as a [Vitesse](https://maxlestage.github.io/Vitesse/) middleware.
+/// The shield as a [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) middleware.
 #[cfg(feature = "vitesse")]
 pub(crate) mod vitesse_middleware {
     use std::sync::atomic::Ordering;
