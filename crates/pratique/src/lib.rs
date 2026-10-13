@@ -1,6 +1,6 @@
 //! # Pratique
 //!
-//! **Everyday middlewares for [Vitesse](https://maxlestage.github.io/Vitesse/)
+//! **Everyday middlewares for [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/)
 //! that have nothing to do with security**: caching, observability, URLs,
 //! operations and internationalisation. Each one is a single line:
 //!

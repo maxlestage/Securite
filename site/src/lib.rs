@@ -1,4 +1,4 @@
-//! The securite website, written with [active](https://maxlestage.github.io/Active/).
+//! The securite website, written with [active](https://active-c1883a966650.herokuapp.com/).
 //!
 //! - Natively, [`render`] renders every page (complete SEO, islands), the web app
 //!   manifest and the service worker; `securite-server` serves them behind its own

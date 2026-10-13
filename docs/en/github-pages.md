@@ -7,7 +7,7 @@ order: 2
 
 `.github/workflows/pages.yml` builds the website and publishes a static copy on GitHub Pages at `https://<owner>.github.io/<repository>/` (for this repository: `https://maxlestage.github.io/Securite/`). It is free for public repositories and needs no secret.
 
-GitHub Pages is a static host. The pages are the ones the Vitesse server renders with [Active](https://maxlestage.github.io/Active/), written to files: the animated home page, the documentation hub and every documentation page work exactly as on Heroku, in the three languages, and the copy is an installable app that works offline. The live attack playground and the live statistics need the Vitesse server: on Pages the playground says so and links to the deployment guide. Use [Heroku](/docs/heroku-from-phone) or [Docker](/docs/docker) for the full demo.
+GitHub Pages is a static host. The pages are the ones the Vitesse server renders with [Active](https://active-c1883a966650.herokuapp.com/), written to files: the animated home page, the documentation hub and every documentation page work exactly as on Heroku, in the three languages, and the copy is an installable app that works offline. The live attack playground and the live statistics need the Vitesse server: on Pages the playground says so and links to the deployment guide. Use [Heroku](/docs/heroku-from-phone) or [Docker](/docs/docker) for the full demo.
 
 ## One-time setup from your phone
 

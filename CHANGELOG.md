@@ -83,6 +83,12 @@ Found by reviewing every middleware of `pratique` before its first release:
 
 ### Changed
 
+- Links to the websites of Active, Vitesse, Securite, Memoire and Paquets (READMEs,
+  documentation, doc comments, the crates' `homepage`, `app.json` and the website's
+  footer) now point to their Heroku deployments instead of GitHub Pages. The static
+  copy on GitHub Pages is still exported as before.
+- The ecosystem is now five projects: FerroSwift and Solidify are no longer listed
+  in the READMEs, the website's footer or the publication order.
 - Heroku builds the website with the
   [emk/rust buildpack](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust)
   on the `heroku-26` stack by default: `RustConfig` (the Rust version, and
@@ -95,7 +101,7 @@ Found by reviewing every middleware of `pratique` before its first release:
   on the container stack. The Heroku guide, the READMEs and the Docker page
   describe both ways, and the Heroku CLI setup.
 - **Vitesse instead of axum.** The `Shield` and the `SignatureLayer` are
-  [Vitesse](https://maxlestage.github.io/Vitesse/) middlewares
+  [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) middlewares
   (`app.middleware(Shield::recommended())`, feature `vitesse`, enabled by
   default): the guards receive the peer address of the connection, and what they
   add to the request (`ClientIp`, `RequestIdValue`, `CspNonce`, `CsrfToken`,
@@ -114,7 +120,7 @@ Found by reviewing every middleware of `pratique` before its first release:
 - Credits: Solidify joins the projects linked by the README, the license and the
   website's footer.
 - `securite::VERSION`, the version of the crate.
-- Website rewritten with [Active](https://maxlestage.github.io/Active/) instead of
+- Website rewritten with [Active](https://active-c1883a966650.herokuapp.com/) instead of
   Yew and Trunk: the web server (protected by Securite itself) renders every page
   with complete SEO tags (canonical address, `hreflang` alternates, Open Graph,
   JSON-LD, sitemap) under `/{fr,en,es}/…`, and only the interactive parts

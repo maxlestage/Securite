@@ -1,6 +1,6 @@
 <div align="center">
 
-[![Securite: armor your Rust APIs against XSS, SQL injection and bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+[![Securite: armor your Rust APIs against XSS, SQL injection and bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://securite-2db4c1994be7.herokuapp.com/)
 
 # 🛡️ Securite
 
@@ -22,7 +22,7 @@ This repository contains:
 |---|---|
 | [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for Vitesse, and for tower / hyper / tonic |
 | [`crates/pratique`](crates/pratique) | The **`pratique` crate**: 13 everyday Vitesse middlewares that have nothing to do with security (ETag, Cache-Control, response cache, access logs, Prometheus metrics, response time, trailing slash, redirects, health checks, maintenance mode, headers, locale, API deprecation) |
-| [`site`](site) | The **website**, written with [Active](https://maxlestage.github.io/Active/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
+| [`site`](site) | The **website**, written with [Active](https://active-c1883a966650.herokuapp.com/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
 | [`server`](server) | The Vitesse server that renders and hosts the website and its playground API — protected by `securite` itself |
 | [`docs`](docs) | The **documentation** (47 pages × 3 languages), compiled into the website |
 | [`RustConfig`](RustConfig), [`Procfile`](Procfile), [`heroku-build.sh`](heroku-build.sh), [`app.json`](app.json) | **One-tap Heroku deployment** with the Rust buildpack (`emk/rust`) |
@@ -144,4 +144,4 @@ to the author, as the license states.
 ## Credits
 
 Designed and developed by Maxime Nathan Lestage,
-as part of one family of Rust projects: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/), [FerroSwift](https://maxlestage.github.io/FerroSwift/) and [Solidify](https://maxlestage.github.io/Solidify/).
+as part of one family of Rust projects: [Active](https://active-c1883a966650.herokuapp.com/), [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/), [Securite](https://securite-2db4c1994be7.herokuapp.com/), [Memoire](https://memoire-7f4525f1fdaf.herokuapp.com/) and [Paquets](https://paquets-90dfc06b6fea.herokuapp.com/).

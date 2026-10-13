@@ -1,6 +1,6 @@
 <div align="center">
 
-[![Securite: protege tus API Rust contra el XSS, la inyección SQL y los bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+[![Securite: protege tus API Rust contra el XSS, la inyección SQL y los bots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://securite-2db4c1994be7.herokuapp.com/)
 
 # 🛡️ Securite
 
@@ -22,7 +22,7 @@ Este repositorio contiene:
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 19 middlewares de seguridad para Vitesse, y para tower / hyper / tonic |
 | [`crates/pratique`](crates/pratique) | La **crate `pratique`**: 13 middlewares cotidianos para Vitesse que no tienen nada que ver con la seguridad (ETag, Cache-Control, caché de respuestas, access logs, métricas Prometheus, tiempo de respuesta, barra final, redirecciones, health checks, modo mantenimiento, cabeceras, idioma, deprecación de API) |
-| [`site`](site) | El **sitio web**, escrito con [Active](https://maxlestage.github.io/Active/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
+| [`site`](site) | El **sitio web**, escrito con [Active](https://active-c1883a966650.herokuapp.com/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
 | [`server`](server) | El servidor Vitesse que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (47 páginas × 3 idiomas), compilada en el sitio |
 | [`RustConfig`](RustConfig), [`Procfile`](Procfile), [`heroku-build.sh`](heroku-build.sh), [`app.json`](app.json) | **Despliegue en Heroku con un toque** con el buildpack de Rust (`emk/rust`) |
@@ -147,4 +147,4 @@ derechos al autor, como indica la licencia.
 ## Créditos
 
 Diseñado y desarrollado por Maxime Nathan Lestage,
-dentro de una misma familia de proyectos Rust: [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/), [FerroSwift](https://maxlestage.github.io/FerroSwift/) y [Solidify](https://maxlestage.github.io/Solidify/).
+dentro de una misma familia de proyectos Rust: [Active](https://active-c1883a966650.herokuapp.com/), [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/), [Securite](https://securite-2db4c1994be7.herokuapp.com/), [Memoire](https://memoire-7f4525f1fdaf.herokuapp.com/) y [Paquets](https://paquets-90dfc06b6fea.herokuapp.com/).

@@ -1,6 +1,6 @@
 <div align="center">
 
-[![Securite : protégez vos API Rust contre le XSS, l'injection SQL et les robots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://maxlestage.github.io/Securite/)
+[![Securite : protégez vos API Rust contre le XSS, l'injection SQL et les robots](https://raw.githubusercontent.com/maxlestage/Securite/master/site/static/og-image.jpg)](https://securite-2db4c1994be7.herokuapp.com/)
 
 # 🛡️ Securite
 
@@ -22,7 +22,7 @@ Ce dépôt contient :
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (prête pour crates.io) : 19 middlewares de sécurité pour Vitesse, et pour tower / hyper / tonic |
 | [`crates/pratique`](crates/pratique) | La **crate `pratique`** : 13 middlewares Vitesse du quotidien sans rapport avec la sécurité (ETag, Cache-Control, cache de réponses, access logs, métriques Prometheus, temps de réponse, slash final, redirections, health checks, mode maintenance, en-têtes, langue, dépréciation d'API) |
-| [`site`](site) | Le **site de présentation**, écrit avec [Active](https://maxlestage.github.io/Active/) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
+| [`site`](site) | Le **site de présentation**, écrit avec [Active](https://active-c1883a966650.herokuapp.com/) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
 | [`server`](server) | Le serveur Vitesse qui rend et héberge le site et l'API du playground — protégé par `securite` lui-même |
 | [`docs`](docs) | La **documentation** (47 pages × 3 langues), compilée dans le site |
 | [`RustConfig`](RustConfig), [`Procfile`](Procfile), [`heroku-build.sh`](heroku-build.sh), [`app.json`](app.json) | **Déploiement Heroku en un geste** avec le buildpack Rust (`emk/rust`) |
@@ -148,4 +148,4 @@ les droits à l'auteur, comme l'indique la licence.
 ## Crédits
 
 Conçu et développé par Maxime Nathan Lestage,
-au sein d'une même famille de projets Rust : [Active](https://maxlestage.github.io/Active/), [Vitesse](https://maxlestage.github.io/Vitesse/), [Securite](https://maxlestage.github.io/Securite/), [Memoire](https://maxlestage.github.io/Memoire/), [Paquets](https://maxlestage.github.io/Paquets/), [FerroSwift](https://maxlestage.github.io/FerroSwift/) et [Solidify](https://maxlestage.github.io/Solidify/).
+au sein d'une même famille de projets Rust : [Active](https://active-c1883a966650.herokuapp.com/), [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/), [Securite](https://securite-2db4c1994be7.herokuapp.com/), [Memoire](https://memoire-7f4525f1fdaf.herokuapp.com/) et [Paquets](https://paquets-90dfc06b6fea.herokuapp.com/).
