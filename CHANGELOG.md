@@ -85,9 +85,10 @@ Found by reviewing every middleware of `pratique` before its first release:
 
 - Heroku builds the website with the
   [emk/rust buildpack](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust)
-  on the `heroku-24` stack by default: `RustConfig` (`cargo build --release
-  --locked -p securite-server`), `heroku-build.sh` (the WebAssembly islands, into
-  `site/pkg`) and a `Procfile`; the Deploy button (`app.json`) uses it too. The
+  on the `heroku-26` stack by default: `RustConfig` (the Rust version, and
+  `RUST_SKIP_BUILD=1` so that `heroku-build.sh` does the build instead),
+  `heroku-build.sh` (`cargo build --release --locked -p securite-server`, then the
+  WebAssembly islands, into `site/pkg`) and a `Procfile`; the Deploy button (`app.json`) uses it too. The
   *Deploy to Heroku* workflow takes a new optional repository variable,
   `HEROKU_BUILD`: `buildpack` (default) moves the app off the container stack and
   sets its buildpack, `docker` keeps building the `Dockerfile` with `heroku.yml`

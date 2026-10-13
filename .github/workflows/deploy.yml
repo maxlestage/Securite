@@ -1,6 +1,6 @@
 # Deploys master to Heroku, built in one of two ways:
 #   - buildpack (default): the emk/rust buildpack, configured by RustConfig and
-#     Procfile, on the heroku-24 stack;
+#     Procfile, on the heroku-26 stack;
 #   - docker: the Dockerfile, through heroku.yml, on the container stack.
 #
 # Setup, from a phone browser (see docs/en/heroku-from-phone.md):
@@ -69,7 +69,7 @@ jobs:
               -H "Content-Type: application/json" "$@"
           }
           case "$HEROKU_BUILD" in
-            buildpack) stack=heroku-24 ;;
+            buildpack) stack=heroku-26 ;;
             docker) stack=container ;;
             *) echo "::error::HEROKU_BUILD must be buildpack or docker, not \"$HEROKU_BUILD\"."; exit 1 ;;
           esac

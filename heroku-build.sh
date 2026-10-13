@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# Builds the islands of the website (WebAssembly) into site/pkg, as the Dockerfile
-# does: run on Heroku by RustConfig, after the emk/rust buildpack has built the
-# server. Works by hand too, from the repository: ./heroku-build.sh
+# Builds the server and the islands (WebAssembly), as the
+# Dockerfile does: run on Heroku by RustConfig once the emk/rust buildpack has
+# installed Rust. Works by hand too, from the repository: ./heroku-build.sh
+# The Procfile starts target/release/securite-server.
 set -euo pipefail
 cd "$(dirname "$0")"
+# On Heroku, Cargo builds into the buildpack's cache (CARGO_TARGET_DIR).
 target="${CARGO_TARGET_DIR:-target}"
+
+echo "-----> Building the server"
+cargo build --release --locked -p securite-server
+mkdir -p target/release
+if [ "$target" != target ]; then
+  cp "$target/release/securite-server" target/release/
+fi
+echo "       target/release/securite-server ready"
 
 echo "-----> Building the islands (WebAssembly)"
 rustup target add wasm32-unknown-unknown
