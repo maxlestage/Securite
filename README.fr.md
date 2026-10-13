@@ -25,7 +25,8 @@ Ce dépôt contient :
 | [`site`](site) | Le **site de présentation**, écrit avec [Active](https://maxlestage.github.io/Active/) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
 | [`server`](server) | Le serveur Vitesse qui rend et héberge le site et l'API du playground — protégé par `securite` lui-même |
 | [`docs`](docs) | La **documentation** (47 pages × 3 langues), compilée dans le site |
-| [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml), [`app.json`](app.json) | Image conteneur et **déploiement Heroku en un geste** |
+| [`RustConfig`](RustConfig), [`Procfile`](Procfile), [`heroku-build.sh`](heroku-build.sh), [`app.json`](app.json) | **Déploiement Heroku en un geste** avec le buildpack Rust (`emk/rust`) |
+| [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml) | Image conteneur (Docker, ou la stack container de Heroku) |
 | [`.github/workflows`](.github/workflows) | CI, **merge automatique sur master**, déploiement Heroku, publication crates.io |
 
 ## La crate en 10 secondes
@@ -57,9 +58,10 @@ Lisez le [README de la crate](crates/securite/README.md) et la [documentation](d
 ## Déployer depuis votre téléphone (sans ordinateur)
 
 **Option A — en un geste.** Ouvrez `https://heroku.com/deploy?template=https://github.com/maxlestage/Securite` sur votre téléphone, choisissez un nom d'application, touchez
-*Deploy app*. Heroku construit
-l'image Docker à partir de `heroku.yml` (≈ 10–15 min la première fois) et
-démarre le site.
+*Deploy app*. Heroku compile le site avec le
+[buildpack emk/rust](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust)
+sur la stack `heroku-24`, comme l'indiquent `RustConfig` et `Procfile`
+(≈ 10–15 min la première fois), puis le démarre.
 
 **Option B — déploiement automatique à chaque merge.**
 
@@ -69,7 +71,12 @@ démarre le site.
 3. C'est tout : chaque push fusionné sur `master` est déployé par
    [`deploy.yml`](.github/workflows/deploy.yml) (l'application est créée si
    besoin). Lancement manuel : application GitHub → *Actions* → *Deploy to
-   Heroku* → *Run workflow*.
+   Heroku* → *Run workflow*. Il utilise lui aussi le buildpack ; donnez la valeur
+   `docker` à la variable de dépôt `HEROKU_BUILD` pour construire plutôt le
+   `Dockerfile` (`heroku.yml`).
+
+Depuis un ordinateur : `heroku create --stack heroku-24 --buildpack emk/rust`,
+puis `git push heroku master:main`.
 
 Guide complet : [docs/fr/heroku-from-phone.md](docs/fr/heroku-from-phone.md).
 

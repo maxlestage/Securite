@@ -12,7 +12,12 @@
     "active",
     "pwa"
   ],
-  "stack": "container",
+  "stack": "heroku-24",
+  "buildpacks": [
+    {
+      "url": "emk/rust"
+    }
+  ],
   "env": {
     "SECURITE_ENV": {
       "description": "`production` enables the HTTPS redirect, HSTS, upgrade-insecure-requests and reads the client IP from Heroku's X-Forwarded-For.",

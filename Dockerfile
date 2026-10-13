@@ -6,8 +6,10 @@
 #                which renders the pages with active
 #   2. runtime : small Debian image, non-root user
 #
-# Used by `docker build .`, Heroku (heroku.yml / Deploy button) and the
-# GitHub Actions deploy workflow. The server listens on $PORT (Heroku sets it).
+# Used by `docker build .` and by Heroku's container stack (heroku.yml), that is
+# the GitHub Actions deploy workflow when the repository variable HEROKU_BUILD is
+# docker; Heroku's default build is the emk/rust buildpack (RustConfig, Procfile).
+# The server listens on $PORT (Heroku sets it).
 
 # Must match the wasm-bindgen crate in Cargo.lock.
 ARG WASM_BINDGEN_VERSION=0.2.129

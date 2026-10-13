@@ -83,6 +83,16 @@ Found by reviewing every middleware of `pratique` before its first release:
 
 ### Changed
 
+- Heroku builds the website with the
+  [emk/rust buildpack](https://elements.heroku.com/buildpacks/emk/heroku-buildpack-rust)
+  on the `heroku-24` stack by default: `RustConfig` (`cargo build --release
+  --locked -p securite-server`), `heroku-build.sh` (the WebAssembly islands, into
+  `site/pkg`) and a `Procfile`; the Deploy button (`app.json`) uses it too. The
+  *Deploy to Heroku* workflow takes a new optional repository variable,
+  `HEROKU_BUILD`: `buildpack` (default) moves the app off the container stack and
+  sets its buildpack, `docker` keeps building the `Dockerfile` with `heroku.yml`
+  on the container stack. The Heroku guide, the READMEs and the Docker page
+  describe both ways, and the Heroku CLI setup.
 - **Vitesse instead of axum.** The `Shield` and the `SignatureLayer` are
   [Vitesse](https://maxlestage.github.io/Vitesse/) middlewares
   (`app.middleware(Shield::recommended())`, feature `vitesse`, enabled by

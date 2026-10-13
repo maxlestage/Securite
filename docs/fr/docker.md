@@ -5,7 +5,7 @@ category: deploy
 order: 3
 ---
 
-Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [Active](https://maxlestage.github.io/Active/) et des îlots WebAssembly, servis par un serveur Vitesse qui se protège lui-même avec `securite`. Heroku construit la même image pour vous (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
+Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues par le serveur avec [Active](https://maxlestage.github.io/Active/) et des îlots WebAssembly, servis par un serveur Vitesse qui se protège lui-même avec `securite`. Heroku construit le site avec le buildpack Rust par défaut, et construit cette même image pour vous quand la variable de dépôt `HEROKU_BUILD` du workflow de déploiement vaut `docker` (voir [Déployer sur Heroku depuis votre téléphone](/docs/heroku-from-phone)) ; les commandes de cette page demandent un ordinateur ou un terminal dans le cloud.
 
 ## Les deux étapes
 

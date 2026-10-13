@@ -498,11 +498,11 @@ pub static FR: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Depuis votre téléphone",
     deploy_title: "Déployez sur Heroku sans ordinateur",
-    deploy_subtitle: "Tout est prêt : Dockerfile, heroku.yml, app.json, GitHub Pages et workflows GitHub Actions.",
+    deploy_subtitle: "Tout est prêt : buildpack Rust (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages et workflows GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Touchez « Deploy to Heroku »",
-            text: "Le bouton crée l'application et construit l'image Docker directement depuis GitHub.",
+            text: "Le bouton crée l'application et la compile avec le buildpack Rust, directement depuis GitHub.",
         },
         Step {
             title: "Ou ajoutez 2 secrets",
@@ -847,11 +847,11 @@ pub static EN: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "From your phone",
     deploy_title: "Deploy to Heroku without a computer",
-    deploy_subtitle: "Everything is ready: Dockerfile, heroku.yml, app.json, GitHub Pages and GitHub Actions workflows.",
+    deploy_subtitle: "Everything is ready: Rust buildpack (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages and GitHub Actions workflows.",
     deploy_steps: &[
         Step {
             title: "Tap “Deploy to Heroku”",
-            text: "The button creates the app and builds the Docker image straight from GitHub.",
+            text: "The button creates the app and compiles it with the Rust buildpack, straight from GitHub.",
         },
         Step {
             title: "Or add 2 secrets",
@@ -1196,11 +1196,11 @@ pub static ES: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Desde tu móvil",
     deploy_title: "Despliega en Heroku sin ordenador",
-    deploy_subtitle: "Todo está listo: Dockerfile, heroku.yml, app.json, GitHub Pages y workflows de GitHub Actions.",
+    deploy_subtitle: "Todo está listo: buildpack de Rust (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages y workflows de GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Pulsa «Deploy to Heroku»",
-            text: "El botón crea la aplicación y construye la imagen Docker directamente desde GitHub.",
+            text: "El botón crea la aplicación y la compila con el buildpack de Rust, directamente desde GitHub.",
         },
         Step {
             title: "O añade 2 secretos",
