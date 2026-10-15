@@ -78,6 +78,35 @@ Varias líneas de cabecera cuentan como una única lista separada por comas. Las
 
 Las cabeceras de una sola IP, como `CF-Connecting-IP`, son las más expuestas: su valor se toma tal cual, así que solo son seguras si todas las peticiones pasan por el frontal que las sobrescribe.
 
+### Proxies de confianza
+
+Cuando el origen no puede blindarse por completo, indica al shield en qué redes viven tus proxies. Una cabecera de reenvío solo se cree entonces si el par TCP pertenece a una de ellas, como el `trust proxy` de Express, el `TrustProxies` de Laravel o las recomendaciones de Django sobre `X-Forwarded-For`:
+
+```rust
+use securite::prelude::*;
+
+let shield = ShieldBuilder::recommended()
+    .client_ip(ClientIpSource::XForwardedFor { trusted_hops: 0 })
+    // Tu balanceador de carga, tu ingress o los rangos de tu CDN.
+    .trusted_proxies(["10.0.0.0/8", "fd00::/8"])
+    .build();
+```
+
+Con un conjunto de confianza:
+
+- una petición desde una dirección **fuera** del conjunto se resuelve a su par TCP, lleve las cabeceras que lleve: un cliente que llega directamente al origen no puede suplantar su dirección;
+- `X-Forwarded-For` y `Forwarded` se leen desde la derecha **saltando cada proxy de confianza**, y la primera dirección no fiable es el cliente (`trusted_hops` se ignora entonces: el conjunto describe la cadena). Si todos los saltos son de confianza, se usa el de más a la izquierda; una entrada ilegible detiene el recorrido en el último salto de confianza;
+- una cabecera de una sola IP (`CF-Connecting-IP`, `X-Real-IP` …) solo se usa si el par es de confianza;
+- sin una dirección de par conocida, no se cree ninguna cabecera.
+
+| Par | `X-Forwarded-For` | Confianza | Resultado |
+|---|---|---|---|
+| `10.0.0.1` | `6.6.6.6, 203.0.113.9, 10.1.2.3` | `10.0.0.0/8` | `203.0.113.9` |
+| `198.51.100.7` | `1.2.3.4` | `10.0.0.0/8` | `198.51.100.7` (cabecera ignorada) |
+| `10.0.0.1` | `10.1.1.1, 10.2.2.2` | `10.0.0.0/8` | `10.1.1.1` |
+
+`try_trusted_proxies` devuelve un error en lugar de entrar en pánico, para redes leídas de la configuración, y `ClientIpSource::resolve_trusted` expone la misma lógica a tu propio código.
+
 ## Agrupación IPv6
 
 Los proveedores de Internet suelen asignar a cada cliente un `/64` IPv6 completo, es decir, 2^64 direcciones. Contar cada dirección por separado permitiría a un solo atacante rotar entre miles de millones de identidades. Por eso el limitador de tasa, el límite de concurrencia y el baneo automático agrupan a los clientes IPv6 por `/64`; las direcciones IPv4 se usan tal cual. El limitador de tasa permite cambiar el prefijo:

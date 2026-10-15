@@ -8,6 +8,39 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `securite::password` (feature `password`, on by default): `PasswordHasher`,
+  Argon2id password hashing through the RustCrypto `argon2` crate with the OWASP
+  parameters (`m = 19 MiB, t = 2, p = 1`), PHC strings with a 16-byte random salt,
+  `check` that hands back an upgraded hash when the stored one is weaker
+  (`PasswordCheck::ValidNeedsRehash`), `verify_dummy` against account enumeration
+  through timing, an optional pepper, a 1024-byte password limit and a cap on the
+  costs a stored hash may request.
+- `securite::throttle::LoginThrottle`: Laravel-style brute-force protection called
+  from handlers. Failures are counted per key (account + IP, account, IP), the key
+  is locked once the limit is reached until its window ends, `attempt` does not
+  even run the verification of a locked key, keys are kept as SHA-256 digests in a
+  bounded map that fails closed when full.
+- `securite::authz::Gate`: authorization with Laravel's abilities, policies and
+  `before` hooks and Symfony's voters and decision strategies (affirmative,
+  consensus, unanimous). Deny by default: undefined abilities, resources of another
+  type and all-abstain decisions are refused; `Forbidden::into_rejection` gives a
+  `403` problem response that does not leak the ability.
+- `securite::signing`: `Signer`, HMAC-SHA256 tokens and URLs with optional expiry,
+  purposes, key rotation (`fallback_key`) and constant-time checks, and the
+  `SignedUrls` guard (Laravel's `signed` middleware): requests on the protected
+  prefixes need a URL signed with `Signer::sign_url`, else `403`
+  `invalid_signature` / `expired_signature`. New priority `priority::SIGNED_URL`.
+- `securite::totp`: RFC 6238 one-time passwords for two-factor authentication
+  (SHA-1/256/512, 6 to 8 digits, clock skew), `verify_once` against code replay,
+  `otpauth://` provisioning URIs, base32 secrets and `recovery_codes`.
+- `ShieldBuilder::trusted_proxies` / `try_trusted_proxies` and
+  `ClientIpSource::resolve_trusted`: forwarding headers are only believed when the
+  TCP peer is a trusted proxy, and `X-Forwarded-For` / `Forwarded` are walked from
+  the right past every trusted proxy (Express' `trust proxy`, Laravel's
+  `TrustProxies`).
+- Documentation: new pages "Password hashing", "Login throttling",
+  "Authorization", "Two-factor authentication" and "Signed URLs and tokens", and a
+  "Trusted proxies" section in "Client IP", in English, French and Spanish.
 - Automatic releases: once CI is green on `master`, a version of `securite` without
   a tag gets its tag (`v0.1.0` for 0.1.0), its GitHub release (notes taken from its
   section of this changelog) and its publication on crates.io. Releasing a version

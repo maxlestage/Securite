@@ -5,6 +5,8 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use http::request::Parts;
 use http::{HeaderMap, HeaderName};
 
+use crate::ip_filter::IpSet;
+
 /// The resolved client IP, inserted in the request extensions by the shield.
 ///
 /// With Vitesse: `req.get::<ClientIp>()`.
@@ -90,6 +92,89 @@ impl ClientIpSource {
         };
         from_header.or_else(|| peer_ip(parts)).map(canonical)
     }
+}
+
+impl ClientIpSource {
+    /// Like [`resolve`](Self::resolve), but forwarding headers are only
+    /// believed when the TCP peer is one of the `trusted` proxies (Express'
+    /// `trust proxy`, Laravel's `TrustProxies`, Django's
+    /// `SECURE_PROXY_SSL_HEADER` caveat). A client that reaches the app
+    /// directly cannot spoof its address with a forged header.
+    ///
+    /// With `X-Forwarded-For` and `Forwarded`, entries are read from the
+    /// right and every trusted proxy is skipped: the client is the first
+    /// untrusted address (`trusted_hops` is then ignored). With a single-IP
+    /// header, the header is used only when the peer is trusted.
+    ///
+    /// Without a known peer address, headers are ignored and `None` is
+    /// returned.
+    ///
+    /// ```
+    /// use securite::{ClientIpSource, PeerAddr};
+    /// use securite::ip_filter::IpSet;
+    ///
+    /// let trusted: IpSet = "10.0.0.0/8".parse().unwrap();
+    /// let mut req = http::Request::get("/")
+    ///     .header("x-forwarded-for", "6.6.6.6, 203.0.113.9, 10.1.2.3")
+    ///     .body(())
+    ///     .unwrap()
+    ///     .into_parts()
+    ///     .0;
+    /// req.extensions.insert(PeerAddr("10.0.0.1:443".parse().unwrap()));
+    /// let ip = ClientIpSource::heroku().resolve_trusted(&req, &trusted);
+    /// assert_eq!(ip, Some("203.0.113.9".parse().unwrap()));
+    /// ```
+    pub fn resolve_trusted(&self, parts: &Parts, trusted: &IpSet) -> Option<IpAddr> {
+        let peer = peer_ip(parts).map(canonical)?;
+        if matches!(self, ClientIpSource::Peer) || !trusted.contains(peer) {
+            return Some(peer);
+        }
+        let from_header = match self {
+            ClientIpSource::Peer => None,
+            ClientIpSource::XForwardedFor { .. } => {
+                first_untrusted(&parts.headers, "x-forwarded-for", trusted, parse_plain)
+            }
+            ClientIpSource::Forwarded { .. } => first_untrusted(
+                &parts.headers,
+                "forwarded",
+                trusted,
+                parse_forwarded_element,
+            ),
+            ClientIpSource::Header(name) => parts
+                .headers
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| parse_plain(v.trim())),
+        };
+        Some(from_header.map_or(peer, canonical))
+    }
+}
+
+/// Walks a forwarding list from the right, skipping trusted proxies.
+fn first_untrusted(
+    headers: &HeaderMap,
+    name: &str,
+    trusted: &IpSet,
+    parse: fn(&str) -> Option<IpAddr>,
+) -> Option<IpAddr> {
+    let mut items: Vec<&str> = Vec::new();
+    for value in headers.get_all(name) {
+        let s = value.to_str().ok()?;
+        items.extend(s.split(',').map(str::trim).filter(|s| !s.is_empty()));
+    }
+    let mut last_trusted = None;
+    for item in items.iter().rev() {
+        // An unparsable entry was written by the hop before it: stop there.
+        let Some(ip) = parse(item).map(canonical) else {
+            return last_trusted;
+        };
+        if !trusted.contains(ip) {
+            return Some(ip);
+        }
+        last_trusted = Some(ip);
+    }
+    // Every hop is trusted: the furthest one is the client.
+    last_trusted
 }
 
 /// Reads the TCP peer address from the request extensions.
@@ -238,6 +323,88 @@ mod tests {
             ClientIpSource::cloudflare().resolve(&p),
             Some("203.0.113.9".parse().unwrap())
         );
+    }
+
+    #[test]
+    fn trusted_proxies_only() {
+        let trusted: IpSet = "10.0.0.0/8, 192.168.0.0/16".parse().unwrap();
+        let xff = ClientIpSource::heroku();
+        // The peer (10.0.0.1) is trusted: walk past every trusted hop.
+        let p = parts(&[(
+            "x-forwarded-for",
+            "6.6.6.6, 203.0.113.9, 192.168.1.1, 10.9.9.9",
+        )]);
+        assert_eq!(
+            xff.resolve_trusted(&p, &trusted),
+            Some("203.0.113.9".parse().unwrap())
+        );
+        // A client-supplied left part cannot win.
+        let p = parts(&[("x-forwarded-for", "10.6.6.6, 203.0.113.9")]);
+        assert_eq!(
+            xff.resolve_trusted(&p, &trusted),
+            Some("203.0.113.9".parse().unwrap())
+        );
+        // Every hop trusted: the furthest one.
+        let p = parts(&[("x-forwarded-for", "10.1.1.1, 10.2.2.2")]);
+        assert_eq!(
+            xff.resolve_trusted(&p, &trusted),
+            Some("10.1.1.1".parse().unwrap())
+        );
+        // Garbage stops the walk at the last trusted hop.
+        let p = parts(&[("x-forwarded-for", "1.1.1.1, garbage, 10.2.2.2")]);
+        assert_eq!(
+            xff.resolve_trusted(&p, &trusted),
+            Some("10.2.2.2".parse().unwrap())
+        );
+        // No header: the peer.
+        let p = parts(&[]);
+        assert_eq!(
+            xff.resolve_trusted(&p, &trusted),
+            Some("10.0.0.1".parse().unwrap())
+        );
+        // Forwarded and single headers.
+        let p = parts(&[("forwarded", "for=198.51.100.1, for=10.0.0.5")]);
+        assert_eq!(
+            ClientIpSource::Forwarded { trusted_hops: 0 }.resolve_trusted(&p, &trusted),
+            Some("198.51.100.1".parse().unwrap())
+        );
+        let p = parts(&[("cf-connecting-ip", "203.0.113.50")]);
+        assert_eq!(
+            ClientIpSource::cloudflare().resolve_trusted(&p, &trusted),
+            Some("203.0.113.50".parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn untrusted_peers_cannot_spoof() {
+        let trusted: IpSet = "192.168.0.0/16".parse().unwrap();
+        // The peer 10.0.0.1 is not a trusted proxy: headers are ignored.
+        for (h, v) in [
+            ("x-forwarded-for", "1.2.3.4"),
+            ("cf-connecting-ip", "1.2.3.4"),
+            ("forwarded", "for=1.2.3.4"),
+        ] {
+            let p = parts(&[(h, v)]);
+            for src in [
+                ClientIpSource::heroku(),
+                ClientIpSource::cloudflare(),
+                ClientIpSource::Forwarded { trusted_hops: 0 },
+            ] {
+                assert_eq!(
+                    src.resolve_trusted(&p, &trusted),
+                    Some("10.0.0.1".parse().unwrap()),
+                    "{h}"
+                );
+            }
+        }
+        // Unknown peer: nothing is believed.
+        let p = Request::builder()
+            .header("x-forwarded-for", "1.2.3.4")
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
+        assert_eq!(ClientIpSource::heroku().resolve_trusted(&p, &trusted), None);
     }
 
     #[test]

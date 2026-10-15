@@ -78,6 +78,35 @@ Several header lines count as one comma-separated list. Entries may carry a port
 
 Single-IP headers such as `CF-Connecting-IP` are the most exposed: they are taken verbatim, so they are only safe when every request goes through the edge that overwrites them.
 
+### Trusted proxies
+
+When the origin cannot be fully locked down, tell the shield which networks your proxies live in. A forwarding header is then only believed when the TCP peer belongs to one of them, like Express' `trust proxy`, Laravel's `TrustProxies` or Django's guidance on `X-Forwarded-For`:
+
+```rust
+use securite::prelude::*;
+
+let shield = ShieldBuilder::recommended()
+    .client_ip(ClientIpSource::XForwardedFor { trusted_hops: 0 })
+    // Your load balancer, ingress controller or CDN ranges.
+    .trusted_proxies(["10.0.0.0/8", "fd00::/8"])
+    .build();
+```
+
+With a trusted set:
+
+- a request from an address **outside** the set is resolved to its TCP peer, whatever headers it carries: a client that reaches the origin directly cannot spoof its address;
+- `X-Forwarded-For` and `Forwarded` are read from the right, **skipping every trusted proxy**, and the first untrusted address is the client (`trusted_hops` is then ignored, the set describes the chain). If every hop is trusted, the left-most one is used; an unparsable entry stops the walk at the last trusted hop;
+- a single-IP header (`CF-Connecting-IP`, `X-Real-IP` …) is used only when the peer is trusted;
+- without a known peer address, no header is believed at all.
+
+| Peer | `X-Forwarded-For` | Trusted | Resolved |
+|---|---|---|---|
+| `10.0.0.1` | `6.6.6.6, 203.0.113.9, 10.1.2.3` | `10.0.0.0/8` | `203.0.113.9` |
+| `198.51.100.7` | `1.2.3.4` | `10.0.0.0/8` | `198.51.100.7` (header ignored) |
+| `10.0.0.1` | `10.1.1.1, 10.2.2.2` | `10.0.0.0/8` | `10.1.1.1` |
+
+`try_trusted_proxies` returns an error instead of panicking, for networks read from configuration, and `ClientIpSource::resolve_trusted` exposes the same logic for your own code.
+
 ## IPv6 grouping
 
 ISPs usually hand each customer a whole IPv6 `/64`, that is 2^64 addresses. Counting each address separately would let one attacker rotate through billions of identities. The rate limiter, the concurrency limit and auto-ban therefore group IPv6 clients by `/64`; IPv4 addresses are used as they are. The rate limiter lets you change the prefix:

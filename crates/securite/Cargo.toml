@@ -19,12 +19,15 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["vitesse"]
+default = ["vitesse", "password"]
 ## The shield as a Vitesse middleware: `app.middleware(Shield::recommended())`.
 vitesse = ["dep:vitesse"]
+## Argon2id password hashing (`securite::password`).
+password = ["dep:argon2"]
 
 [dependencies]
 aho-corasick = "1.1"
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"], optional = true }
 base64 = "0.23"
 bytes = "1"
 getrandom = "0.4"
@@ -33,6 +36,7 @@ http = "1"
 http-body = "1"
 http-body-util = "0.1"
 pin-project-lite = "0.2"
+sha1 = "0.11"
 sha2 = "0.11"
 subtle = "2.6"
 tower-layer = "0.3"

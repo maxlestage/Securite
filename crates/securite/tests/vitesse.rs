@@ -435,3 +435,62 @@ async fn presets_have_expected_guards() {
         .guard_names();
     assert!(!custom.contains(&"csrf"));
 }
+
+#[tokio::test]
+async fn trusted_proxies_gate_forwarding_headers() {
+    // The test client connects from 127.0.0.1: a trusted proxy here.
+    let behind_proxy = app(Shield::builder()
+        .client_ip(ClientIpSource::heroku())
+        .trusted_proxies(["127.0.0.0/8", "10.0.0.0/8"])
+        .build());
+    let res = behind_proxy
+        .get("/ip")
+        .header("x-forwarded-for", "6.6.6.6, 203.0.113.50, 10.1.1.1")
+        .await;
+    assert_eq!(res.text(), "203.0.113.50", "trusted hops are skipped");
+
+    // The peer is not a trusted proxy: a forged header is ignored.
+    let direct = app(Shield::builder()
+        .client_ip(ClientIpSource::heroku())
+        .trusted_proxies(["10.0.0.0/8"])
+        .build());
+    let res = direct
+        .get("/ip")
+        .header("x-forwarded-for", "203.0.113.50")
+        .await;
+    assert_eq!(res.text(), "127.0.0.1");
+}
+
+#[test]
+#[should_panic(expected = "not-a-network")]
+fn trusted_proxies_reject_invalid_networks() {
+    let _ = Shield::builder().trusted_proxies(["not-a-network"]);
+}
+
+#[tokio::test]
+async fn signed_urls_guard() {
+    let signer = Signer::new("an end-to-end secret, 32 bytes min");
+    let client = app(Shield::builder()
+        .guard(SignedUrls::new(signer.clone()).protect(["/ip"]))
+        .build());
+    let link = signer.sign_url("/ip?user=42", Some(Duration::from_secs(60)));
+    assert_eq!(client.get(&link).await.status(), StatusCode::OK);
+    assert_eq!(
+        client.get("/").await.status(),
+        StatusCode::OK,
+        "unprotected"
+    );
+
+    let forged = link.replace("user=42", "user=1");
+    let res = client.get(&forged).await;
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    assert!(res.text().contains("\"code\":\"invalid_signature\""));
+    let res = client.get("/ip?user=42").await;
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    let res = client.get(&format!("{link}&admin=1")).await;
+    assert_eq!(
+        res.status(),
+        StatusCode::FORBIDDEN,
+        "nothing after the signature"
+    );
+}
