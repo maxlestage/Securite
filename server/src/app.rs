@@ -422,8 +422,13 @@ mod tests {
     #[tokio::test]
     async fn every_page_passes_the_shield() {
         let site = Arc::new(Site::load(&site_dir(), "", None, true));
-        let client = client_for(site.clone(), false);
-        for route in site.routes() {
+        let mut client = client_for(site.clone(), false);
+        for (i, route) in site.routes().into_iter().enumerate() {
+            // A fresh shield every 100 pages: the crawl stays under the
+            // per-IP rate limit (burst 150) however many pages the site has.
+            if i > 0 && i % 100 == 0 {
+                client = client_for(site.clone(), false);
+            }
             let res = get(&client, &route.path()).await;
             assert_eq!(res.status(), StatusCode::OK, "{}", route.path());
             assert!(res.text().contains("</html>"), "{}", route.path());

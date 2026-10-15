@@ -78,6 +78,35 @@ Plusieurs lignes d'en-tête sont traitées comme une seule liste séparée par d
 
 Les en-têtes à IP unique comme `CF-Connecting-IP` sont les plus exposés : leur valeur est reprise telle quelle, ils ne sont donc sûrs que si chaque requête passe par le frontal qui les écrase.
 
+### Proxies de confiance
+
+Quand l'origine ne peut pas être complètement verrouillée, indiquez au shield les réseaux où vivent vos proxies. Un en-tête de transfert n'est alors cru que si le pair TCP appartient à l'un d'eux, comme le `trust proxy` d'Express, le `TrustProxies` de Laravel ou les recommandations de Django sur `X-Forwarded-For` :
+
+```rust
+use securite::prelude::*;
+
+let shield = ShieldBuilder::recommended()
+    .client_ip(ClientIpSource::XForwardedFor { trusted_hops: 0 })
+    // Votre répartiteur de charge, votre ingress ou les plages de votre CDN.
+    .trusted_proxies(["10.0.0.0/8", "fd00::/8"])
+    .build();
+```
+
+Avec un ensemble de confiance :
+
+- une requête venant d'une adresse **hors** de l'ensemble est résolue en son pair TCP, quels que soient ses en-têtes : un client qui atteint l'origine directement ne peut pas usurper son adresse ;
+- `X-Forwarded-For` et `Forwarded` sont lus depuis la droite **en sautant chaque proxy de confiance**, et la première adresse non fiable est le client (`trusted_hops` est alors ignoré : l'ensemble décrit la chaîne). Si tous les sauts sont de confiance, le plus à gauche est retenu ; une entrée illisible arrête le parcours au dernier saut de confiance ;
+- un en-tête à IP unique (`CF-Connecting-IP`, `X-Real-IP` …) n'est utilisé que si le pair est de confiance ;
+- sans adresse de pair connue, aucun en-tête n'est cru.
+
+| Pair | `X-Forwarded-For` | Confiance | Résultat |
+|---|---|---|---|
+| `10.0.0.1` | `6.6.6.6, 203.0.113.9, 10.1.2.3` | `10.0.0.0/8` | `203.0.113.9` |
+| `198.51.100.7` | `1.2.3.4` | `10.0.0.0/8` | `198.51.100.7` (en-tête ignoré) |
+| `10.0.0.1` | `10.1.1.1, 10.2.2.2` | `10.0.0.0/8` | `10.1.1.1` |
+
+`try_trusted_proxies` renvoie une erreur au lieu de paniquer, pour des réseaux lus dans la configuration, et `ClientIpSource::resolve_trusted` expose la même logique à votre propre code.
+
 ## Regroupement IPv6
 
 Les FAI attribuent généralement à chaque abonné un `/64` IPv6 entier, soit 2^64 adresses. Compter chaque adresse séparément permettrait à un seul attaquant de faire défiler des milliards d'identités. Le limiteur de débit, la limite de concurrence et le bannissement automatique regroupent donc les clients IPv6 par `/64` ; les adresses IPv4 sont utilisées telles quelles. Le limiteur de débit permet de changer le préfixe :

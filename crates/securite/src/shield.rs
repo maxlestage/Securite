@@ -50,6 +50,7 @@ pub struct Shield {
 struct ShieldInner {
     guards: Vec<Box<dyn Guard>>,
     ip_source: ClientIpSource,
+    trusted_proxies: Option<IpSet>,
     error_format: ErrorFormat,
     on_event: Option<Arc<EventHook>>,
     log_events: bool,
@@ -115,6 +116,7 @@ impl<S> Layer<S> for Shield {
 pub struct ShieldBuilder {
     guards: Vec<Box<dyn Guard>>,
     ip_source: ClientIpSource,
+    trusted_proxies: Option<IpSet>,
     error_format: ErrorFormat,
     on_event: Option<Arc<EventHook>>,
     log_events: bool,
@@ -132,6 +134,7 @@ impl ShieldBuilder {
         Self {
             guards: Vec::new(),
             ip_source: ClientIpSource::Peer,
+            trusted_proxies: None,
             error_format: ErrorFormat::ProblemJson,
             on_event: None,
             log_events: true,
@@ -218,6 +221,47 @@ impl ShieldBuilder {
         self
     }
 
+    /// Only believe the [`client_ip`](Self::client_ip) forwarding header when
+    /// the TCP peer belongs to these networks (your load balancer, ingress or
+    /// CDN ranges), and skip those proxies when reading `X-Forwarded-For` /
+    /// `Forwarded` from the right. See [`ClientIpSource::resolve_trusted`].
+    ///
+    /// Without it, a forwarding header is believed from anyone, which is only
+    /// safe when the app cannot be reached except through the proxy.
+    ///
+    /// ```
+    /// use securite::prelude::*;
+    ///
+    /// let shield = Shield::builder()
+    ///     .client_ip(ClientIpSource::XForwardedFor { trusted_hops: 0 })
+    ///     .trusted_proxies(["10.0.0.0/8", "fd00::/8"])
+    ///     .guard(RateLimit::per_second(10))
+    ///     .build();
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If a network is invalid; see [`try_trusted_proxies`](Self::try_trusted_proxies).
+    pub fn trusted_proxies<I, S>(self, networks: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.try_trusted_proxies(networks)
+            .unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    /// Fallible [`trusted_proxies`](Self::trusted_proxies), for networks read
+    /// from configuration.
+    pub fn try_trusted_proxies<I, S>(mut self, networks: I) -> Result<Self, InvalidNetwork>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.trusted_proxies = Some(IpSet::parse(networks)?);
+        Ok(self)
+    }
+
     /// How rejections are rendered (default: `application/problem+json`).
     pub fn error_format(mut self, format: ErrorFormat) -> Self {
         self.error_format = format;
@@ -249,6 +293,7 @@ impl ShieldBuilder {
             inner: Arc::new(ShieldInner {
                 guards: self.guards,
                 ip_source: self.ip_source,
+                trusted_proxies: self.trusted_proxies,
                 error_format: self.error_format,
                 on_event: self.on_event,
                 log_events: self.log_events,
@@ -278,7 +323,10 @@ impl ShieldInner {
         if let Some(ClientIp(ip)) = parts.extensions.get::<ClientIp>() {
             return Some(*ip);
         }
-        let ip = self.ip_source.resolve(parts);
+        let ip = match &self.trusted_proxies {
+            Some(trusted) => self.ip_source.resolve_trusted(parts, trusted),
+            None => self.ip_source.resolve(parts),
+        };
         match ip {
             Some(ip) => {
                 parts.extensions.insert(ClientIp(ip));

@@ -221,7 +221,7 @@ pub static FR: Texts = Texts {
     get_started: "Commencer",
     language: "Langue",
     menu: "Menu",
-    hero_badge: "v0.1 · 19 middlewares · 100 % Rust",
+    hero_badge: "v0.1 · 20 middlewares · 100 % Rust",
     hero_title: "Blindez vos API Rust",
     hero_against: "contre",
     hero_words: &[
@@ -364,6 +364,13 @@ pub static FR: Texts = Texts {
             desc: "Bloque TRACE, CONNECT et les en-têtes de surcharge de méthode.",
         },
         Feature {
+            slug: "login-throttle",
+            category: "traffic",
+            icon: "gauge",
+            name: "Login Throttle",
+            desc: "Verrouille compte et IP après des échecs répétés : anti force brute et credential stuffing.",
+        },
+        Feature {
             slug: "ip-filter",
             category: "access",
             icon: "server",
@@ -399,6 +406,27 @@ pub static FR: Texts = Texts {
             desc: "N'accepte que les types de contenu attendus (415 sinon).",
         },
         Feature {
+            slug: "passwords",
+            category: "access",
+            icon: "lock",
+            name: "Mots de passe Argon2id",
+            desc: "Hachage OWASP, re-hachage à la connexion, poivre, anti-énumération de comptes.",
+        },
+        Feature {
+            slug: "authorization",
+            category: "access",
+            icon: "shield-check",
+            name: "Gates & voters",
+            desc: "Autorisations façon Laravel et Symfony, refus par défaut.",
+        },
+        Feature {
+            slug: "two-factor",
+            category: "access",
+            icon: "smartphone",
+            name: "Double authentification",
+            desc: "Codes TOTP (RFC 6238) avec QR code, anti-rejeu et codes de secours.",
+        },
+        Feature {
             slug: "waf",
             category: "threats",
             icon: "bug",
@@ -425,6 +453,13 @@ pub static FR: Texts = Texts {
             icon: "check",
             name: "Signatures webhooks",
             desc: "Vérification HMAC GitHub, Stripe, Slack, Shopify avec anti-rejeu.",
+        },
+        Feature {
+            slug: "signed-urls",
+            category: "integrity",
+            icon: "link",
+            name: "URL signées",
+            desc: "Liens et jetons HMAC infalsifiables, avec expiration, usage et rotation de clés.",
         },
         Feature {
             slug: "events-stats",
@@ -568,7 +603,7 @@ pub static EN: Texts = Texts {
     get_started: "Get started",
     language: "Language",
     menu: "Menu",
-    hero_badge: "v0.1 · 19 middlewares · 100% Rust",
+    hero_badge: "v0.1 · 20 middlewares · 100% Rust",
     hero_title: "Armor your Rust APIs",
     hero_against: "against",
     hero_words: &[
@@ -711,6 +746,13 @@ pub static EN: Texts = Texts {
             desc: "Blocks TRACE, CONNECT and method-override headers.",
         },
         Feature {
+            slug: "login-throttle",
+            category: "traffic",
+            icon: "gauge",
+            name: "Login Throttle",
+            desc: "Locks an account and an IP after repeated failures: stops brute force and credential stuffing.",
+        },
+        Feature {
             slug: "ip-filter",
             category: "access",
             icon: "server",
@@ -746,6 +788,27 @@ pub static EN: Texts = Texts {
             desc: "Only accepts the media types you expect (415 otherwise).",
         },
         Feature {
+            slug: "passwords",
+            category: "access",
+            icon: "lock",
+            name: "Argon2id passwords",
+            desc: "OWASP hashing, rehash on login, pepper, no account enumeration.",
+        },
+        Feature {
+            slug: "authorization",
+            category: "access",
+            icon: "shield-check",
+            name: "Gates & voters",
+            desc: "Laravel- and Symfony-style authorization, deny by default.",
+        },
+        Feature {
+            slug: "two-factor",
+            category: "access",
+            icon: "smartphone",
+            name: "Two-factor auth",
+            desc: "TOTP codes (RFC 6238) with QR provisioning, replay protection and recovery codes.",
+        },
+        Feature {
             slug: "waf",
             category: "threats",
             icon: "bug",
@@ -772,6 +835,13 @@ pub static EN: Texts = Texts {
             icon: "check",
             name: "Webhook Signatures",
             desc: "HMAC verification for GitHub, Stripe, Slack, Shopify with replay protection.",
+        },
+        Feature {
+            slug: "signed-urls",
+            category: "integrity",
+            icon: "link",
+            name: "Signed URLs",
+            desc: "Tamper-proof HMAC links and tokens with expiry, purposes and key rotation.",
         },
         Feature {
             slug: "events-stats",
@@ -915,7 +985,7 @@ pub static ES: Texts = Texts {
     get_started: "Empezar",
     language: "Idioma",
     menu: "Menú",
-    hero_badge: "v0.1 · 19 middlewares · 100 % Rust",
+    hero_badge: "v0.1 · 20 middlewares · 100 % Rust",
     hero_title: "Blinda tus API en Rust",
     hero_against: "contra",
     hero_words: &[
@@ -1058,6 +1128,13 @@ pub static ES: Texts = Texts {
             desc: "Bloquea TRACE, CONNECT y las cabeceras de sobrecarga de método.",
         },
         Feature {
+            slug: "login-throttle",
+            category: "traffic",
+            icon: "gauge",
+            name: "Login Throttle",
+            desc: "Bloquea cuenta e IP tras fallos repetidos: frena la fuerza bruta y el credential stuffing.",
+        },
+        Feature {
             slug: "ip-filter",
             category: "access",
             icon: "server",
@@ -1093,6 +1170,27 @@ pub static ES: Texts = Texts {
             desc: "Solo acepta los tipos de contenido esperados (415 si no).",
         },
         Feature {
+            slug: "passwords",
+            category: "access",
+            icon: "lock",
+            name: "Contraseñas Argon2id",
+            desc: "Hash según OWASP, rehash al iniciar sesión, pimienta, sin enumeración de cuentas.",
+        },
+        Feature {
+            slug: "authorization",
+            category: "access",
+            icon: "shield-check",
+            name: "Gates y voters",
+            desc: "Autorización al estilo de Laravel y Symfony, denegación por defecto.",
+        },
+        Feature {
+            slug: "two-factor",
+            category: "access",
+            icon: "smartphone",
+            name: "Doble factor",
+            desc: "Códigos TOTP (RFC 6238) con QR, protección contra reutilización y códigos de recuperación.",
+        },
+        Feature {
             slug: "waf",
             category: "threats",
             icon: "bug",
@@ -1119,6 +1217,13 @@ pub static ES: Texts = Texts {
             icon: "check",
             name: "Firmas de webhooks",
             desc: "Verificación HMAC de GitHub, Stripe, Slack y Shopify con protección anti-replay.",
+        },
+        Feature {
+            slug: "signed-urls",
+            category: "integrity",
+            icon: "link",
+            name: "URL firmadas",
+            desc: "Enlaces y tokens HMAC a prueba de manipulaciones, con caducidad, usos y rotación de claves.",
         },
         Feature {
             slug: "events-stats",

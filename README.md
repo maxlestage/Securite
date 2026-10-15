@@ -20,11 +20,11 @@ This repository contains:
 
 | Folder | What |
 |---|---|
-| [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 19 security middlewares for Vitesse, and for tower / hyper / tonic |
+| [`crates/securite`](crates/securite) | The **`securite` crate** (ready for crates.io): 20 security middlewares for Vitesse, and for tower / hyper / tonic, plus password hashing, login throttling, authorization gates, signed URLs and TOTP |
 | [`crates/pratique`](crates/pratique) | The **`pratique` crate**: 13 everyday Vitesse middlewares that have nothing to do with security (ETag, Cache-Control, response cache, access logs, Prometheus metrics, response time, trailing slash, redirects, health checks, maintenance mode, headers, locale, API deprecation) |
 | [`site`](site) | The **website**, written with [Active](https://active-c1883a966650.herokuapp.com/): pages rendered on the server with complete SEO, WebAssembly islands, animated, FR / EN / ES, documentation hub by category, live attack playground, installable PWA that works offline |
 | [`server`](server) | The Vitesse server that renders and hosts the website and its playground API — protected by `securite` itself |
-| [`docs`](docs) | The **documentation** (47 pages × 3 languages), compiled into the website |
+| [`docs`](docs) | The **documentation** (52 pages × 3 languages), compiled into the website |
 | [`RustConfig`](RustConfig), [`Procfile`](Procfile), [`heroku-build.sh`](heroku-build.sh), [`app.json`](app.json) | **One-tap Heroku deployment** with the Rust buildpack (`emk/rust`) |
 | [`Dockerfile`](Dockerfile), [`heroku.yml`](heroku.yml) | Container image (Docker, or Heroku's container stack) |
 | [`.github/workflows`](.github/workflows) | CI, **auto-merge into master**, Heroku deploy, crates.io publishing |

@@ -47,6 +47,8 @@ pub mod priority {
     pub const WAF: u16 = 120;
     /// [`Csrf`](crate::csrf::Csrf)
     pub const CSRF: u16 = 130;
+    /// [`SignedUrls`](crate::signing::SignedUrls)
+    pub const SIGNED_URL: u16 = 135;
     /// [`Auth`](crate::auth::Auth)
     pub const AUTH: u16 = 140;
     /// [`ContentTypeGuard`](crate::content_type::ContentTypeGuard)

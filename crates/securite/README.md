@@ -53,11 +53,22 @@ x-request-id: 6f1c…
 | | `Auth` | Unauthenticated access (Bearer / API key / Basic / custom, constant time) |
 | | `Csrf` | Cross-site request forgery (Fetch Metadata + signed double-submit tokens) |
 | | `ContentTypeGuard` | Content-type confusion |
+| | `SignedUrls` | Tampered or expired links (Laravel-style signed URLs) |
 | Threat detection | `Waf` | SQLi, XSS, RCE, path traversal, Log4Shell, SSRF, NoSQLi, SSTI, scanners (anomaly scoring, ~400 signatures) |
 | | `BotBlocker` | sqlmap, nikto, nuclei and 30+ attack tools |
 | Integrity & tracing | `RequestId` | Untraceable incidents, log injection |
 | | `SignatureLayer` | Forged webhooks (GitHub, Stripe, Slack, Shopify, custom HMAC, replay protection) |
 | | Events & stats | Blind spots (`tracing` audit trail, SIEM hook, live counters) |
+
+### Building blocks for your handlers
+
+| Module | Protects against |
+|---|---|
+| `password::PasswordHasher` | Password cracking (Argon2id with OWASP parameters, rehash on login, pepper, anti user enumeration) |
+| `throttle::LoginThrottle` | Password guessing, credential stuffing, 2FA brute force (lockout per account, IP or both) |
+| `authz::Gate` | Broken access control (Laravel gates & policies, Symfony voters, deny by default) |
+| `signing::Signer` | Tampered tokens and links (HMAC-SHA256, expiry, purposes, key rotation) |
+| `totp::Totp` | Password-only logins (RFC 6238 two-factor codes, replay protection, recovery codes) |
 
 ## Presets
 
@@ -115,7 +126,8 @@ IP-aware guards need the real client address:
 * Vitesse: nothing to do, the shield reads the peer address of the connection;
 * hyper: insert `securite::PeerAddr(addr)` in the request extensions;
 * behind a proxy: `.client_ip(ClientIpSource::heroku())`, `cloudflare()`, `fly()`,
-  `x_real_ip()` or `XForwardedFor { trusted_hops }`.
+  `x_real_ip()` or `XForwardedFor { trusted_hops }`, plus
+  `.trusted_proxies(["10.0.0.0/8"])` so the header is only believed from your proxies.
 
 ## Minimum supported Rust version
 

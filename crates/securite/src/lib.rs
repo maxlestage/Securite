@@ -42,11 +42,22 @@
 //! |                     | [`Auth`](auth::Auth)                    | Bearer / API key / Basic auth, constant-time |
 //! |                     | [`Csrf`](csrf::Csrf)                    | Fetch-Metadata + signed double-submit tokens |
 //! |                     | [`ContentTypeGuard`](content_type::ContentTypeGuard) | Allowed request media types |
+//! |                     | [`SignedUrls`](signing::SignedUrls)     | Laravel-style signed, expiring URLs |
 //! | Threat detection    | [`Waf`](waf::Waf)                       | SQLi, XSS, traversal, RCE, Log4Shell, SSRF … |
 //! |                     | [`BotBlocker`](user_agent::BotBlocker)  | Blocks scanners and attack tools |
 //! | Integrity & tracing | [`RequestId`](request_id::RequestId)    | Validated request IDs |
 //! |                     | [`SignatureLayer`](signature::SignatureLayer) | HMAC webhook verification (GitHub, Stripe, Slack …) |
 //! |                     | [`Stats`](event::StatsSnapshot) / [events](event::SecurityEvent) | Metrics and audit trail |
+//!
+//! ## Building blocks for handlers
+//!
+//! | Module | What it does |
+//! |--------|--------------|
+//! | [`password`] | Argon2id password hashing (OWASP parameters), rehash on login, anti user enumeration |
+//! | [`throttle`] | [`LoginThrottle`](throttle::LoginThrottle): brute-force lockout per account, IP or both |
+//! | [`authz`] | [`Gate`](authz::Gate): abilities, policies and voters, deny by default |
+//! | [`signing`] | [`Signer`](signing::Signer): signed, expiring, purpose-bound tokens and URLs |
+//! | [`totp`] | [`Totp`](totp::Totp): RFC 6238 two-factor codes, replay protection, recovery codes |
 //!
 //! Every guard can also be used on its own, as a one-guard shield (with tower,
 //! a guard is a layer by itself):
@@ -73,6 +84,8 @@
 //! * `vitesse` (default): the [`Shield`] and the
 //!   [`SignatureLayer`](signature::SignatureLayer) are Vitesse middlewares.
 //!   Without it the crate only depends on `http` and `tower`.
+//! * `password` (default): the [`password`] module (Argon2id, through the
+//!   RustCrypto `argon2` crate).
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -81,6 +94,7 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod auth;
+pub mod authz;
 pub mod ban;
 pub mod body;
 pub mod body_limit;
@@ -99,12 +113,18 @@ pub mod hygiene;
 pub mod ip;
 pub mod ip_filter;
 pub mod method;
+#[cfg(feature = "password")]
+#[cfg_attr(docsrs, doc(cfg(feature = "password")))]
+pub mod password;
 pub mod rate_limit;
 mod rejection;
 pub mod request_id;
 mod shield;
 pub mod signature;
+pub mod signing;
 mod store;
+pub mod throttle;
+pub mod totp;
 pub mod user_agent;
 mod util;
 pub mod waf;
@@ -121,6 +141,7 @@ pub use shield::{ResponseFuture, Shield, ShieldBuilder, ShieldService};
 /// Everything you usually need, in one import.
 pub mod prelude {
     pub use crate::auth::{Auth, Principal};
+    pub use crate::authz::{Gate, Vote, Voter};
     pub use crate::ban::AutoBan;
     pub use crate::body_limit::{BodyLimit, BodyLimitLayer};
     pub use crate::concurrency::ConcurrencyLimit;
@@ -135,9 +156,13 @@ pub mod prelude {
     pub use crate::hygiene::Hygiene;
     pub use crate::ip_filter::{InvalidNetwork, IpFilter, IpSet};
     pub use crate::method::MethodFilter;
+    #[cfg(feature = "password")]
+    pub use crate::password::{PasswordCheck, PasswordHasher};
     pub use crate::rate_limit::{HeaderStyle, Quota, RateLimit, RateLimitKey};
     pub use crate::request_id::{RequestId, RequestIdValue};
     pub use crate::signature::{SignatureLayer, SignatureVerifier};
+    pub use crate::signing::{SignedUrls, Signer};
+    pub use crate::throttle::LoginThrottle;
     pub use crate::user_agent::BotBlocker;
     pub use crate::waf::{Paranoia, Waf};
     pub use crate::{
