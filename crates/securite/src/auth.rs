@@ -8,6 +8,7 @@ use http::{Method, StatusCode, request};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
+use crate::access::Roles;
 use crate::guard::impl_layer;
 use crate::util::{any_path_matches, b64std_decode, hex_decode, normalize_prefix};
 use crate::{Context, Guard, Rejection, priority};
@@ -29,6 +30,8 @@ enum Scheme {
     ApiKey(HeaderName),
     Basic,
     Custom(Arc<Validator>),
+    #[cfg(feature = "jwt")]
+    Jwt(crate::jwt::JwtValidator),
 }
 
 /// Authentication guard.
@@ -63,6 +66,7 @@ pub struct Auth {
     protect: Vec<String>,
     public: Vec<String>,
     allow_options: bool,
+    grants: Vec<(Arc<str>, Roles)>,
 }
 
 impl fmt::Debug for Auth {
@@ -72,6 +76,8 @@ impl fmt::Debug for Auth {
             Scheme::ApiKey(_) => "api_key",
             Scheme::Basic => "basic",
             Scheme::Custom(_) => "custom",
+            #[cfg(feature = "jwt")]
+            Scheme::Jwt(_) => "jwt",
         };
         f.debug_struct("Auth")
             .field("scheme", &scheme)
@@ -95,6 +101,7 @@ impl Auth {
             protect: Vec::new(),
             public: Vec::new(),
             allow_options: true,
+            grants: Vec::new(),
         }
     }
 
@@ -122,6 +129,41 @@ impl Auth {
         F: Fn(&str, &request::Parts) -> Option<String> + Send + Sync + 'static,
     {
         Self::with_scheme(Scheme::Custom(Arc::new(validate)))
+    }
+
+    /// JSON Web Tokens in `Authorization: Bearer <jwt>`, checked by a
+    /// [`JwtValidator`](crate::jwt::JwtValidator) (feature `jwt`).
+    ///
+    /// On success the request extensions get a [`Principal`] (scheme `jwt`,
+    /// named after the subject), the [`JwtClaims`](crate::jwt::JwtClaims) and
+    /// the [`Roles`] of the token. On failure the `401` carries
+    /// `WWW-Authenticate: Bearer error="invalid_token"` (RFC 6750) and the
+    /// reason is only written to the audit log.
+    ///
+    /// ```
+    /// use securite::jwt::JwtValidator;
+    /// use securite::prelude::*;
+    ///
+    /// let auth = Auth::jwt(JwtValidator::hmac(b"a shared secret of at least 32 bytes"))
+    ///     .protect(["/api"]);
+    /// ```
+    #[cfg(feature = "jwt")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "jwt")))]
+    pub fn jwt(validator: crate::jwt::JwtValidator) -> Self {
+        Self::with_scheme(Scheme::Jwt(validator))
+    }
+
+    /// Gives roles to the credential labelled `label` (a token label or a
+    /// Basic user): on success, they are put in the request extensions as
+    /// [`Roles`], for [`AccessControl`](crate::access::AccessControl) and
+    /// your handlers.
+    pub fn grant<I, S>(mut self, label: &str, roles: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.grants.push((Arc::from(label), Roles::new(roles)));
+        self
     }
 
     /// Adds an accepted token / API key with a label.
@@ -253,6 +295,8 @@ impl Auth {
                     name,
                     scheme: "api_key",
                 }),
+            #[cfg(feature = "jwt")]
+            Scheme::Jwt(_) => None,
             Scheme::Basic => {
                 let encoded = authz().and_then(|a| {
                     let (scheme, rest) = a.split_once(' ')?;
@@ -263,6 +307,60 @@ impl Auth {
                     name,
                     scheme: "basic",
                 })
+            }
+        }
+    }
+}
+
+#[cfg(feature = "jwt")]
+impl Auth {
+    fn authenticate_jwt(
+        &self,
+        validator: &crate::jwt::JwtValidator,
+        req: &mut request::Parts,
+    ) -> Result<(), Rejection> {
+        let token = req
+            .headers
+            .get(AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|a| {
+                let (scheme, token) = a.trim().split_once(' ')?;
+                scheme
+                    .eq_ignore_ascii_case("bearer")
+                    .then(|| token.trim().to_owned())
+            });
+        let Some(token) = token else {
+            return Err(Rejection::new(
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "Authentication required.",
+            )
+            .with_header(WWW_AUTHENTICATE, self.challenge()));
+        };
+        match validator.validate(&token) {
+            Ok(claims) => {
+                req.extensions.insert(Principal {
+                    name: Arc::from(claims.subject()),
+                    scheme: "jwt",
+                });
+                req.extensions
+                    .insert(Roles::new(claims.roles().iter().cloned()));
+                req.extensions.insert(claims);
+                Ok(())
+            }
+            Err(e) => {
+                let challenge = format!("Bearer realm=\"{}\", error=\"invalid_token\"", self.realm);
+                Err(Rejection::new(
+                    StatusCode::UNAUTHORIZED,
+                    "invalid_token",
+                    "Authentication required.",
+                )
+                .with_header(
+                    WWW_AUTHENTICATE,
+                    HeaderValue::from_str(&challenge)
+                        .unwrap_or_else(|_| HeaderValue::from_static("Bearer")),
+                )
+                .with_details(format!("jwt: {e}")))
             }
         }
     }
@@ -284,8 +382,15 @@ impl Guard for Auth {
         if !protected || (self.allow_options && req.method == Method::OPTIONS) {
             return Ok(());
         }
+        #[cfg(feature = "jwt")]
+        if let Scheme::Jwt(validator) = &self.scheme {
+            return self.authenticate_jwt(validator, req);
+        }
         match self.authenticate(req) {
             Some(principal) => {
+                if let Some((_, roles)) = self.grants.iter().find(|(l, _)| *l == principal.name) {
+                    req.extensions.insert(roles.clone());
+                }
                 req.extensions.insert(principal);
                 Ok(())
             }
@@ -371,6 +476,65 @@ mod tests {
                 .unwrap()
                 .starts_with("Basic realm=\"Admin\"")
         );
+    }
+
+    #[test]
+    fn grants_give_roles() {
+        let a = Auth::bearer()
+            .token("ci", "a-long-token")
+            .token("bot", "another-token")
+            .grant("ci", ["ROLE_DEPLOY"]);
+        let mut p = Request::builder()
+            .uri("/")
+            .header("authorization", "Bearer a-long-token")
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
+        let mut ctx = Context::new(p.method.clone(), p.uri.clone(), None);
+        a.on_request(&mut p, &mut ctx).unwrap();
+        assert!(p.extensions.get::<Roles>().unwrap().contains("ROLE_DEPLOY"));
+        let mut p = Request::builder()
+            .uri("/")
+            .header("authorization", "Bearer another-token")
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
+        a.on_request(&mut p, &mut ctx).unwrap();
+        assert!(p.extensions.get::<Roles>().is_none());
+    }
+
+    #[cfg(feature = "jwt")]
+    #[test]
+    fn jwt_scheme() {
+        use crate::jwt::tests::{SECRET, hs, now};
+        use crate::jwt::{JwtClaims, JwtValidator};
+        let a = Auth::jwt(JwtValidator::hmac(SECRET));
+        let t = hs(&serde_json::json!({"sub": "u9", "exp": now() + 60, "roles": ["ROLE_X"]}));
+        let mut p = Request::builder()
+            .uri("/")
+            .header("authorization", format!("Bearer {t}"))
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
+        let mut ctx = Context::new(p.method.clone(), p.uri.clone(), None);
+        a.on_request(&mut p, &mut ctx).unwrap();
+        assert_eq!(&*p.extensions.get::<Principal>().unwrap().name, "u9");
+        assert!(p.extensions.get::<Roles>().unwrap().contains("ROLE_X"));
+        assert_eq!(p.extensions.get::<JwtClaims>().unwrap().subject(), "u9");
+        let err = run(&a, "/", &[("authorization", "Bearer x.y.z")]).unwrap_err();
+        assert_eq!(err.code(), "invalid_token");
+        assert!(err.details().unwrap().contains("malformed"));
+        assert!(
+            err.headers()[0]
+                .1
+                .to_str()
+                .unwrap()
+                .contains("error=\"invalid_token\"")
+        );
+        assert_eq!(run(&a, "/", &[]).unwrap_err().code(), "unauthorized");
     }
 
     #[test]

@@ -39,7 +39,9 @@
 //! |                     | [`MethodFilter`](method::MethodFilter)  | Allowed HTTP methods, blocks method override |
 //! | Access control      | [`IpFilter`](ip_filter::IpFilter)       | CIDR allow / deny lists, updatable at runtime |
 //! |                     | [`HostFilter`](host::HostFilter)        | Host header allow-list (anti DNS-rebinding) |
-//! |                     | [`Auth`](auth::Auth)                    | Bearer / API key / Basic auth, constant-time |
+//! |                     | [`Auth`](auth::Auth)                    | Bearer / API key / Basic / JWT (JWKS) auth, constant-time |
+//! |                     | [`AccessControl`](access::AccessControl) | Symfony-style `access_control`: roles by URL, role hierarchy |
+//! |                     | [`Sessions`](session::Sessions)         | Server-side sessions: rotation on login, idle/absolute timeouts |
 //! |                     | [`Csrf`](csrf::Csrf)                    | Fetch-Metadata + signed double-submit tokens |
 //! |                     | [`ContentTypeGuard`](content_type::ContentTypeGuard) | Allowed request media types |
 //! |                     | [`SignedUrls`](signing::SignedUrls)     | Laravel-style signed, expiring URLs |
@@ -48,6 +50,7 @@
 //! | Integrity & tracing | [`RequestId`](request_id::RequestId)    | Validated request IDs |
 //! |                     | [`SignatureLayer`](signature::SignatureLayer) | HMAC webhook verification (GitHub, Stripe, Slack …) |
 //! |                     | [`Stats`](event::StatsSnapshot) / [events](event::SecurityEvent) | Metrics and audit trail |
+//! |                     | [`ClearSiteData`](clear_site_data::ClearSiteData) | Wipes cache, cookies and storage on logout |
 //!
 //! ## Building blocks for handlers
 //!
@@ -58,6 +61,13 @@
 //! | [`authz`] | [`Gate`](authz::Gate): abilities, policies and voters, deny by default |
 //! | [`signing`] | [`Signer`](signing::Signer): signed, expiring, purpose-bound tokens and URLs |
 //! | [`totp`] | [`Totp`](totp::Totp): RFC 6238 two-factor codes, replay protection, recovery codes |
+//! | `crypt` | `Encrypter`: XChaCha20-Poly1305 encryption, key rotation, encrypted cookies (feature `crypt`) |
+//! | `jwt` | `JwtValidator`: JWT / JWKS validation, algorithm allow-list, key rotation (feature `jwt`) |
+//! | [`session`] | [`SessionManager`](session::SessionManager): sessions, fixation protection, logout with `Clear-Site-Data` |
+//! | [`password_policy`] | [`PasswordPolicy`](password_policy::PasswordPolicy): NIST SP 800-63B rules, Have I Been Pwned k-anonymity |
+//! | [`counter`] | [`CounterStore`](counter::CounterStore): counters shared by every instance (Redis …) |
+//! | `report` | CSP violation report collector (feature `reports`) |
+//! | [`security_txt`] | [`SecurityTxt`](security_txt::SecurityTxt): RFC 9116 `security.txt` |
 //!
 //! Every guard can also be used on its own, as a one-guard shield (with tower,
 //! a guard is a layer by itself):
@@ -86,6 +96,11 @@
 //!   Without it the crate only depends on `http` and `tower`.
 //! * `password` (default): the [`password`] module (Argon2id, through the
 //!   RustCrypto `argon2` crate).
+//! * `crypt` (default): the `crypt` module (XChaCha20-Poly1305, through the
+//!   RustCrypto `chacha20poly1305` crate).
+//! * `jwt`: the `jwt` module and `Auth::jwt` (through the `jsonwebtoken`
+//!   crate and its RustCrypto backend).
+//! * `reports`: the `report` module (CSP violation reports, `serde_json`).
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -93,16 +108,22 @@
 /// The version of this crate, e.g. `"0.1.0"`: handy for a footer or a `Server` header.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod access;
 pub mod auth;
 pub mod authz;
 pub mod ban;
 pub mod body;
 pub mod body_limit;
+pub mod clear_site_data;
 pub mod concurrency;
 pub mod content_type;
 mod context;
 pub mod cookies;
 pub mod cors;
+pub mod counter;
+#[cfg(feature = "crypt")]
+#[cfg_attr(docsrs, doc(cfg(feature = "crypt")))]
+pub mod crypt;
 pub mod csrf;
 pub mod event;
 mod guard;
@@ -112,13 +133,22 @@ pub mod https;
 pub mod hygiene;
 pub mod ip;
 pub mod ip_filter;
+#[cfg(feature = "jwt")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jwt")))]
+pub mod jwt;
 pub mod method;
 #[cfg(feature = "password")]
 #[cfg_attr(docsrs, doc(cfg(feature = "password")))]
 pub mod password;
+pub mod password_policy;
 pub mod rate_limit;
 mod rejection;
+#[cfg(feature = "reports")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reports")))]
+pub mod report;
 pub mod request_id;
+pub mod security_txt;
+pub mod session;
 mod shield;
 pub mod signature;
 pub mod signing;
@@ -140,6 +170,7 @@ pub use shield::{ResponseFuture, Shield, ShieldBuilder, ShieldService};
 
 /// Everything you usually need, in one import.
 pub mod prelude {
+    pub use crate::access::{Access, AccessControl, RoleHierarchy, Roles};
     pub use crate::auth::{Auth, Principal};
     pub use crate::authz::{Gate, Vote, Voter};
     pub use crate::ban::AutoBan;

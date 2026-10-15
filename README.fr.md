@@ -20,7 +20,7 @@ Ce dépôt contient :
 
 | Dossier | Contenu |
 |---|---|
-| [`crates/securite`](crates/securite) | La **crate `securite`** (prête pour crates.io) : 20 middlewares de sécurité pour Vitesse, et pour tower / hyper / tonic, plus le hachage des mots de passe, la limitation des connexions, les autorisations, les URL signées et TOTP |
+| [`crates/securite`](crates/securite) | La **crate `securite`** (prête pour crates.io) : 23 middlewares de sécurité pour Vitesse, et pour tower / hyper / tonic, plus le hachage et la politique des mots de passe, la limitation des connexions, les autorisations et le contrôle d'accès, les sessions, JWT / JWKS, le chiffrement, les URL signées, TOTP, les rapports CSP et security.txt |
 | [`crates/pratique`](crates/pratique) | La **crate `pratique`** : 13 middlewares Vitesse du quotidien sans rapport avec la sécurité (ETag, Cache-Control, cache de réponses, access logs, métriques Prometheus, temps de réponse, slash final, redirections, health checks, mode maintenance, en-têtes, langue, dépréciation d'API) |
 | [`site`](site) | Le **site de présentation**, écrit avec [Active](https://active-c1883a966650.herokuapp.com/) : pages rendues par le serveur avec un SEO complet, îlots WebAssembly, animé, FR / EN / ES, documentation classée par catégories, playground d'attaques en direct, PWA installable qui fonctionne hors ligne |
 | [`server`](server) | Le serveur Vitesse qui rend et héberge le site et l'API du playground — protégé par `securite` lui-même |

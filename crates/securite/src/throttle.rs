@@ -39,6 +39,7 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
+use crate::counter::CounterStore;
 use crate::store::ShardedMap;
 use crate::util::ceil_secs;
 
@@ -53,6 +54,7 @@ struct Inner {
     max_attempts: u32,
     decay: u64,
     store: ShardedMap<[u8; 32], Entry>,
+    shared: Option<Arc<dyn CounterStore>>,
 }
 
 /// Counts failures per key and locks the key once `max_attempts` is reached,
@@ -93,8 +95,35 @@ impl LoginThrottle {
                 max_attempts: max_attempts.max(1),
                 decay: (decay.as_nanos().min(u128::from(u64::MAX)) as u64).max(1),
                 store: ShardedMap::new(max_keys),
+                shared: None,
             }),
         }
+    }
+
+    /// Like [`new`](Self::new), with the counters in a shared
+    /// [`CounterStore`] (Redis …), so that every instance of the application
+    /// enforces the same limit. A store error locks the key (fail closed).
+    /// See [`counter`](crate::counter).
+    pub fn with_store(max_attempts: u32, decay: Duration, store: Arc<dyn CounterStore>) -> Self {
+        Self {
+            inner: Arc::new(Inner {
+                max_attempts: max_attempts.max(1),
+                decay: (decay.as_nanos().min(u128::from(u64::MAX)) as u64).max(1),
+                store: ShardedMap::new(16),
+                shared: Some(store),
+            }),
+        }
+    }
+
+    fn shared_key(key: &str) -> String {
+        format!(
+            "securite:throttle:{}",
+            crate::util::hex_encode(&Self::digest(key))
+        )
+    }
+
+    fn decay(&self) -> Duration {
+        Duration::from_nanos(self.inner.decay)
     }
 
     /// The conventional key for "this account from this address":
@@ -128,6 +157,12 @@ impl LoginThrottle {
 
     /// `None` when the key cannot be tracked (store full of live entries).
     fn try_hit_at(&self, key: &str, now: u64) -> Option<u32> {
+        if let Some(shared) = &self.inner.shared {
+            return shared
+                .increment(&Self::shared_key(key), self.decay())
+                .ok()
+                .map(|w| u32::try_from(w.count).unwrap_or(u32::MAX));
+        }
         let decay = self.inner.decay;
         self.inner.store.update(
             Self::digest(key),
@@ -155,6 +190,12 @@ impl LoginThrottle {
     }
 
     fn attempts_at(&self, key: &str, now: u64) -> u32 {
+        if let Some(shared) = &self.inner.shared {
+            return match shared.get(&Self::shared_key(key)) {
+                Ok(w) => w.map_or(0, |w| u32::try_from(w.count).unwrap_or(u32::MAX)),
+                Err(_) => self.inner.max_attempts,
+            };
+        }
         self.inner.store.get(&Self::digest(key), |e| match e {
             Some(e) if e.resets_at > now => e.attempts,
             _ => 0,
@@ -178,6 +219,15 @@ impl LoginThrottle {
     }
 
     fn check_at(&self, key: &str, now: u64) -> Result<(), Duration> {
+        if let Some(shared) = &self.inner.shared {
+            return match shared.get(&Self::shared_key(key)) {
+                Ok(Some(w)) if w.count >= u64::from(self.inner.max_attempts) => Err(
+                    Duration::from_secs(w.resets_in.as_secs_f64().ceil().max(1.0) as u64),
+                ),
+                Ok(_) => Ok(()),
+                Err(_) => Err(self.decay()),
+            };
+        }
         self.inner.store.get(&Self::digest(key), |e| match e {
             Some(e) if e.resets_at > now && e.attempts >= self.inner.max_attempts => {
                 Err(Duration::from_secs(ceil_secs(e.resets_at - now).max(1)))
@@ -188,6 +238,10 @@ impl LoginThrottle {
 
     /// Forgets the failures of `key` (call it after a successful login).
     pub fn clear(&self, key: &str) {
+        if let Some(shared) = &self.inner.shared {
+            let _ = shared.delete(&Self::shared_key(key));
+            return;
+        }
         self.inner.store.remove(&Self::digest(key));
     }
 
@@ -227,6 +281,55 @@ impl LoginThrottle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::counter::{MemoryCounterStore, StoreError, Window};
+
+    #[test]
+    fn shared_store_is_shared_and_hashed() {
+        let store = Arc::new(MemoryCounterStore::new(100));
+        let a = LoginThrottle::with_store(2, Duration::from_secs(60), store.clone());
+        let b = LoginThrottle::with_store(2, Duration::from_secs(60), store.clone());
+        assert_eq!(a.attempt("bob@x.io|1.2.3.4", || false), Ok(false));
+        assert_eq!(b.attempt("bob@x.io|1.2.3.4", || false), Ok(false));
+        let wait = a.attempt("bob@x.io|1.2.3.4", || true).unwrap_err();
+        assert!(wait <= Duration::from_secs(60) && wait >= Duration::from_secs(59));
+        assert_eq!(b.attempts("bob@x.io|1.2.3.4"), 2);
+        assert_eq!(b.remaining("bob@x.io|1.2.3.4"), 0);
+        // The store never sees the e-mail address.
+        let key = LoginThrottle::shared_key("bob@x.io|1.2.3.4");
+        assert!(key.starts_with("securite:throttle:") && !key.contains("bob"));
+        assert!(store.get(&key).unwrap().is_some());
+        b.clear("bob@x.io|1.2.3.4");
+        assert!(a.check("bob@x.io|1.2.3.4").is_ok());
+    }
+
+    struct Down;
+    impl CounterStore for Down {
+        fn increment(&self, _: &str, _: Duration) -> Result<Window, StoreError> {
+            Err(StoreError)
+        }
+        fn get(&self, _: &str) -> Result<Option<Window>, StoreError> {
+            Err(StoreError)
+        }
+        fn delete(&self, _: &str) -> Result<(), StoreError> {
+            Err(StoreError)
+        }
+    }
+
+    #[test]
+    fn store_outage_fails_closed() {
+        let t = LoginThrottle::with_store(5, Duration::from_secs(30), Arc::new(Down));
+        let mut verified = false;
+        assert_eq!(
+            t.attempt("k", || {
+                verified = true;
+                true
+            }),
+            Err(Duration::from_secs(30))
+        );
+        assert!(!verified, "the password is not even checked");
+        assert!(t.too_many_attempts("k"));
+        assert_eq!(t.hit("k"), 5);
+    }
 
     const S: u64 = 1_000_000_000;
 
