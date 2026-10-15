@@ -351,7 +351,7 @@ fn footer_(ctx: &Ctx<'_>) -> Element {
                         ul().child(ext(CRATES_IO.into(), "GitHub"))
                             .child(ext(DOCS_RS.into(), "docs.rs"))
                             .child(doc("heroku-from-phone", "Heroku"))
-                            .child(doc("github-pages", "GitHub Pages"))
+                            .child(doc("docker", "Docker"))
                             .child(ext(
                                 format!("{}{LICENSE_PATH}", ctx.base()),
                                 t.footer_license,

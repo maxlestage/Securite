@@ -79,17 +79,11 @@ luego `git push heroku master:main`.
 
 Guía completa: [docs/es/heroku-from-phone.md](docs/es/heroku-from-phone.md).
 
-## GitHub Pages (alojamiento estático gratuito)
+## Sitio web
 
-[`pages.yml`](.github/workflows/pages.yml) publica el sitio en
-**https://maxlestage.github.io/Securite/** tras cada fusión en `master`,
-como archivos estáticos exportados por el servidor (`securite-server export`),
-con una CSP estricta como etiqueta `<meta>` (scripts inline permitidos por
-hash), un manifiesto de aplicación web y un service worker sin conexión.
-Configuración única desde el móvil: repositorio → *Settings* → *Pages* →
-*Source*: **GitHub Actions**, y luego *Actions* → *Deploy to GitHub Pages* →
-*Run workflow*. El playground de ataques en directo necesita el
-servidor (Heroku o Docker). Guía: [docs/es/github-pages.md](docs/es/github-pages.md).
+El sitio web lo sirve únicamente Heroku, en **https://securite-2db4c1994be7.herokuapp.com/**: GitHub solo aloja
+el código. El servidor puede seguir exportándolo a archivos estáticos
+(`securite-server export`), algo que la CI comprueba en cada push.
 
 ## Siempre fusionado en master
 
@@ -126,7 +120,7 @@ cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile was
 wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
 cargo run -p securite-server   # http://localhost:8080
 
-# la copia estática para GitHub Pages
+# todo el sitio en archivos estáticos (comprobado por la CI, no se publica)
 BASE_PATH=/Securite cargo run -p securite-server -- export dist
 ```
 

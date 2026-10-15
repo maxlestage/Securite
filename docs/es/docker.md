@@ -2,7 +2,7 @@
 title: Imagen Docker
 summary: Cómo el Dockerfile multietapa construye el sitio y su servidor, cómo ejecutar la imagen en local o en cualquier plataforma de contenedores, y cómo desarrollar sin Docker.
 category: deploy
-order: 3
+order: 2
 ---
 
 El `Dockerfile` de la raíz del repositorio construye este sitio: páginas renderizadas en el servidor con [Active](https://active-c1883a966650.herokuapp.com/) e islas WebAssembly, servidas por un servidor Vitesse que se protege a sí mismo con `securite`. Heroku construye el sitio con el buildpack de Rust por defecto, y construye esta misma imagen por usted cuando la variable de repositorio `HEROKU_BUILD` del workflow de despliegue vale `docker` (vea [Desplegar en Heroku desde el móvil](/docs/heroku-from-phone)); los comandos de esta página necesitan un ordenador o una terminal en la nube.
@@ -117,10 +117,10 @@ cargo run -p securite-server   # http://localhost:8080
 
 Las páginas, los textos y la documentación se compilan dentro del servidor: tras un cambio, vuelva a ejecutar `cargo run -p securite-server`. Reconstruya el bundle solo cuando cambien las islas o las animaciones de página (`site/src/islands.rs`, `site/src/client/`).
 
-La copia estática publicada en GitHub Pages sale del mismo código (vea [Desplegar en GitHub Pages](/docs/github-pages)):
+El servidor también puede exportar todo el sitio a archivos estáticos, con el mismo código (la CI comprueba esta exportación; el sitio web en sí lo sirve Heroku):
 
 ```bash
-BASE_PATH=/Securite SITE_URL=https://maxlestage.github.io/Securite cargo run -p securite-server -- export dist
+BASE_PATH=/Securite SITE_URL=https://example.com/Securite cargo run -p securite-server -- export dist
 ```
 
 ## Páginas relacionadas

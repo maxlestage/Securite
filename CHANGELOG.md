@@ -120,6 +120,13 @@ Found by reviewing every middleware of `pratique` before its first release:
   documentation, doc comments, the crates' `homepage`, `app.json` and the website's
   footer) now point to their Heroku deployments instead of GitHub Pages. The static
   copy on GitHub Pages is still exported as before.
+- The website is no longer published on GitHub Pages (the `pages.yml` workflow is
+  removed): it is served by Heroku only, and GitHub only hosts the code. The
+  "Deploy to GitHub Pages" documentation page is removed in the three languages
+  (and from the website's footer, which links the Docker page instead); the
+  READMEs, `CONTRIBUTING.md`, the Docker and CI pages and the website's texts no
+  longer mention a Pages deployment. `securite-server export` still writes the
+  static copy, and the CI still checks it.
 - The ecosystem is now five projects: FerroSwift and Solidify are no longer listed
   in the READMEs, the website's footer or the publication order.
 - Heroku builds the website with the
