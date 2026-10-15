@@ -1,6 +1,6 @@
 [package]
 name = "pratique"
-version = "0.1.0"
+version = "0.2.0"
 description = "Everyday middlewares for Vitesse that have nothing to do with security: ETag & 304, Cache-Control, response cache, response time, trailing slash, redirects, maintenance mode, health checks, Prometheus metrics, access logs, default headers, locale negotiation and API deprecation."
 edition.workspace = true
 rust-version.workspace = true
@@ -31,7 +31,7 @@ redis-tls = [
 ]
 
 [dependencies]
-vitesse = { version = "0.1", git = "https://github.com/maxlestage/Vitesse", default-features = false }
+vitesse = { version = "0.2", git = "https://github.com/maxlestage/Vitesse", default-features = false }
 redis = { version = "1.7", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 # The crypto provider of rustls for `redis-tls` (rustls has none by default).
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }

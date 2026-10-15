@@ -8,7 +8,7 @@ order: 9
 `Auth::jwt` authenticates `Authorization: Bearer <jwt>` requests with a `JwtValidator`: access tokens issued by Auth0, Keycloak, Cognito, Entra ID, Google, Supabase or your own service. It needs the `jwt` feature and uses the audited `jsonwebtoken` crate with its RustCrypto backend.
 
 ```toml
-securite = { version = "0.1", features = ["jwt"] }
+securite = { version = "0.2", features = ["jwt"] }
 ```
 
 ## Threats mitigated

@@ -8,7 +8,7 @@ order: 5
 A Content-Security-Policy is only rolled out safely when you see what it blocks. Browsers send a report for each violation, to the `report-uri` of the policy (format `application/csp-report`) or to a `report-to` endpoint declared by `Reporting-Endpoints` (format `application/reports+json`). `parse_csp_reports` reads both (feature `reports`).
 
 ```toml
-securite = { version = "0.1", features = ["reports"] }
+securite = { version = "0.2", features = ["reports"] }
 ```
 
 ## Threats mitigated

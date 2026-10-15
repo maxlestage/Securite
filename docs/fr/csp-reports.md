@@ -8,7 +8,7 @@ order: 5
 Une Content-Security-Policy ne se déploie sereinement que si l'on voit ce qu'elle bloque. Les navigateurs envoient un rapport pour chaque violation, au `report-uri` de la politique (format `application/csp-report`) ou à un point `report-to` déclaré par `Reporting-Endpoints` (format `application/reports+json`). `parse_csp_reports` lit les deux (feature `reports`).
 
 ```toml
-securite = { version = "0.1", features = ["reports"] }
+securite = { version = "0.2", features = ["reports"] }
 ```
 
 ## Menaces couvertes

@@ -443,7 +443,8 @@ fn hero(ctx: &Ctx<'_>) -> Element {
                     a().href(ctx.doc("introduction"))
                         .class("badge shine")
                         .child(icon("sparkles", 16))
-                        .child(span().text(t.hero_badge))
+                        // The version comes from the crate: it never falls behind.
+                        .child(span().text(format!("v{} · {}", securite::VERSION, t.hero_badge)))
                         .child(icon("arrow-right", 14)),
                 )
                 .child(
