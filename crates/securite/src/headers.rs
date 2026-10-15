@@ -477,6 +477,48 @@ impl SecurityHeaders {
         self
     }
 
+    /// Declares a Reporting API endpoint (`Reporting-Endpoints: name="url"`),
+    /// for the CSP's `report-to` directive and other browser reports. Call it
+    /// once per endpoint.
+    ///
+    /// ```
+    /// use securite::headers::{ContentSecurityPolicy, SecurityHeaders};
+    ///
+    /// let headers = SecurityHeaders::new()
+    ///     .reporting_endpoint("csp", "https://example.com/csp-reports")
+    ///     .content_security_policy(ContentSecurityPolicy::strict().report_to(["csp"]));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If `name` is not a token (`[a-z0-9_-]`) or `url` is not an absolute
+    /// `https://` URL (browsers ignore other ones), or contains `"`, `\`,
+    /// spaces or control characters.
+    pub fn reporting_endpoint(self, name: &str, url: &str) -> Self {
+        assert!(
+            !name.is_empty()
+                && name.bytes().all(|b| b.is_ascii_lowercase()
+                    || b.is_ascii_digit()
+                    || b == b'-'
+                    || b == b'_'),
+            "a reporting endpoint name is a lowercase token"
+        );
+        assert!(
+            (url.starts_with("https://") || url.starts_with("http://localhost"))
+                && !url
+                    .bytes()
+                    .any(|b| b == b'"' || b == b'\\' || b <= b' ' || b == 0x7f),
+            "a reporting endpoint is an absolute https URL"
+        );
+        let header = HeaderName::from_static("reporting-endpoints");
+        let entry = format!("{name}=\"{url}\"");
+        let value = match self.static_headers.iter().find(|(n, _)| *n == header) {
+            Some((_, v)) => format!("{}, {entry}", v.to_str().unwrap_or_default()),
+            None => entry,
+        };
+        self.set("reporting-endpoints", &value)
+    }
+
     /// Removes a header previously set (e.g. `"x-frame-options"`).
     pub fn unset(mut self, name: &str) -> Self {
         self.static_headers
@@ -640,6 +682,39 @@ impl Guard for SecurityHeaders {
 }
 
 impl_layer!(SecurityHeaders);
+
+#[cfg(test)]
+mod reporting_tests {
+    use super::*;
+
+    #[test]
+    fn reporting_endpoints_accumulate() {
+        let h = SecurityHeaders::new()
+            .reporting_endpoint("csp", "https://a.test/csp")
+            .reporting_endpoint("default", "https://a.test/r");
+        let (_, v) = h
+            .static_headers
+            .iter()
+            .find(|(n, _)| n == "reporting-endpoints")
+            .unwrap();
+        assert_eq!(
+            v,
+            "csp=\"https://a.test/csp\", default=\"https://a.test/r\""
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "absolute https")]
+    fn reporting_endpoint_injection() {
+        let _ = SecurityHeaders::new().reporting_endpoint("csp", "https://a.test/\", evil=\"x");
+    }
+
+    #[test]
+    #[should_panic(expected = "absolute https")]
+    fn reporting_endpoint_plain_http() {
+        let _ = SecurityHeaders::new().reporting_endpoint("csp", "http://a.test/");
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -90,7 +90,7 @@ if hasher.verify(&password, &hash) {
 
 - Un verrouillage par compte seul permet à un attaquant de bloquer volontairement n'importe quel utilisateur : préférez compte + IP pour la limite stricte et gardez une limite par compte élevée.
 - Utilisez le même outil pour les codes 2FA, les demandes de réinitialisation de mot de passe et les renvois d'e-mail de vérification, chacun avec ses propres clés.
-- L'état est en mémoire, par processus. Avec plusieurs instances, chacune compte de son côté : divisez vos limites en conséquence, ou gardez la connexion sur des sessions persistantes.
+- L'état est en mémoire, par processus. Avec plusieurs instances, chacune compte de son côté : partagez les compteurs avec `LoginThrottle::with_store` (voir [compteurs partagés](/docs/shared-counters)), ou divisez vos limites en conséquence.
 - Derrière un proxy, configurez l'[IP client](/docs/client-ip) (et les proxies de confiance), sinon tous les utilisateurs partagent l'adresse du proxy.
 - Le [bannissement automatique](/docs/auto-ban) le complète : des réponses `401` et `429` répétées bannissent l'adresse dans toute l'application.
 

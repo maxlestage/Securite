@@ -19,23 +19,33 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["vitesse", "password"]
+default = ["vitesse", "password", "crypt"]
 ## The shield as a Vitesse middleware: `app.middleware(Shield::recommended())`.
 vitesse = ["dep:vitesse"]
 ## Argon2id password hashing (`securite::password`).
 password = ["dep:argon2"]
+## Authenticated encryption à la Laravel `Crypt` and encrypted cookies
+## (`securite::crypt`, XChaCha20-Poly1305 through the RustCrypto `chacha20poly1305` crate).
+crypt = ["dep:chacha20poly1305"]
+## JWT / JWKS validation (`securite::jwt`, `Auth::jwt`) through the `jsonwebtoken` crate.
+jwt = ["dep:jsonwebtoken", "dep:serde_json"]
+## Parsing of CSP violation reports (`securite::report`).
+reports = ["dep:serde_json"]
 
 [dependencies]
 aho-corasick = "1.1"
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"], optional = true }
 base64 = "0.23"
 bytes = "1"
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"], optional = true }
 getrandom = "0.4"
 hmac = "0.13"
 http = "1"
 http-body = "1"
 http-body-util = "0.1"
+jsonwebtoken = { version = "10.3", default-features = false, features = ["rust_crypto", "use_pem"], optional = true }
 pin-project-lite = "0.2"
+serde_json = { version = "1", optional = true }
 sha1 = "0.11"
 sha2 = "0.11"
 subtle = "2.6"

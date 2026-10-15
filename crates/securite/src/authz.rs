@@ -42,6 +42,7 @@ use std::sync::Arc;
 use http::StatusCode;
 
 use crate::Rejection;
+use crate::access::RoleHierarchy;
 
 /// A voter's answer (Symfony's `ACCESS_GRANTED`, `ACCESS_DENIED`,
 /// `ACCESS_ABSTAIN`).
@@ -95,6 +96,66 @@ impl From<bool> for Vote {
 pub trait Voter<U>: Send + Sync + 'static {
     /// Votes on `ability` for `user`, on `resource` when there is one.
     fn vote(&self, user: &U, ability: &str, resource: Option<&dyn Any>) -> Vote;
+}
+
+type RolesOf<U> = dyn Fn(&U) -> Vec<String> + Send + Sync;
+
+/// Symfony's `RoleVoter` with its role hierarchy: votes on abilities that
+/// start with the role prefix (`ROLE_` by default), grants when the user has
+/// the role directly or through the [`RoleHierarchy`], denies otherwise, and
+/// abstains on every other ability.
+///
+/// ```
+/// use securite::access::RoleHierarchy;
+/// use securite::authz::{Gate, RoleVoter};
+///
+/// struct User { roles: Vec<String> }
+///
+/// let hierarchy = RoleHierarchy::new().inherit("ROLE_ADMIN", ["ROLE_EDITOR"]);
+/// let gate = Gate::new()
+///     .voter(RoleVoter::new(hierarchy, |u: &User| u.roles.clone()))
+///     .define("publish", |u: &User| u.roles.iter().any(|r| r == "ROLE_EDITOR"));
+///
+/// let admin = User { roles: vec!["ROLE_ADMIN".into()] };
+/// assert!(gate.allows(&admin, "ROLE_EDITOR"));
+/// assert!(!gate.allows(&User { roles: vec![] }, "ROLE_EDITOR"));
+/// ```
+pub struct RoleVoter<U> {
+    hierarchy: RoleHierarchy,
+    roles: Arc<RolesOf<U>>,
+    prefix: String,
+}
+
+impl<U> RoleVoter<U> {
+    /// A voter reading the roles of a user with `roles_of`.
+    pub fn new<F>(hierarchy: RoleHierarchy, roles_of: F) -> Self
+    where
+        F: Fn(&U) -> Vec<String> + Send + Sync + 'static,
+    {
+        Self {
+            hierarchy,
+            roles: Arc::new(roles_of),
+            prefix: String::from("ROLE_"),
+        }
+    }
+
+    /// The prefix of the abilities this voter handles (default `ROLE_`; an
+    /// empty prefix makes every ability a role).
+    pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.prefix = prefix.into();
+        self
+    }
+}
+
+impl<U: 'static> Voter<U> for RoleVoter<U> {
+    fn vote(&self, user: &U, ability: &str, _resource: Option<&dyn Any>) -> Vote {
+        if !ability.starts_with(&self.prefix) {
+            return Vote::Abstain;
+        }
+        self.hierarchy
+            .is_granted((self.roles)(user), ability)
+            .into()
+    }
 }
 
 /// How the votes of every rule and voter are combined (Symfony's access
@@ -240,6 +301,15 @@ impl<U: 'static> Gate<U> {
         self
     }
 
+    /// Adds a [`RoleVoter`]: abilities named `ROLE_*` are granted to users
+    /// that have the role, directly or through `hierarchy`.
+    pub fn roles<F>(self, hierarchy: RoleHierarchy, roles_of: F) -> Self
+    where
+        F: Fn(&U) -> Vec<String> + Send + Sync + 'static,
+    {
+        self.voter(RoleVoter::new(hierarchy, roles_of))
+    }
+
     /// How votes are combined (default [`Strategy::Affirmative`]).
     pub fn strategy(mut self, strategy: Strategy) -> Self {
         self.strategy = strategy;
@@ -377,6 +447,28 @@ mod tests {
         Gate::new()
             .define("admin.panel", |u: &User| u.roles.contains(&"admin"))
             .define_for("doc.edit", |u: &User, d: &Doc| d.owner == u.id)
+    }
+
+    #[test]
+    fn role_voter_with_hierarchy() {
+        let h = RoleHierarchy::new()
+            .inherit("ROLE_ADMIN", ["ROLE_EDITOR"])
+            .inherit("ROLE_EDITOR", ["ROLE_USER"]);
+        let g = Gate::<Vec<String>>::new().roles(h, |u| u.clone());
+        let admin = vec!["ROLE_ADMIN".to_string()];
+        let user = vec!["ROLE_USER".to_string()];
+        assert!(g.allows(&admin, "ROLE_USER"));
+        assert!(g.allows(&user, "ROLE_USER"));
+        assert!(!g.allows(&user, "ROLE_ADMIN"), "no upward inheritance");
+        assert!(
+            !g.allows(&admin, "edit"),
+            "non-role abilities abstain: denied"
+        );
+        let g = Gate::<Vec<String>>::new().voter(
+            RoleVoter::new(RoleHierarchy::new(), |u: &Vec<String>| u.clone()).prefix("perm:"),
+        );
+        assert!(g.allows(&vec!["perm:x".to_string()], "perm:x"));
+        assert!(!g.allows(&vec!["perm:x".to_string()], "ROLE_X"));
     }
 
     #[test]

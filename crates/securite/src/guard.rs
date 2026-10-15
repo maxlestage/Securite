@@ -49,8 +49,13 @@ pub mod priority {
     pub const CSRF: u16 = 130;
     /// [`SignedUrls`](crate::signing::SignedUrls)
     pub const SIGNED_URL: u16 = 135;
+    /// [`Sessions`](crate::session::Sessions) — before [`AUTH`] and
+    /// [`ACCESS_CONTROL`], which read the session's user.
+    pub const SESSIONS: u16 = 138;
     /// [`Auth`](crate::auth::Auth)
     pub const AUTH: u16 = 140;
+    /// [`AccessControl`](crate::access::AccessControl) — right after [`AUTH`].
+    pub const ACCESS_CONTROL: u16 = 145;
     /// [`ContentTypeGuard`](crate::content_type::ContentTypeGuard)
     pub const CONTENT_TYPE: u16 = 150;
     /// Default for user defined guards.
@@ -59,6 +64,8 @@ pub mod priority {
     pub const HEADERS: u16 = 900;
     /// [`CookieHardening`](crate::cookies::CookieHardening)
     pub const COOKIES: u16 = 910;
+    /// [`ClearSiteData`](crate::clear_site_data::ClearSiteData)
+    pub const CLEAR_SITE_DATA: u16 = 920;
 }
 
 /// A security check executed by the [`Shield`](crate::Shield).

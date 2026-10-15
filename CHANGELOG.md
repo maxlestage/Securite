@@ -8,6 +8,63 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `securite::jwt` (new feature `jwt`): `JwtValidator` and `Auth::jwt`, JSON Web
+  Token validation through the `jsonwebtoken` crate (RustCrypto backend). HMAC
+  secrets, RSA / EC / Ed25519 PEM keys or a JWKS; algorithm allow-list checked
+  against the key family (no RS256 → HS256 confusion, never `none`); `exp`
+  required, `nbf` checked, `iss` / `aud` required once configured, 30 s leeway;
+  keys chosen by `kid`, symmetric and encryption keys of a JWKS ignored,
+  `set_jwks` for runtime key rotation shared by every clone; roles read from a
+  claim (array, space separated `scope`, dotted paths such as Keycloak's
+  `realm_access.roles`). On success the request gets a `Principal` (scheme `jwt`),
+  the `JwtClaims` and the `Roles`; failures answer `401` with
+  `WWW-Authenticate: Bearer error="invalid_token"`.
+- `securite::crypt` (new default feature `crypt`): `Encrypter`, Laravel's `Crypt`
+  with XChaCha20-Poly1305 (RustCrypto `chacha20poly1305`): random 192-bit nonces,
+  versioned tokens carrying a key id, key rotation (`fallback_key`), purposes and
+  contexts authenticated as associated data, optional expiry, `generate_key`, and
+  encrypted cookies bound to their name (`encrypt_cookie`, `read_cookie`).
+- `securite::access`: `Roles` (request extension), `RoleHierarchy` (Symfony's
+  `role_hierarchy`, cycle safe) and the `AccessControl` guard (Symfony's
+  `access_control`): ordered rules by path prefix and method, `Public`,
+  `Authenticated`, `AnyRole`, `AllRoles`, `Deny`, `deny_unmatched` /
+  `authenticate_unmatched`; `401` for anonymous requests, `403` otherwise; paths
+  are canonicalised (percent-decoding, `\`, `;params`, `//`, dot segments, case)
+  so encoding tricks do not bypass rules. New priorities `priority::SESSIONS` (138)
+  and `priority::ACCESS_CONTROL` (145). `Auth::grant` gives roles to a credential.
+- `authz::RoleVoter` and `Gate::roles`: `ROLE_*` abilities decided by the user's
+  roles through a `RoleHierarchy`.
+- `securite::session`: `SessionManager`, `SessionStore` (with
+  `MemorySessionStore`) and the `Sessions` guard: 256-bit ids stored as SHA-256
+  digests only, `login` / `regenerate` rotate the id (session fixation), idle (30
+  min) and absolute (12 h) timeouts enforced server side, `__Host-` cookie with
+  `Secure; HttpOnly; SameSite=Lax`, `logout` with an expired cookie and
+  `Clear-Site-Data`.
+- `securite::clear_site_data::ClearSiteData`: adds `Clear-Site-Data` to the
+  successful responses of logout paths. New priority `priority::CLEAR_SITE_DATA`.
+- `Signer::email_verification_url` / `verify_email_url` (links bound to the user
+  *and* the current address, Laravel's `MustVerifyEmail`) and
+  `Signer::sign_cookie` / `unsign_cookie` (signed cookies bound to their name).
+- `securite::password_policy`: `PasswordPolicy` after NIST SP 800-63B (length
+  12..128 characters by default, no composition rules, common passwords,
+  context words such as the user name or e-mail, repetitive and sequential
+  passwords, custom blocklist) and `hibp::RangeQuery`, Have I Been Pwned's
+  k-anonymity range API without an HTTP client dependency.
+- `securite::counter`: `CounterStore` (fixed-window counters shared by every
+  instance, e.g. in Redis) with `MemoryCounterStore`, and
+  `LoginThrottle::with_store`; keys are hashed and a store outage locks the key
+  (fail closed).
+- `securite::report` (new feature `reports`): `parse_csp_reports`, a defensive
+  parser of CSP violation reports in both the `report-uri` and the Reporting API
+  formats (size and count limits, truncated and control-free fields, extension
+  noise filter, `tracing` output), and `SecurityHeaders::reporting_endpoint`
+  (`Reporting-Endpoints`).
+- `securite::security_txt::SecurityTxt`: RFC 9116 `security.txt` builder that
+  refuses missing contacts, bad expiries, `http://` links and field injection.
+- Documentation: new pages "JWT", "Encryption", "Access control", "Sessions",
+  "Password policy", "Shared counters", "CSP reports" and "security.txt", in
+  English, French and Spanish.
+
 - `securite::password` (feature `password`, on by default): `PasswordHasher`,
   Argon2id password hashing through the RustCrypto `argon2` crate with the OWASP
   parameters (`m = 19 MiB, t = 2, p = 1`), PHC strings with a 16-byte random salt,

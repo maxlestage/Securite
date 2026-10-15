@@ -90,7 +90,7 @@ if hasher.verify(&password, &hash) {
 
 - A lockout per account alone lets an attacker lock any user out on purpose: prefer account + IP for the strict limit and keep the per-account limit high.
 - Use the same throttle for 2FA codes, password-reset requests and e-mail verification resends, each with its own keys.
-- The state is in memory, per process. With several instances, each counts on its own: divide your limits accordingly, or keep login on sticky sessions.
+- The state is in memory, per process. With several instances, each counts on its own: share the counters with `LoginThrottle::with_store` (see [shared counters](/docs/shared-counters)), or divide your limits accordingly.
 - Behind a proxy, configure the [client IP](/docs/client-ip) (and trusted proxies) or every user shares the proxy's address.
 - [Auto-ban](/docs/auto-ban) complements it: repeated `401` and `429` responses ban the address across the whole application.
 

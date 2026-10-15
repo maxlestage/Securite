@@ -50,7 +50,9 @@ x-request-id: 6f1c…
 | | `MethodFilter` | Cross-site tracing, method-override bypasses |
 | Access control | `IpFilter` | Unwanted networks (CIDR allow / deny lists, runtime updates, O(log n)) |
 | | `HostFilter` | Host header poisoning, DNS rebinding |
-| | `Auth` | Unauthenticated access (Bearer / API key / Basic / custom, constant time) |
+| | `Auth` | Unauthenticated access (Bearer / API key / Basic / JWT with JWKS / custom, constant time) |
+| | `AccessControl` | Broken access control by URL (Symfony-style `access_control`, role hierarchy, encoding-proof paths) |
+| | `Sessions` | Session fixation and hijacking (server-side sessions, id rotation on login, idle and absolute timeouts) |
 | | `Csrf` | Cross-site request forgery (Fetch Metadata + signed double-submit tokens) |
 | | `ContentTypeGuard` | Content-type confusion |
 | | `SignedUrls` | Tampered or expired links (Laravel-style signed URLs) |
@@ -59,6 +61,7 @@ x-request-id: 6f1c…
 | Integrity & tracing | `RequestId` | Untraceable incidents, log injection |
 | | `SignatureLayer` | Forged webhooks (GitHub, Stripe, Slack, Shopify, custom HMAC, replay protection) |
 | | Events & stats | Blind spots (`tracing` audit trail, SIEM hook, live counters) |
+| | `ClearSiteData` | Data left behind after logout (cache, cookies, storage) |
 
 ### Building blocks for your handlers
 
@@ -69,6 +72,13 @@ x-request-id: 6f1c…
 | `authz::Gate` | Broken access control (Laravel gates & policies, Symfony voters, deny by default) |
 | `signing::Signer` | Tampered tokens and links (HMAC-SHA256, expiry, purposes, key rotation) |
 | `totp::Totp` | Password-only logins (RFC 6238 two-factor codes, replay protection, recovery codes) |
+| `jwt::JwtValidator` | Forged or confused JWTs (algorithm allow-list, no `none`, `exp`/`nbf`/`iss`/`aud`, JWKS rotation; feature `jwt`) |
+| `crypt::Encrypter` | Readable or swapped secrets (XChaCha20-Poly1305, key rotation, encrypted cookies bound to their name) |
+| `session::SessionManager` | Session fixation, stale sessions (logout with `Clear-Site-Data`), e-mail verification links with `Signer` |
+| `password_policy::PasswordPolicy` | Weak and breached passwords (NIST SP 800-63B, Have I Been Pwned k-anonymity) |
+| `counter::CounterStore` | Limits multiplied by the number of instances (shared counters for `LoginThrottle`, fail closed) |
+| `report::parse_csp_reports` | Blind CSP roll-outs (report collector, `Reporting-Endpoints`; feature `reports`) |
+| `security_txt::SecurityTxt` | Researchers who cannot reach you (RFC 9116) |
 
 ## Presets
 

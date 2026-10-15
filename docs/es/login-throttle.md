@@ -90,7 +90,7 @@ if hasher.verify(&password, &hash) {
 
 - Un bloqueo solo por cuenta permite a un atacante bloquear a propósito a cualquier usuario: prefiera cuenta + IP para el límite estricto y mantenga alto el límite por cuenta.
 - Use la misma herramienta para los códigos 2FA, las solicitudes de restablecimiento de contraseña y los reenvíos de correos de verificación, cada uno con sus claves.
-- El estado está en memoria, por proceso. Con varias instancias, cada una cuenta por su lado: divida sus límites en consecuencia, o mantenga el inicio de sesión en sesiones persistentes.
+- El estado está en memoria, por proceso. Con varias instancias, cada una cuenta por su lado: comparta los contadores con `LoginThrottle::with_store` (vea [contadores compartidos](/docs/shared-counters)), o divida sus límites en consecuencia.
 - Detrás de un proxy, configure la [IP del cliente](/docs/client-ip) (y los proxies de confianza), o todos los usuarios compartirán la dirección del proxy.
 - El [bloqueo automático](/docs/auto-ban) lo complementa: respuestas `401` y `429` repetidas bloquean la dirección en toda la aplicación.
 

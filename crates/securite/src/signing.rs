@@ -313,6 +313,98 @@ impl Signer {
     }
 }
 
+/// E-mail verification links, like Laravel's `MustVerifyEmail`.
+impl Signer {
+    /// A signed link `base/<user_id>/<email hash>?expires=…&signature=…` to
+    /// send to `email`. The link proves that its owner reads that mailbox:
+    /// it only verifies for the same user **and** the same address (a link
+    /// sent before an e-mail change no longer works), and expires after
+    /// `ttl`. Use a [`purpose`](Self::purpose) such as `"verify-email"`.
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use securite::signing::{Signer, TokenError};
+    ///
+    /// let signer = Signer::new(b"a secret of at least thirty-two bytes!!").purpose("verify-email");
+    /// let link = signer.email_verification_url("/email/verify", "42", "Ada@Example.com", Duration::from_secs(3600));
+    ///
+    /// // In the handler of `/email/verify/...`, with the current address of user 42:
+    /// assert_eq!(signer.verify_email_url(&link, "ada@example.com").unwrap(), "42");
+    /// assert_eq!(signer.verify_email_url(&link, "mallory@example.com"), Err(TokenError::Invalid));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If `base` is not a relative path, or `user_id` is empty or contains
+    /// other characters than ASCII letters, digits, `-` and `_`.
+    pub fn email_verification_url(
+        &self,
+        base: &str,
+        user_id: &str,
+        email: &str,
+        ttl: Duration,
+    ) -> String {
+        assert!(
+            !user_id.is_empty()
+                && user_id
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
+            "user ids in verification links are limited to [A-Za-z0-9_-]"
+        );
+        let base = base.trim_end_matches('/');
+        let url = format!("{base}/{user_id}/{}", email_hash(email));
+        self.sign_url(&url, Some(ttl))
+    }
+
+    /// Checks a link made by
+    /// [`email_verification_url`](Self::email_verification_url) against the
+    /// user's *current* e-mail address, and returns the user id.
+    pub fn verify_email_url(&self, url: &str, current_email: &str) -> Result<String, TokenError> {
+        self.verify_url(url)?;
+        let path = url.split(['?', '#']).next().unwrap_or("");
+        let mut segments = path.rsplit('/');
+        let hash = segments.next().ok_or(TokenError::Malformed)?;
+        let id = segments.next().ok_or(TokenError::Malformed)?;
+        if id.is_empty() {
+            return Err(TokenError::Malformed);
+        }
+        let ok: bool = email_hash(current_email)
+            .as_bytes()
+            .ct_eq(hash.as_bytes())
+            .into();
+        if !ok {
+            return Err(TokenError::Invalid);
+        }
+        Ok(id.to_owned())
+    }
+
+    /// Signs a cookie value for the cookie `name` (readable by the client,
+    /// but tamper-proof, and bound to that cookie name). Encrypt instead
+    /// with [`Encrypter`](crate::crypt::Encrypter) when the client must not
+    /// read it.
+    pub fn sign_cookie(&self, name: &str, value: &str) -> String {
+        self.cookie_signer(name).sign(value)
+    }
+
+    /// Verifies a value made by [`sign_cookie`](Self::sign_cookie) for the
+    /// same cookie name.
+    pub fn unsign_cookie(&self, name: &str, value: &str) -> Result<String, TokenError> {
+        self.cookie_signer(name).unsign(value)
+    }
+
+    fn cookie_signer(&self, name: &str) -> Signer {
+        let mut s = self.clone();
+        s.purpose = format!("{}\0cookie:{name}", self.purpose);
+        s
+    }
+}
+
+/// base64url SHA-256 of the trimmed, lowercased address.
+fn email_hash(email: &str) -> String {
+    use sha2::Digest as _;
+    b64url(&Sha256::digest(email.trim().to_lowercase().as_bytes()))
+}
+
 fn check_secret(secret: &[u8]) -> Arc<[u8]> {
     assert!(
         secret.len() >= MIN_SECRET_BYTES,
@@ -415,6 +507,59 @@ impl Guard for SignedUrls {
 }
 
 impl_layer!(SignedUrls);
+
+#[cfg(test)]
+mod email_tests {
+    use super::*;
+
+    fn signer() -> Signer {
+        Signer::new([5u8; 32]).purpose("verify-email")
+    }
+
+    #[test]
+    fn verification_links() {
+        let s = signer();
+        let link = s.email_verification_url("/verify/", "u_1", "A@b.io", Duration::from_secs(60));
+        assert!(link.starts_with("/verify/u_1/"));
+        assert_eq!(s.verify_email_url(&link, " a@B.io ").unwrap(), "u_1");
+        // Address changed since the link was sent.
+        assert_eq!(
+            s.verify_email_url(&link, "c@b.io"),
+            Err(TokenError::Invalid)
+        );
+        // Another user id swapped in the path.
+        let swapped = link.replacen("/u_1/", "/u_2/", 1);
+        assert_eq!(
+            s.verify_email_url(&swapped, "a@b.io"),
+            Err(TokenError::Invalid)
+        );
+        // Another purpose (e.g. a password reset link) is refused.
+        let other = Signer::new([5u8; 32]).purpose("password-reset");
+        assert_eq!(
+            other.verify_email_url(&link, "a@b.io"),
+            Err(TokenError::Invalid)
+        );
+        // Expired.
+        let old = s.sign_url_at(&format!("/verify/u_1/{}", email_hash("a@b.io")), Some(1));
+        assert_eq!(s.verify_email_url(&old, "a@b.io"), Err(TokenError::Expired));
+    }
+
+    #[test]
+    #[should_panic(expected = "limited to")]
+    fn ids_cannot_inject_paths() {
+        let _ =
+            signer().email_verification_url("/v", "1/../admin", "a@b.io", Duration::from_secs(1));
+    }
+
+    #[test]
+    fn signed_cookies() {
+        let s = Signer::new([6u8; 32]);
+        let v = s.sign_cookie("cart", "42");
+        assert_eq!(s.unsign_cookie("cart", &v).unwrap(), "42");
+        assert_eq!(s.unsign_cookie("role", &v), Err(TokenError::Invalid));
+        assert_eq!(s.unsign(&v), Err(TokenError::Invalid));
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -526,7 +526,7 @@ fn stats(t: &'static Texts) -> Element {
         .class("container stats")
         .child(stat(
             "",
-            strong().child(counter(19, "")),
+            strong().child(counter(22, "")),
             t.stat_middlewares,
         ))
         .child(stat(
