@@ -221,7 +221,7 @@ pub static FR: Texts = Texts {
     get_started: "Commencer",
     language: "Langue",
     menu: "Menu",
-    hero_badge: "v0.1 · 23 middlewares · 100 % Rust",
+    hero_badge: "23 middlewares · 100 % Rust",
     hero_title: "Blindez vos API Rust",
     hero_against: "contre",
     hero_words: &[
@@ -659,7 +659,7 @@ pub static EN: Texts = Texts {
     get_started: "Get started",
     language: "Language",
     menu: "Menu",
-    hero_badge: "v0.1 · 23 middlewares · 100% Rust",
+    hero_badge: "23 middlewares · 100% Rust",
     hero_title: "Armor your Rust APIs",
     hero_against: "against",
     hero_words: &[
@@ -1097,7 +1097,7 @@ pub static ES: Texts = Texts {
     get_started: "Empezar",
     language: "Idioma",
     menu: "Menú",
-    hero_badge: "v0.1 · 23 middlewares · 100 % Rust",
+    hero_badge: "23 middlewares · 100 % Rust",
     hero_title: "Blinda tus API en Rust",
     hero_against: "contra",
     hero_words: &[
