@@ -102,7 +102,7 @@ jobs:
           ls -l site/pkg
       - name: Build the server
         run: cargo build --release -p securite-server
-      # Same command as pages.yml: the static copy for GitHub Pages.
+      # The static export of the site, kept working (served by no host).
       - name: Export the site as static files
         env:
           BASE_PATH: /Securite
