@@ -2,7 +2,7 @@
 title: Publier la crate sur crates.io
 summary: Publiez une nouvelle version de la crate Securite en poussant sa version et son changelog : le workflow Publish crate pose l'étiquette, crée la release GitHub et publie sur crates.io, depuis votre téléphone, et vous gérez vos versions sans risque.
 category: deploy
-order: 4
+order: 3
 ---
 
 La crate `securite`, dans `crates/securite`, est prête pour crates.io. La publication s'exécute dans GitHub Actions (`.github/workflows/publish.yml`) et démarre d'elle-même quand une nouvelle version arrive sur `master` : un téléphone suffit.

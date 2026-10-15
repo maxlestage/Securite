@@ -515,7 +515,7 @@ pub static FR: Texts = Texts {
     play_blocked: "BLOQUÉ",
     play_allowed: "AUTORISÉ",
     play_offline: "Le serveur de démo n'est pas joignable (site statique). Lancez le serveur pour tester en direct.",
-    play_static: "Cette version du site est statique (GitHub Pages) : le playground d'attaques en direct a besoin du serveur Vitesse. Déployez-le sur Heroku en un clic ou lancez-le avec Docker pour l'attaquer pour de vrai.",
+    play_static: "Cette version du site est statique : le playground d'attaques en direct a besoin du serveur Vitesse. Déployez-le sur Heroku en un clic ou lancez-le avec Docker pour l'attaquer pour de vrai.",
     play_stats: "Statistiques du bouclier en direct",
     play_total: "Requêtes",
     play_passed: "Autorisées",
@@ -533,7 +533,7 @@ pub static FR: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Depuis votre téléphone",
     deploy_title: "Déployez sur Heroku sans ordinateur",
-    deploy_subtitle: "Tout est prêt : buildpack Rust (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages et workflows GitHub Actions.",
+    deploy_subtitle: "Tout est prêt : buildpack Rust (RustConfig, Procfile), app.json, Dockerfile et workflows GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Touchez « Deploy to Heroku »",
@@ -897,7 +897,7 @@ pub static EN: Texts = Texts {
     play_blocked: "BLOCKED",
     play_allowed: "ALLOWED",
     play_offline: "The demo server is not reachable (static hosting). Run the server to test live.",
-    play_static: "This copy of the site is static (GitHub Pages): the live attack playground needs the Vitesse server. Deploy it on Heroku in one tap or run it with Docker to attack it for real.",
+    play_static: "This copy of the site is static: the live attack playground needs the Vitesse server. Deploy it on Heroku in one tap or run it with Docker to attack it for real.",
     play_stats: "Live shield statistics",
     play_total: "Requests",
     play_passed: "Allowed",
@@ -915,7 +915,7 @@ pub static EN: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "From your phone",
     deploy_title: "Deploy to Heroku without a computer",
-    deploy_subtitle: "Everything is ready: Rust buildpack (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages and GitHub Actions workflows.",
+    deploy_subtitle: "Everything is ready: Rust buildpack (RustConfig, Procfile), app.json, Dockerfile and GitHub Actions workflows.",
     deploy_steps: &[
         Step {
             title: "Tap “Deploy to Heroku”",
@@ -1279,7 +1279,7 @@ pub static ES: Texts = Texts {
     play_blocked: "BLOQUEADO",
     play_allowed: "PERMITIDO",
     play_offline: "El servidor de demo no está disponible (alojamiento estático). Arranca el servidor para probar en directo.",
-    play_static: "Esta versión del sitio es estática (GitHub Pages): el playground de ataques en directo necesita el servidor Vitesse. Despliégalo en Heroku con un toque o arráncalo con Docker para atacarlo de verdad.",
+    play_static: "Esta versión del sitio es estática: el playground de ataques en directo necesita el servidor Vitesse. Despliégalo en Heroku con un toque o arráncalo con Docker para atacarlo de verdad.",
     play_stats: "Estadísticas del escudo en directo",
     play_total: "Peticiones",
     play_passed: "Permitidas",
@@ -1297,7 +1297,7 @@ pub static ES: Texts = Texts {
     bench_note: "Linux x86_64 · Rust 1.97 · cargo bench -p securite",
     deploy_kicker: "Desde tu móvil",
     deploy_title: "Despliega en Heroku sin ordenador",
-    deploy_subtitle: "Todo está listo: buildpack de Rust (RustConfig, Procfile), app.json, Dockerfile, GitHub Pages y workflows de GitHub Actions.",
+    deploy_subtitle: "Todo está listo: buildpack de Rust (RustConfig, Procfile), app.json, Dockerfile y workflows de GitHub Actions.",
     deploy_steps: &[
         Step {
             title: "Pulsa «Deploy to Heroku»",

@@ -2,7 +2,7 @@
 title: Publish the crate on crates.io
 summary: Release a new version of the Securite crate by pushing its version and changelog: the Publish crate workflow tags it, creates the GitHub release and publishes it on crates.io, from your phone, and you manage versions safely.
 category: deploy
-order: 4
+order: 3
 ---
 
 The `securite` crate in `crates/securite` is ready for crates.io. Publishing runs in GitHub Actions (`.github/workflows/publish.yml`) and starts on its own when a new version reaches `master`, so a phone is enough.

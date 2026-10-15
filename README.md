@@ -78,17 +78,11 @@ From a computer: `heroku create --stack heroku-26 --buildpack emk/rust`, then
 
 Full guide: [docs/en/heroku-from-phone.md](docs/en/heroku-from-phone.md).
 
-## GitHub Pages (free static hosting)
+## Website
 
-[`pages.yml`](.github/workflows/pages.yml) publishes the website on
-**https://maxlestage.github.io/Securite/** after every merge into `master`,
-as static files exported by the server (`securite-server export`), with a
-strict CSP as a `<meta>` tag (inline scripts allowed by hash), a web app
-manifest and an offline service worker.
-One-time setup from a phone: repository → *Settings* → *Pages* → *Source*:
-**GitHub Actions**, then *Actions* → *Deploy to GitHub Pages* → *Run workflow*.
-The live attack playground needs the server (Heroku or Docker).
-Guide: [docs/en/github-pages.md](docs/en/github-pages.md).
+The website is served by Heroku only, at **https://securite-2db4c1994be7.herokuapp.com/**: GitHub only hosts the
+code. The server can still export it as static files (`securite-server export`),
+which the CI checks on every push.
 
 ## Always merged into master
 
@@ -123,7 +117,7 @@ cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile was
 wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
 cargo run -p securite-server   # http://localhost:8080
 
-# the static copy for GitHub Pages
+# the whole site as static files (checked by the CI, published nowhere)
 BASE_PATH=/Securite cargo run -p securite-server -- export dist
 ```
 

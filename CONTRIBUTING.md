@@ -23,7 +23,7 @@ Thanks for helping make Rust services safer!
    cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
    wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
    cargo run -p securite-server   # http://localhost:8080
-   BASE_PATH=/Securite cargo run -p securite-server -- export dist   # GitHub Pages copy
+   BASE_PATH=/Securite cargo run -p securite-server -- export dist   # static copy (checked by CI)
    ```
 
    Texts live in `site/src/i18n.rs` (French, English, Spanish), pages in

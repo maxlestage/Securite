@@ -2,7 +2,7 @@
 title: CI et fusion automatique
 summary: Ce que vérifie le workflow de CI, comment chaque branche au vert est fusionnée dans master puis déployée automatiquement, et comment gérer exclusions, conflits et mises à jour Dependabot depuis un téléphone.
 category: deploy
-order: 5
+order: 4
 ---
 
 Trois workflows s'enchaînent pour qu'une branche poussée depuis n'importe où, téléphone compris, soit testée, fusionnée et déployée sans le moindre clic :
@@ -22,7 +22,7 @@ push to feature/x
 |---|---|
 | Crate · fmt, clippy, tests, docs, package | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo doc -p securite --no-deps` avec `RUSTDOCFLAGS=-D warnings`, `cargo publish -p securite --dry-run` |
 | Crate · MSRV 1.85 | `cargo check -p securite --all-features` avec Rust 1.85 |
-| Website · Active + WebAssembly | `cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings`, le bundle navigateur (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, puis `wasm-bindgen`, l'outil précompilé de la version verrouillée dans `Cargo.lock`), le serveur en release et l'export statique pour GitHub Pages (`securite-server export dist` avec `BASE_PATH=/Securite`) |
+| Website · Active + WebAssembly | `cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings`, le bundle navigateur (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, puis `wasm-bindgen`, l'outil précompilé de la version verrouillée dans `Cargo.lock`), le serveur en release et l'export statique du site (`securite-server export dist` avec `BASE_PATH=/Securite`) |
 
 Les avertissements sont des erreurs : un lint clippy ou un lien de documentation cassé fait échouer l'exécution. Les mêmes vérifications sur un ordinateur :
 
