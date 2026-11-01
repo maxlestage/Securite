@@ -57,6 +57,7 @@ fn main() -> std::io::Result<()> {
 | Operaciones | [`Health`](/docs/health) | Sonda `/health` con comprobaciones con nombre |
 | | [`Maintenance`](/docs/maintenance) | `503` y `Retry-After`, activable y desactivable en tiempo de ejecución |
 | Respuestas y API | [`SetHeaders`](/docs/set-headers) | Añade, sustituye o elimina cabeceras en cada respuesta |
+| | `Idempotency` | `Idempotency-Key` (Stripe, borrador IETF): un `POST` reenviado tras un fallo de red recibe la primera respuesta en vez de cobrar dos veces; `409` mientras la primera se ejecuta, `422` para la misma clave con otra petición; en memoria o en Redis |
 | | [`Locale`](/docs/locale) | Idioma a partir de `?lang=`, una cookie o `Accept-Language` |
 | | [`Deprecation`](/docs/deprecation) | Cabeceras `Deprecation`, `Sunset` y `Link` |
 

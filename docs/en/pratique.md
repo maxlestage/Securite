@@ -57,6 +57,7 @@ fn main() -> std::io::Result<()> {
 | Operations | [`Health`](/docs/health) | `/health` probe with named checks |
 | | [`Maintenance`](/docs/maintenance) | `503` and `Retry-After`, switched on and off at runtime |
 | Responses & APIs | [`SetHeaders`](/docs/set-headers) | Add, replace or remove headers on every response |
+| | `Idempotency` | `Idempotency-Key` (Stripe, IETF draft): a `POST` sent again after a network failure gets the first answer again instead of charging twice; `409` while the first one runs, `422` for the same key with another request; in memory or Redis |
 | | [`Locale`](/docs/locale) | Language from `?lang=`, a cookie or `Accept-Language` |
 | | [`Deprecation`](/docs/deprecation) | `Deprecation`, `Sunset` and `Link` headers |
 

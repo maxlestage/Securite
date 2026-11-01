@@ -39,6 +39,7 @@
 //! | Operations      | [`Health`](health::Health)                       | `/health` probe with named checks (`application/health+json`) |
 //! |                 | [`Maintenance`](maintenance::Maintenance)        | `503` + `Retry-After`, switched on and off at runtime |
 //! | Responses & API | [`SetHeaders`](headers::SetHeaders)              | Add, replace or remove headers on every response |
+//! |                 | [`Idempotency`](idempotency::Idempotency)        | `Idempotency-Key`: a `POST` sent again gets the first answer again, not a second payment |
 //! |                 | [`Locale`](locale::Locale)                       | Language from `?lang=`, a cookie or `Accept-Language` |
 //! |                 | [`Deprecation`](deprecation::Deprecation)        | `Deprecation`, `Sunset` and `Link` headers (RFC 9745, RFC 8594) |
 //!
@@ -78,6 +79,7 @@ pub mod deprecation;
 pub mod etag;
 pub mod headers;
 pub mod health;
+pub mod idempotency;
 pub mod locale;
 pub mod maintenance;
 pub mod metrics;
@@ -97,6 +99,7 @@ pub mod prelude {
     pub use crate::etag::ETag;
     pub use crate::headers::SetHeaders;
     pub use crate::health::Health;
+    pub use crate::idempotency::Idempotency;
     pub use crate::locale::{Lang, Locale};
     pub use crate::maintenance::{Maintenance, MaintenanceSwitch};
     pub use crate::metrics::{Metrics, MetricsHandle};

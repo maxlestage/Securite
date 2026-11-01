@@ -38,6 +38,7 @@ app.get("/", |_req: Request| async { "Hello!" });
 | Operations | `Health` | `GET /health` with named checks, `application/health+json`, `503` when a check fails |
 | | `Maintenance` | `503` + `Retry-After` (HTML, JSON or text), switched on and off at runtime, open paths |
 | Responses & API | `SetHeaders` | Add (if missing), replace, append or remove headers on every response |
+|                 | `Idempotency` | `Idempotency-Key` (Stripe, IETF draft): a `POST` sent again gets the first answer again instead of running twice; in memory or Redis |
 | | `Locale` | Language from `?lang=`, a `lang` cookie or `Accept-Language`; `req.get::<Lang>()` |
 | | `Deprecation` | `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and `Link` headers on old endpoints |
 

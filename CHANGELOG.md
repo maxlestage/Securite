@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `pratique::Idempotency`: the `Idempotency-Key` header (Stripe, IETF draft). A `POST` or
+  `PATCH` sent again with the same key gets the stored first answer (`Idempotent-Replayed:
+  true`) instead of running twice; `409` + `Retry-After` while the first one runs, `422` for
+  the same key with another request, `400` for an invalid key (or a missing one with
+  `required()`). Server errors, `408`, `409` and `429` are not stored, so retries run. Keys
+  are scoped by the client's credentials; answers kept 24 hours in memory or, shared between
+  instances, in Redis (the response cache's stores).
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

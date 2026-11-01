@@ -21,7 +21,7 @@ Este repositorio contiene:
 | Carpeta | Contenido |
 |---|---|
 | [`crates/securite`](crates/securite) | La **crate `securite`** (lista para crates.io): 23 middlewares de seguridad para Vitesse, y para tower / hyper / tonic, además de hash y política de contraseñas, limitación de inicios de sesión, autorización y control de acceso, sesiones, JWT / JWKS, cifrado, URL firmadas, TOTP, informes CSP y security.txt |
-| [`crates/pratique`](crates/pratique) | La **crate `pratique`**: 13 middlewares cotidianos para Vitesse que no tienen nada que ver con la seguridad (ETag, Cache-Control, caché de respuestas, access logs, métricas Prometheus, tiempo de respuesta, barra final, redirecciones, health checks, modo mantenimiento, cabeceras, idioma, deprecación de API) |
+| [`crates/pratique`](crates/pratique) | La **crate `pratique`**: 14 middlewares cotidianos para Vitesse que no tienen nada que ver con la seguridad (ETag, Cache-Control, caché de respuestas, access logs, métricas Prometheus, tiempo de respuesta, barra final, redirecciones, health checks, modo mantenimiento, cabeceras, idioma, deprecación de API, `Idempotency-Key`) |
 | [`site`](site) | El **sitio web**, escrito con [Active](https://active-c1883a966650.herokuapp.com/): páginas renderizadas en el servidor con SEO completo, islas WebAssembly, animado, FR / EN / ES, documentación por categorías, playground de ataques en directo, PWA instalable que funciona sin conexión |
 | [`server`](server) | El servidor Vitesse que renderiza y aloja el sitio y la API del playground — protegido por el propio `securite` |
 | [`docs`](docs) | La **documentación** (52 páginas × 3 idiomas), compilada en el sitio |
