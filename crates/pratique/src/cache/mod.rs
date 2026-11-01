@@ -414,7 +414,7 @@ fn now_millis() -> u64 {
 
 /// `1 | status u16 | stored at, ms u64 | n u16 | n × (len u16, name, len u32, value) | body`,
 /// or `None` when the headers don't fit the format (never truncated).
-fn encode(res: &Response, body: &Bytes) -> Option<Bytes> {
+pub(crate) fn encode(res: &Response, body: &Bytes) -> Option<Bytes> {
     let headers: Vec<_> = res
         .headers()
         .iter()
@@ -437,7 +437,7 @@ fn encode(res: &Response, body: &Bytes) -> Option<Bytes> {
 
 /// The response stored by [`encode`], with its `Age`; `None` if the bytes are
 /// not a stored response.
-fn decode(bytes: &Bytes) -> Option<Response> {
+pub(crate) fn decode(bytes: &Bytes) -> Option<Response> {
     let mut at: usize = 0;
     let mut take = |n: usize| {
         let end = at.checked_add(n)?;
