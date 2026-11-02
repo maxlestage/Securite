@@ -493,11 +493,11 @@ impl Middleware for ResponseCache {
                             .iter()
                             .filter_map(|v| v.to_str().ok())
                             .collect();
-                        if let Some(etag) = etag.filter(|_| !inm.is_empty()) {
-                            if none_match(&inm.join(","), &etag) {
-                                res.set_status(StatusCode::NOT_MODIFIED);
-                                *res.body_mut() = Body::empty();
-                            }
+                        if let Some(etag) = etag.filter(|_| !inm.is_empty())
+                            && none_match(&inm.join(","), &etag)
+                        {
+                            res.set_status(StatusCode::NOT_MODIFIED);
+                            *res.body_mut() = Body::empty();
                         }
                         return res;
                     }
@@ -521,10 +521,10 @@ impl Middleware for ResponseCache {
                 *res.body_mut() = Body::from(body);
                 // Not after a purge that happened while the handler ran.
                 let purged = self.epoch.load(Ordering::SeqCst) != epoch;
-                if let Some(records) = records.filter(|_| !purged) {
-                    if let Err(err) = self.insert(records, ttl).await {
-                        self.error(&err);
-                    }
+                if let Some(records) = records.filter(|_| !purged)
+                    && let Err(err) = self.insert(records, ttl).await
+                {
+                    self.error(&err);
                 }
             }
             res.headers_mut()

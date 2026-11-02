@@ -67,7 +67,7 @@ impl<K: Hash + Eq, V> ShardedMap<K, V> {
     ) -> Option<R> {
         let mut shard = self.shard(&key);
         shard.ops = shard.ops.wrapping_add(1);
-        if shard.ops % SWEEP_EVERY == 0 {
+        if shard.ops.is_multiple_of(SWEEP_EVERY) {
             shard.map.retain(|_, v| !expired(v));
         }
         if shard.map.len() >= self.max_per_shard && !shard.map.contains_key(&key) {

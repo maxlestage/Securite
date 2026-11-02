@@ -52,7 +52,7 @@ app.get("/", |_req: Request| async { "Hello, secure world!" });
 | Détection des menaces | `Waf` (SQLi, XSS, RCE, Log4Shell, SSRF, NoSQLi, SSTI, scanners), `BotBlocker` |
 | Intégrité & traçabilité | `RequestId`, `SignatureLayer` (webhooks GitHub / Stripe / Slack / Shopify), événements et statistiques |
 
-≈ 6 µs pour tout le pipeline recommandé · `#![forbid(unsafe_code)]` · MSRV 1.85.
+≈ 6 µs pour tout le pipeline recommandé · `#![forbid(unsafe_code)]` · MSRV 1.88.
 Lisez le [README de la crate](crates/securite/README.md) et la [documentation](docs/fr/introduction.md).
 
 ## Déployer depuis votre téléphone (sans ordinateur)

@@ -141,14 +141,13 @@ impl SessionStore for MemorySessionStore {
         let mut map = self.map.lock().unwrap_or_else(|p| p.into_inner());
         if map.len() >= self.max && !map.contains_key(key) {
             map.retain(|_, (_, exp)| *exp > now);
-            if map.len() >= self.max {
-                if let Some(oldest) = map
+            if map.len() >= self.max
+                && let Some(oldest) = map
                     .iter()
                     .min_by_key(|(_, (_, exp))| *exp)
                     .map(|(k, _)| k.clone())
-                {
-                    map.remove(&oldest);
-                }
+            {
+                map.remove(&oldest);
             }
         }
         map.insert(

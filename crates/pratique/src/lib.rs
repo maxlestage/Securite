@@ -64,7 +64,7 @@
 //!   every instance of the app (Rust 1.88 or later, like the `redis` crate).
 //! * `redis-tls`: `rediss://` addresses for it.
 //!
-//! Without features, the crate only depends on Vitesse and supports Rust 1.85.
+//! Without features, the crate only depends on Vitesse and supports Rust 1.88.
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

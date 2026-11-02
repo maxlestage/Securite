@@ -4,7 +4,7 @@ members = ["crates/securite", "crates/pratique", "server", "site"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license-file = "LICENSE"
 authors = ["Maxime Nathan Lestage"]
 

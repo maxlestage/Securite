@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Minimum supported Rust version raised from 1.85 to **1.88**, like Paquets and Memoire:
+  current versions of `time` (used by `jsonwebtoken`) and `redis` need it, so dependencies
+  can be kept up to date again.
+
 ### Added
 - `pratique::Idempotency`: the `Idempotency-Key` header (Stripe, IETF draft). A `POST` or
   `PATCH` sent again with the same key gets the stored first answer (`Idempotent-Replayed:
