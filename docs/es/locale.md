@@ -2,7 +2,7 @@
 title: Negociación del idioma
 summary: Elige el idioma de cada petición entre los admitidos, a partir de la query string, una cookie o Accept-Language, se lo pasa a tus handlers y establece Content-Language y Vary.
 category: everyday
-order: 13
+order: 14
 ---
 
 `Locale` decide una sola vez, para cada petición, en cuál de tus idiomas responder, de modo que ningún handler tenga que analizar `Accept-Language` por su cuenta.

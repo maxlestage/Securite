@@ -2,7 +2,7 @@
 title: API deprecation
 summary: Announces that endpoints are deprecated, when they will stop working and where to read about the migration, with the standard Deprecation, Sunset and Link headers.
 category: everyday
-order: 14
+order: 15
 ---
 
 When `/api/v1` is replaced by `/api/v2`, its clients need to know, ideally from the API itself rather than from an email nobody reads. `Deprecation` adds the standard headers that API gateways, SDKs and monitoring tools understand:

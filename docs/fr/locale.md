@@ -2,7 +2,7 @@
 title: Négociation de la langue
 summary: Choisit la langue de chaque requête parmi celles prises en charge, d'après la chaîne de requête, un cookie ou Accept-Language, la transmet à vos handlers et définit Content-Language et Vary.
 category: everyday
-order: 13
+order: 14
 ---
 
 `Locale` décide une seule fois, pour chaque requête, dans laquelle de vos langues répondre : aucun handler n'a besoin d'analyser lui-même `Accept-Language`.

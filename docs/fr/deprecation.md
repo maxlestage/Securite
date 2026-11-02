@@ -2,7 +2,7 @@
 title: Dépréciation d'API
 summary: Annonce que des endpoints sont dépréciés, quand ils cesseront de fonctionner et où lire les consignes de migration, avec les en-têtes standard Deprecation, Sunset et Link.
 category: everyday
-order: 14
+order: 15
 ---
 
 Quand `/api/v2` remplace `/api/v1`, les clients de ce dernier doivent le savoir, idéalement par l'API elle-même plutôt que par un e-mail que personne ne lit. `Deprecation` ajoute les en-têtes standard que comprennent les passerelles d'API, les SDK et les outils de supervision :

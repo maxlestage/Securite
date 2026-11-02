@@ -2,7 +2,7 @@
 title: Retirada de API
 summary: Anuncia que unos endpoints están obsoletos, cuándo dejarán de funcionar y dónde leer sobre la migración, con las cabeceras estándar Deprecation, Sunset y Link.
 category: everyday
-order: 14
+order: 15
 ---
 
 Cuando `/api/v2` sustituye a `/api/v1`, sus clientes deben saberlo, idealmente por la propia API y no por un correo que nadie lee. `Deprecation` añade las cabeceras estándar que entienden las pasarelas de API, los SDK y las herramientas de monitorización:

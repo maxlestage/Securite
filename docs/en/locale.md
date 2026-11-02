@@ -2,7 +2,7 @@
 title: Language negotiation
 summary: Picks the language of every request among the supported ones, from the query string, a cookie or Accept-Language, gives it to your handlers and sets Content-Language and Vary.
 category: everyday
-order: 13
+order: 14
 ---
 
 `Locale` decides once, for every request, which of your languages to answer in, so that each handler doesn't have to parse `Accept-Language` itself.
