@@ -4,7 +4,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/securite.svg)](https://crates.io/crates/securite)
 [![docs.rs](https://img.shields.io/docsrs/securite)](https://docs.rs/securite)
-![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)
+![MSRV 1.88](https://img.shields.io/badge/MSRV-1.88-blue)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
 [![License: proprietary](https://img.shields.io/badge/license-proprietary-2a2a2e.svg)](#license)
 
@@ -141,7 +141,7 @@ IP-aware guards need the real client address:
 
 ## Minimum supported Rust version
 
-Rust **1.85** (edition 2024).
+Rust **1.88** (edition 2024).
 
 ## License
 

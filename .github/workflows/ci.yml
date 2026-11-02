@@ -62,18 +62,17 @@ jobs:
         run: cargo package -p securite --list
 
   msrv:
-    name: Crate · MSRV 1.85
+    name: Crate · MSRV 1.88
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # The MSRV is an input (not the action ref) so Dependabot never bumps it.
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.85"
+          toolchain: "1.88"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check -p securite --all-features
-      # Without features: the `redis` feature needs Rust 1.88, like the redis crate.
-      - run: cargo check -p pratique
+      - run: cargo check -p pratique --all-features
 
   site:
     name: Website · active + WebAssembly

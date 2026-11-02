@@ -69,15 +69,15 @@ impl Middleware for ResponseTime {
             let mut res = next.run(req).await;
             let ms = start.elapsed().as_secs_f64() * 1000.0;
             let digits = self.digits;
-            if let Some(name) = &self.header {
-                if let Ok(value) = HeaderValue::from_str(&format!("{ms:.digits$}ms")) {
-                    res.headers_mut().insert(name.clone(), value);
-                }
+            if let Some(name) = &self.header
+                && let Ok(value) = HeaderValue::from_str(&format!("{ms:.digits$}ms"))
+            {
+                res.headers_mut().insert(name.clone(), value);
             }
-            if let Some(metric) = &self.server_timing {
-                if let Ok(value) = HeaderValue::from_str(&format!("{metric};dur={ms:.digits$}")) {
-                    res.headers_mut().append("server-timing", value);
-                }
+            if let Some(metric) = &self.server_timing
+                && let Ok(value) = HeaderValue::from_str(&format!("{metric};dur={ms:.digits$}"))
+            {
+                res.headers_mut().append("server-timing", value);
             }
             res
         })

@@ -172,10 +172,10 @@ impl RoleHierarchy {
             if r == role {
                 return true;
             }
-            if seen.insert(r.clone()) {
-                if let Some(children) = self.children.get(&r) {
-                    stack.extend(children.iter().cloned());
-                }
+            if seen.insert(r.clone())
+                && let Some(children) = self.children.get(&r)
+            {
+                stack.extend(children.iter().cloned());
             }
         }
         false

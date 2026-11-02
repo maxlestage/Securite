@@ -113,7 +113,7 @@ Comportement du stockage :
 - **Isolation** : chaque clé commence par le préfixe (`pratique:cache:` par défaut). Donnez à chaque application son propre préfixe lorsqu'elles partagent un même Redis ; `clear` ne touche jamais un autre préfixe, même s'il commence de la même façon.
 - **Les purges** utilisent `SCAN` et `UNLINK`, jamais `KEYS`, et ne bloquent donc pas Redis.
 
-Les features `redis` nécessitent Rust 1.88 ou une version ultérieure (comme la crate `redis`) ; sans elles, Pratique prend en charge Rust 1.85.
+Pratique, features `redis` comprises, nécessite Rust 1.88 ou une version ultérieure.
 
 ## Purger après une mise à jour
 

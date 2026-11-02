@@ -19,7 +19,7 @@ pratique = { git = "https://github.com/maxlestage/Securite" }
 vitesse = { git = "https://github.com/maxlestage/Vitesse" }
 ```
 
-Pratique depends on Vitesse only, has no unsafe code (`#![forbid(unsafe_code)]`) and supports Rust 1.85 and later.
+Pratique depends on Vitesse only, has no unsafe code (`#![forbid(unsafe_code)]`) and supports Rust 1.88 and later.
 
 ## Quick start
 

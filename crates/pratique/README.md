@@ -1,6 +1,6 @@
 # Pratique
 
-![MSRV 1.85](https://img.shields.io/badge/MSRV-1.85-blue)
+![MSRV 1.88](https://img.shields.io/badge/MSRV-1.88-blue)
 ![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success)
 
 **Everyday middlewares for [Vitesse](https://vitesse-f16135654c3d.herokuapp.com/) that have
@@ -145,7 +145,7 @@ The full guide, one page per middleware in English, French and Spanish, is in th
 | `redis` | `RedisStore`, a response cache shared through Redis / Valkey (Rust 1.88+, like the `redis` crate) |
 | `redis-tls` | `rediss://` addresses for it (rustls + ring) |
 
-Without features, Pratique only depends on Vitesse and supports Rust 1.85.
+Without features, Pratique only depends on Vitesse and supports Rust 1.88.
 
 ## Order
 
