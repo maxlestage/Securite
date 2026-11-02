@@ -1,6 +1,6 @@
 ---
 title: Pratique, les middlewares du quotidien
-summary: La crate sœur de Securite : treize middlewares Vitesse pour le cache, les journaux, les métriques, les URL, les sondes de santé, la maintenance, les langues et la dépréciation d'API.
+summary: La crate sœur de Securite : quatorze middlewares Vitesse pour le cache, les journaux, les métriques, les URL, les sondes de santé, la maintenance, les langues, la dépréciation d'API et les clés d'idempotence.
 category: everyday
 order: 1
 ---
@@ -57,7 +57,7 @@ fn main() -> std::io::Result<()> {
 | Exploitation | [`Health`](/docs/health) | Sonde `/health` avec des vérifications nommées |
 | | [`Maintenance`](/docs/maintenance) | `503` et `Retry-After`, activé et désactivé à chaud |
 | Réponses et API | [`SetHeaders`](/docs/set-headers) | Ajoute, remplace ou supprime des en-têtes sur chaque réponse |
-| | `Idempotency` | `Idempotency-Key` (Stripe, brouillon IETF) : un `POST` renvoyé après une coupure réseau reçoit la première réponse au lieu de débiter deux fois ; `409` pendant que la première tourne, `422` pour la même clé avec une autre requête ; en mémoire ou dans Redis |
+| | [`Idempotency`](/docs/idempotency) | `Idempotency-Key` (Stripe, brouillon IETF) : un `POST` renvoyé après une coupure réseau reçoit la première réponse au lieu de débiter deux fois ; `409` pendant que la première tourne, `422` pour la même clé avec une autre requête ; en mémoire ou dans Redis |
 | | [`Locale`](/docs/locale) | Langue issue de `?lang=`, d'un cookie ou d'`Accept-Language` |
 | | [`Deprecation`](/docs/deprecation) | En-têtes `Deprecation`, `Sunset` et `Link` |
 
