@@ -178,16 +178,35 @@ async fn instances_share_answers_through_redis() {
         eprintln!("REDIS_URL not set: Redis test skipped");
         return;
     };
-    let prefix = format!("idem-test-{}:", std::process::id());
+    // Unique per run: process ids come back, and stored answers live 24 hours.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let prefix = format!("idem-test-{}-{nanos}:", std::process::id());
     let instance = |calls| {
         let store = RedisStore::open(&url).unwrap().prefix(&prefix);
         TestClient::new(app(Idempotency::new().store(store), calls))
     };
     let (calls_a, calls_b) = (counter(), counter());
     let (a, b) = (instance(calls_a), instance(calls_b));
-    let first = a.post("/payments").header("idempotency-key", "shared").body("5").await;
-    let again = b.post("/payments").header("idempotency-key", "shared").body("5").await;
+    let first = a
+        .post("/payments")
+        .header("idempotency-key", "shared")
+        .body("5")
+        .await;
+    let again = b
+        .post("/payments")
+        .header("idempotency-key", "shared")
+        .body("5")
+        .await;
     assert_eq!(first.text(), again.text());
     assert_eq!(again.header("idempotent-replayed"), Some("true"));
-    assert_eq!((calls_a.load(Ordering::SeqCst), calls_b.load(Ordering::SeqCst)), (1, 0));
+    assert_eq!(
+        (
+            calls_a.load(Ordering::SeqCst),
+            calls_b.load(Ordering::SeqCst)
+        ),
+        (1, 0)
+    );
 }
