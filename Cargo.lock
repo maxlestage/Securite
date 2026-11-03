@@ -1099,6 +1099,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
 dependencies = [
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.61.2",
 ]
@@ -2242,7 +2243,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vitesse"
 version = "0.2.0"
-source = "git+https://github.com/maxlestage/Vitesse#2328a52e57045ba01bf08465af0733ffcfd8b736"
+source = "git+https://github.com/maxlestage/Vitesse#9eead2ad83ac5e3bba0c5a8ebd2948baaec989f7"
 dependencies = [
  "brotli",
  "bytes",
@@ -2253,6 +2254,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "httparse",
+ "mio",
  "pin-project-lite",
  "regex-lite",
  "serde",
