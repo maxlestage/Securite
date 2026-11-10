@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "active"
 version = "0.3.0"
-source = "git+https://github.com/maxlestage/Active#75e1ba00ce390d27d66da8330f23be9935486265"
+source = "git+https://github.com/maxlestage/Active#502d7f41942f853b45abf8a138303a540f93ad44"
 dependencies = [
  "approx",
  "arrayvec",
@@ -399,9 +399,9 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "const-oid"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
+checksum = "be95d4a884358a21a199689323c29e9256b4a1b315e22f183d155422041d3a9a"
 
 [[package]]
 name = "core-foundation"
@@ -588,7 +588,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
 dependencies = [
  "block-buffer 0.12.1",
- "const-oid 0.10.2",
+ "const-oid 0.10.3",
  "crypto-common 0.2.2",
  "ctutils",
 ]
@@ -1878,9 +1878,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.15.1"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f4925028c7eb5d1fcdaf196971378ed9d2c1c4efc7dc5d011256f76c99c0a96"
+checksum = "102f35f7de7b06d8c61f1cff6592f5253e0dea431c74867aad5dfd70f44663fb"
 dependencies = [
  "zeroize",
 ]
@@ -2586,7 +2586,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vitesse"
 version = "0.2.0"
-source = "git+https://github.com/maxlestage/Vitesse#dd47975ff7d9e2f7e5c5cd0468a6969568a772ca"
+source = "git+https://github.com/maxlestage/Vitesse#35157f7d8cfa1146d288ef5baecf50b6aff3b4a7"
 dependencies = [
  "brotli",
  "bytes",
