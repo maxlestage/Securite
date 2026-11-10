@@ -13,7 +13,7 @@ The `Dockerfile` at the repository root builds this website: pages rendered on t
 
 Based on `rust:1-slim-bookworm` with the `wasm32-unknown-unknown` target.
 
-* Installs wasm-bindgen `0.2.129` (build arg `WASM_BINDGEN_VERSION`) from its prebuilt GitHub release binary. If the download fails, it falls back to `cargo install --locked` of the same version, which is slower.
+* Installs wasm-bindgen `0.2.130` (build arg `WASM_BINDGEN_VERSION`) from its prebuilt GitHub release binary. If the download fails, it falls back to `cargo install --locked` of the same version, which is slower.
 * Copies the workspace manifests and `crates/`, with placeholder sources for `server/` and `site/`, and runs `cargo fetch --locked`: the dependency layer stays cached until `Cargo.lock` changes.
 * Copies `server/`, `site/` and `docs/` (the site's `build.rs` compiles these pages into the server), then builds the browser bundle (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, then `wasm-bindgen --target web --no-typescript --out-dir site/pkg …`) and the server (`cargo build --release --locked -p securite-server`). The release profile uses thin LTO, one codegen unit and stripped symbols; the `wasm-release` profile optimizes the bundle for size.
 
@@ -23,7 +23,7 @@ Based on `debian:bookworm-slim`, it only contains `/app/securite-server`, the st
 
 `.dockerignore` keeps the build context small: `.git`, `.github`, `target`, `site/pkg`, `dist` and Markdown files are left out, except `docs/**/*.md` and `crates/securite/README.md`.
 
-> **Warning:** the wasm-bindgen CLI must match the `wasm-bindgen` crate exactly. To upgrade, change `0.2.129` in `site/Cargo.toml` and in the `WASM_BINDGEN_VERSION` argument of the `Dockerfile`, then run `cargo update -p wasm-bindgen`: the workflows read the version from `Cargo.lock`.
+> **Warning:** the wasm-bindgen CLI must match the `wasm-bindgen` crate exactly. To upgrade, change `0.2.130` in `site/Cargo.toml` and in the `WASM_BINDGEN_VERSION` argument of the `Dockerfile`, then run `cargo update -p wasm-bindgen`: the workflows read the version from `Cargo.lock`.
 
 ## Build and run
 
@@ -103,7 +103,7 @@ Install the tools once:
 
 ```bash
 rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --locked --version 0.2.129
+cargo install wasm-bindgen-cli --locked --version 0.2.130
 ```
 
 Build the browser bundle, then run the server as in production, with every header of the shield:

@@ -23,7 +23,7 @@ securite = { path = "../crates/securite", default-features = false }
 active = { git = "https://github.com/maxlestage/Active", features = ["client"] }
 # Pinned exactly: must match the wasm-bindgen CLI (Dockerfile, ci.yml, pages.yml read
 # the version from Cargo.lock).
-wasm-bindgen = "=0.2.129"
+wasm-bindgen = "=0.2.130"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [

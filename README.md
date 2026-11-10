@@ -52,7 +52,7 @@ app.get("/", |_req: Request| async { "Hello, secure world!" });
 | Threat detection | `Waf` (SQLi, XSS, RCE, Log4Shell, SSRF, NoSQLi, SSTI, scanners), `BotBlocker` |
 | Integrity & tracing | `RequestId`, `SignatureLayer` (GitHub / Stripe / Slack / Shopify webhooks), events & stats |
 
-≈ 6 µs for the whole recommended pipeline · `#![forbid(unsafe_code)]` · MSRV 1.88.
+≈ 6 µs for the whole recommended pipeline · `#![forbid(unsafe_code)]` · MSRV 1.90.
 Read the [crate README](crates/securite/README.md) and the [documentation](docs/en/introduction.md).
 
 ## Deploy from your phone (no computer needed)
@@ -112,7 +112,7 @@ Name a branch `wip/...` to opt out.
 cargo test --workspace
 
 # website: the browser bundle (needs: rustup target add wasm32-unknown-unknown;
-# cargo install wasm-bindgen-cli --version 0.2.129), then the server
+# cargo install wasm-bindgen-cli --version 0.2.130), then the server
 cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
 wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
 cargo run -p securite-server   # http://localhost:8080

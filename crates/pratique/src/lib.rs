@@ -61,10 +61,10 @@
 //! ## Cargo features
 //!
 //! * `redis`: [`RedisStore`](cache::RedisStore), a response cache shared by
-//!   every instance of the app (Rust 1.88 or later, like the `redis` crate).
+//!   every instance of the app.
 //! * `redis-tls`: `rediss://` addresses for it.
 //!
-//! Without features, the crate only depends on Vitesse and supports Rust 1.88.
+//! Without features, the crate only depends on Vitesse and supports Rust 1.90.
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

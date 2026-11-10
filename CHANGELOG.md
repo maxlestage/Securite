@@ -10,6 +10,13 @@ All notable changes to this project are documented here. The format follows
 - Minimum supported Rust version raised from 1.85 to **1.88**, like Paquets and Memoire:
   current versions of `time` (used by `jsonwebtoken`) and `redis` need it, so dependencies
   can be kept up to date again.
+- Dependencies at their latest version: `jsonwebtoken` 10 → **11** (feature `jwt`; same
+  tokens accepted and refused, a JWKS holding a key of an unknown type is still refused as
+  a whole), `redis` 1.7 → 1.8 (feature `redis` of Pratique), `wasm-bindgen` 0.2.129 →
+  0.2.130 for the website (the crate, the `Dockerfile` and the documented CLI version move
+  together), and `active` (git) for the website.
+- Minimum supported Rust version raised from 1.88 to **1.90**: the latest `active`, through
+  `nalgebra` 0.35 and `ordered-float` 5.5, needs it.
 
 ### Added
 - `pratique::Idempotency`: the `Idempotency-Key` header (Stripe, IETF draft). A `POST` or

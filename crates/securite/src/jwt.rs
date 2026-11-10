@@ -109,9 +109,11 @@ impl Algorithm {
         }
     }
 
-    fn from_jwt(alg: jsonwebtoken::Algorithm) -> Self {
+    /// `None` for an algorithm this crate does not support (`jsonwebtoken` may
+    /// add some: its enum is non-exhaustive).
+    fn from_jwt(alg: jsonwebtoken::Algorithm) -> Option<Self> {
         use jsonwebtoken::Algorithm as A;
-        match alg {
+        Some(match alg {
             A::HS256 => Algorithm::HS256,
             A::HS384 => Algorithm::HS384,
             A::HS512 => Algorithm::HS512,
@@ -124,7 +126,8 @@ impl Algorithm {
             A::ES256 => Algorithm::ES256,
             A::ES384 => Algorithm::ES384,
             A::EdDSA => Algorithm::EdDSA,
-        }
+            _ => return None,
+        })
     }
 
     fn family(self) -> AlgorithmFamily {
@@ -263,6 +266,11 @@ fn parse_jwks(json: &str) -> Result<Vec<KeyEntry>, JwtError> {
     let set: JwkSet = serde_json::from_str(json).map_err(|_| JwtError::InvalidKey)?;
     let mut out = Vec::new();
     for jwk in &set.keys {
+        // A key `jsonwebtoken` cannot read (unknown `kty`, curve or missing
+        // parameters): the whole set is refused, as when its parsing failed.
+        if matches!(jwk.algorithm, AlgorithmParameters::Other(_)) {
+            return Err(JwtError::InvalidKey);
+        }
         if matches!(jwk.algorithm, AlgorithmParameters::OctetKey(_))
             || matches!(
                 jwk.common.public_key_use,
@@ -273,10 +281,13 @@ fn parse_jwks(json: &str) -> Result<Vec<KeyEntry>, JwtError> {
         }
         let alg = match jwk.common.key_algorithm {
             None => None,
-            Some(a) => match a.to_string().parse::<jsonwebtoken::Algorithm>() {
-                Ok(a) => Some(Algorithm::from_jwt(a)),
+            Some(a) => match jsonwebtoken::Algorithm::try_from(a)
+                .ok()
+                .and_then(Algorithm::from_jwt)
+            {
+                Some(a) => Some(a),
                 // An encryption algorithm (RSA-OAEP …) or an unknown one.
-                Err(_) => continue,
+                None => continue,
             },
         };
         let Ok(key) = DecodingKey::from_jwk(jwk) else {
@@ -454,7 +465,7 @@ impl JwtValidator {
             return Err(JwtError::Malformed);
         }
         let header = jsonwebtoken::decode_header(token).map_err(|_| JwtError::Malformed)?;
-        let alg = Algorithm::from_jwt(header.alg);
+        let alg = Algorithm::from_jwt(header.alg).ok_or(JwtError::Malformed)?;
         let cfg = &*self.config;
         if !cfg.algorithms.contains(&alg) {
             return Err(JwtError::AlgorithmNotAllowed);
@@ -819,6 +830,13 @@ pub(crate) mod tests {
             JwtError::InvalidKey
         );
         assert!(JwtValidator::jwks(r#"{"keys":[{"kty":"oct","k":"c2VjcmV0"}]}"#).is_err());
+        // A key of an unknown type spoils the whole set.
+        let unknown = r#"{"keys":[{"kty":"AKP","alg":"ML-DSA-44","pub":"AAAA"},
+            {"kty":"OKP","crv":"Ed25519","x":"YUcsWk2QCCAk6Ql-KNZmokyJkaT4A9Ykdhdd8kyR9P0"}]}"#;
+        assert_eq!(
+            JwtValidator::jwks(unknown).unwrap_err(),
+            JwtError::InvalidKey
+        );
         assert!(format!("{v:?}").contains("EdDSA"));
     }
 

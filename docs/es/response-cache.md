@@ -113,7 +113,7 @@ Cómo se comporta el almacén:
 - **Aislamiento**: cada clave empieza por el prefijo (`pratique:cache:` por defecto). Da a cada aplicación su propio prefijo cuando comparten un Redis; `clear` nunca toca otro prefijo, aunque empiece igual.
 - **Las purgas** usan `SCAN` y `UNLINK`, nunca `KEYS`, así que no bloquean Redis.
 
-Pratique, features `redis` incluidas, requiere Rust 1.88 o posterior.
+Pratique, features `redis` incluidas, requiere Rust 1.90 o posterior.
 
 ## Purgar tras una actualización
 

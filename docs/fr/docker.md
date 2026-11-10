@@ -13,7 +13,7 @@ Le `Dockerfile` à la racine du dépôt construit ce site : des pages rendues pa
 
 Basée sur `rust:1-slim-bookworm` avec la cible `wasm32-unknown-unknown`.
 
-* Installe wasm-bindgen `0.2.129` (argument de build `WASM_BINDGEN_VERSION`) à partir du binaire précompilé publié sur GitHub. Si le téléchargement échoue, elle se rabat sur `cargo install --locked` de la même version, plus lent.
+* Installe wasm-bindgen `0.2.130` (argument de build `WASM_BINDGEN_VERSION`) à partir du binaire précompilé publié sur GitHub. Si le téléchargement échoue, elle se rabat sur `cargo install --locked` de la même version, plus lent.
 * Copie les manifestes de l'espace de travail et `crates/`, avec des sources provisoires pour `server/` et `site/`, et lance `cargo fetch --locked` : la couche des dépendances reste en cache tant que `Cargo.lock` ne change pas.
 * Copie `server/`, `site/` et `docs/` (le `build.rs` du site compile ces pages dans le serveur), puis construit le bundle navigateur (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release`, puis `wasm-bindgen --target web --no-typescript --out-dir site/pkg …`) et le serveur (`cargo build --release --locked -p securite-server`). Le profil release utilise la LTO « thin », une seule unité de génération de code et un binaire dépouillé de ses symboles ; le profil `wasm-release` optimise le bundle pour la taille.
 
@@ -23,7 +23,7 @@ Basée sur `debian:bookworm-slim`, elle ne contient que `/app/securite-server`, 
 
 `.dockerignore` réduit le contexte de build : `.git`, `.github`, `target`, `site/pkg`, `dist` et les fichiers Markdown sont exclus, sauf `docs/**/*.md` et `crates/securite/README.md`.
 
-> **Attention :** la CLI wasm-bindgen doit correspondre exactement à la crate `wasm-bindgen`. Pour la mettre à jour, changez `0.2.129` dans `site/Cargo.toml` et dans l'argument `WASM_BINDGEN_VERSION` du `Dockerfile`, puis lancez `cargo update -p wasm-bindgen` : les workflows lisent la version dans `Cargo.lock`.
+> **Attention :** la CLI wasm-bindgen doit correspondre exactement à la crate `wasm-bindgen`. Pour la mettre à jour, changez `0.2.130` dans `site/Cargo.toml` et dans l'argument `WASM_BINDGEN_VERSION` du `Dockerfile`, puis lancez `cargo update -p wasm-bindgen` : les workflows lisent la version dans `Cargo.lock`.
 
 ## Construire et lancer
 
@@ -103,7 +103,7 @@ Installez les outils une fois :
 
 ```bash
 rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --locked --version 0.2.129
+cargo install wasm-bindgen-cli --locked --version 0.2.130
 ```
 
 Construisez le bundle navigateur, puis lancez le serveur comme en production, avec tous les en-têtes du bouclier :

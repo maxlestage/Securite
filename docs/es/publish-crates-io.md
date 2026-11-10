@@ -11,7 +11,7 @@ El crate `securite`, en `crates/securite`, está listo para crates.io. La public
 
 | Elemento | Valor |
 |---|---|
-| Metadatos | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) y `readme` en `crates/securite/Cargo.toml`; `rust-version` (1.88) heredado del workspace |
+| Metadatos | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) y `readme` en `crates/securite/Cargo.toml`; `rust-version` (1.90) heredado del workspace |
 | Licencia | Propietaria: `license-file = "LICENSE"`, heredada del workspace; cargo copia el archivo en el paquete |
 | README | `crates/securite/README.md`, que se muestra en la página de crates.io |
 | docs.rs | `[package.metadata.docs.rs]` compila con todas las features y `--cfg docsrs` |
@@ -80,7 +80,7 @@ Antes de la 1.0, Cargo considera que el número menor es el de los cambios incom
 0.9.3 -> 1.0.0   stable API, then 1.x.y follows the usual major.minor.patch rules
 ```
 
-> **Consejo:** subir la versión mínima de Rust admitida (hoy 1.88) merece al menos una versión menor. Cambie a la vez `rust-version` en el `Cargo.toml` raíz y el job `msrv` de `ci.yml`.
+> **Consejo:** subir la versión mínima de Rust admitida (hoy 1.90) merece al menos una versión menor. Cambie a la vez `rust-version` en el `Cargo.toml` raíz y el job `msrv` de `ci.yml`.
 
 ## Lo que no se puede deshacer
 

@@ -52,7 +52,7 @@ app.get("/", |_req: Request| async { "Hello, secure world!" });
 | Detección de amenazas | `Waf` (SQLi, XSS, RCE, Log4Shell, SSRF, NoSQLi, SSTI, escáneres), `BotBlocker` |
 | Integridad y trazabilidad | `RequestId`, `SignatureLayer` (webhooks de GitHub / Stripe / Slack / Shopify), eventos y estadísticas |
 
-≈ 6 µs para todo el pipeline recomendado · `#![forbid(unsafe_code)]` · MSRV 1.88.
+≈ 6 µs para todo el pipeline recomendado · `#![forbid(unsafe_code)]` · MSRV 1.90.
 Lee el [README de la crate](crates/securite/README.md) y la [documentación](docs/es/introduction.md).
 
 ## Despliega desde tu móvil (sin ordenador)
@@ -115,7 +115,7 @@ Llama a una rama `wip/...` para excluirla.
 cargo test --workspace
 
 # sitio: el bundle del navegador (requisitos: rustup target add wasm32-unknown-unknown;
-# cargo install wasm-bindgen-cli --version 0.2.129) y luego el servidor
+# cargo install wasm-bindgen-cli --version 0.2.130) y luego el servidor
 cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
 wasm-bindgen --target web --no-typescript --out-dir site/pkg target/wasm32-unknown-unknown/wasm-release/securite_site.wasm
 cargo run -p securite-server   # http://localhost:8080
