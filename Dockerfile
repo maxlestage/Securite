@@ -12,7 +12,7 @@
 # The server listens on $PORT (Heroku sets it).
 
 # Must match the wasm-bindgen crate in Cargo.lock.
-ARG WASM_BINDGEN_VERSION=0.2.129
+ARG WASM_BINDGEN_VERSION=0.2.130
 
 # ---------------------------------------------------------------------------
 FROM rust:1-slim-bookworm AS build

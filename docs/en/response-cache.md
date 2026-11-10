@@ -113,7 +113,7 @@ How the store behaves:
 - **Isolation**: every key starts with the prefix (`pratique:cache:` by default). Give each app its own prefix when they share a Redis; `clear` never touches another prefix, even one that starts the same way.
 - **Purges** use `SCAN` and `UNLINK`, never `KEYS`, so they don't block Redis.
 
-Pratique, `redis` features included, needs Rust 1.88 or later.
+Pratique, `redis` features included, needs Rust 1.90 or later.
 
 ## Purging after an update
 

@@ -11,7 +11,7 @@ La crate `securite`, dans `crates/securite`, est prête pour crates.io. La publi
 
 | Élément | Valeur |
 |---|---|
-| Métadonnées | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) et `readme` dans `crates/securite/Cargo.toml` ; `rust-version` (1.88) hérité de l'espace de travail |
+| Métadonnées | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) et `readme` dans `crates/securite/Cargo.toml` ; `rust-version` (1.90) hérité de l'espace de travail |
 | Licence | Propriétaire : `license-file = "LICENSE"`, héritée de l'espace de travail ; cargo copie le fichier dans le paquet |
 | README | `crates/securite/README.md`, affiché sur la page crates.io |
 | docs.rs | `[package.metadata.docs.rs]` compile avec toutes les fonctionnalités et `--cfg docsrs` |
@@ -80,7 +80,7 @@ Avant la 1.0, Cargo considère le numéro mineur comme celui des changements inc
 0.9.3 -> 1.0.0   stable API, then 1.x.y follows the usual major.minor.patch rules
 ```
 
-> **Astuce :** relever la version minimale de Rust prise en charge (1.88 aujourd'hui) mérite au moins une version mineure. Modifiez ensemble `rust-version` dans le `Cargo.toml` racine et le job `msrv` de `ci.yml`.
+> **Astuce :** relever la version minimale de Rust prise en charge (1.90 aujourd'hui) mérite au moins une version mineure. Modifiez ensemble `rust-version` dans le `Cargo.toml` racine et le job `msrv` de `ci.yml`.
 
 ## Ce qui est irréversible
 

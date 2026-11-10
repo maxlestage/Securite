@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 ## `RedisStore`: a `ResponseCache` shared by every instance of the app, in Redis or
-## Valkey (needs Rust 1.88, like the `redis` crate).
+## Valkey.
 redis = ["dep:redis"]
 ## `rediss://` (TLS) addresses for the `RedisStore`, with rustls and ring.
 redis-tls = [
@@ -32,7 +32,7 @@ redis-tls = [
 
 [dependencies]
 vitesse = { version = "0.2", git = "https://github.com/maxlestage/Vitesse", default-features = false }
-redis = { version = "1.7", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 # The crypto provider of rustls for `redis-tls` (rustls has none by default).
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
 

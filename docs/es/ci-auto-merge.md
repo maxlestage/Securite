@@ -21,7 +21,7 @@ push to feature/x
 | Job | Comprobaciones |
 |---|---|
 | Crate · fmt, clippy, tests, docs, package | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo doc -p securite --no-deps` con `RUSTDOCFLAGS=-D warnings`, `cargo publish -p securite --dry-run` |
-| Crate · MSRV 1.88 | `cargo check -p securite --all-features` con Rust 1.88 |
+| Crate · MSRV 1.90 | `cargo check -p securite --all-features` con Rust 1.90 |
 | Website · Active + WebAssembly | `cargo clippy -p securite-site --lib --target wasm32-unknown-unknown -- -D warnings`, el bundle del navegador (`cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release` y luego `wasm-bindgen`, la herramienta precompilada de la versión fijada en `Cargo.lock`), el servidor en release y la exportación estática del sitio (`securite-server export dist` con `BASE_PATH=/Securite`) |
 
 Los avisos son errores: un lint de clippy o un enlace roto en la documentación hacen fallar la ejecución. Las mismas comprobaciones en un ordenador:

@@ -11,7 +11,7 @@ The `securite` crate in `crates/securite` is ready for crates.io. Publishing run
 
 | Item | Value |
 |---|---|
-| Metadata | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) and `readme` in `crates/securite/Cargo.toml`; `rust-version` (1.88) inherited from the workspace |
+| Metadata | `description`, `keywords`, `categories`, `homepage`, `repository`, `documentation` (docs.rs) and `readme` in `crates/securite/Cargo.toml`; `rust-version` (1.90) inherited from the workspace |
 | License | Proprietary: `license-file = "LICENSE"`, inherited from the workspace; cargo copies the file into the package |
 | README | `crates/securite/README.md`, shown on the crates.io page |
 | docs.rs | `[package.metadata.docs.rs]` builds with every feature and `--cfg docsrs` |
@@ -80,7 +80,7 @@ Before 1.0, Cargo treats the minor number as the breaking one:
 0.9.3 -> 1.0.0   stable API, then 1.x.y follows the usual major.minor.patch rules
 ```
 
-> **Tip:** raising the minimum supported Rust version (1.88 today) deserves at least a minor bump. Change `rust-version` in the root `Cargo.toml` and the `msrv` job of `ci.yml` together.
+> **Tip:** raising the minimum supported Rust version (1.90 today) deserves at least a minor bump. Change `rust-version` in the root `Cargo.toml` and the `msrv` job of `ci.yml` together.
 
 ## What you cannot undo
 

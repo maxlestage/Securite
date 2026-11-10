@@ -17,7 +17,7 @@ Thanks for helping make Rust services safer!
    The website (`site/`, written with [Active](https://active-c1883a966650.herokuapp.com/))
    is rendered by `server/`. To see it, build the browser bundle, then run the server
    (needs `rustup target add wasm32-unknown-unknown` and
-   `cargo install wasm-bindgen-cli --version 0.2.129`):
+   `cargo install wasm-bindgen-cli --version 0.2.130`):
 
    ```bash
    cargo build -p securite-site --lib --target wasm32-unknown-unknown --profile wasm-release
