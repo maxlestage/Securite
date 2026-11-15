@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "active"
 version = "0.3.0"
-source = "git+https://github.com/maxlestage/Active#437639f40035c27629dd4db3b44645a6e27cb999"
+source = "git+https://github.com/maxlestage/Active#5d51254cff3a5196ccd650da887b793f08de9167"
 dependencies = [
  "approx",
  "arrayvec",
@@ -2586,7 +2586,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vitesse"
 version = "0.2.0"
-source = "git+https://github.com/maxlestage/Vitesse#77c42416e6e67ace81e934e3e2b1adc51d893c6e"
+source = "git+https://github.com/maxlestage/Vitesse#a81f4d2d302e3f930753a9b76ad211438d0b0b49"
 dependencies = [
  "brotli",
  "bytes",
