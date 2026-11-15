@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "active"
 version = "0.3.0"
-source = "git+https://github.com/maxlestage/Active#e3d210dda33dae32d8bb07061fcb717b314423b9"
+source = "git+https://github.com/maxlestage/Active#b2d816bd1d354d3f52fbd2c68893f4c464acdeee"
 dependencies = [
  "approx",
  "arrayvec",
@@ -2834,9 +2834,9 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xxhash-rust"
-version = "0.8.19"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "550a2b930b62486a393c52d5c3b84bff264b28aa437ed64694d31e93b1757af7"
+checksum = "ca9dca39bbd5f73d48ffcc26a06ff0cd9637388edd6e33d732bd5f8135771fab"
 
 [[package]]
 name = "yoke"
