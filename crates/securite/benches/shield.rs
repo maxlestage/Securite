@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 use criterion::{Criterion, criterion_group, criterion_main};
 use http::{Request, Response};
 use securite::prelude::*;
+use securite::{Context, Guard};
 use std::convert::Infallible;
 use tower::{Service, ServiceExt};
 
@@ -93,6 +94,24 @@ fn bench(c: &mut Criterion) {
             .into_parts()
             .0;
         b.iter(|| black_box(waf.inspect(black_box(&parts))))
+    });
+    let headers = SecurityHeaders::new();
+    c.bench_function("security headers (response)", |b| {
+        let ctx = Context::new(http::Method::GET, "/".parse().unwrap(), None);
+        b.iter(|| {
+            let (mut parts, ()) = Response::new(()).into_parts();
+            headers.on_response(&mut parts, &ctx);
+            black_box(parts)
+        })
+    });
+    let request_id = RequestId::new();
+    c.bench_function("request id (generated)", |b| {
+        let (mut parts, ()) = Request::new(()).into_parts();
+        let mut ctx = Context::new(http::Method::GET, "/".parse().unwrap(), None);
+        b.iter(|| {
+            parts.headers.clear();
+            black_box(request_id.on_request(&mut parts, &mut ctx)).unwrap();
+        })
     });
     let set =
         IpSet::parse((0..10_000).map(|i| format!("10.{}.{}.0/24", i / 256, i % 256))).unwrap();

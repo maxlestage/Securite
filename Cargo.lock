@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "pratique"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "redis",
  "rustls",
@@ -1951,7 +1951,7 @@ dependencies = [
 
 [[package]]
 name = "securite"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "aho-corasick",
  "argon2",
