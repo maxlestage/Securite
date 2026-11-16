@@ -6,7 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-16
+
 ### Changed
+- Faster per-request path, same behaviour (median of 7 interleaved runs of
+  `cargo bench -p securite`): `Shield::recommended()` on a typical `GET` 6.42 µs →
+  **4.89 µs** (−24 %), `strict()` 6.58 µs → 5.21 µs (−21 %).
+  - WAF: the normalisation copies runs of plain ASCII in one go (no UTF-8 check per
+    byte), decodes HTML entities without lower-casing them into a new string, and
+    header values are checked with the fast UTF-8 validator; percent-decoding no
+    longer copies its output twice. `Waf::inspect` 1.80 µs → **1.28 µs** (−29 %) on a
+    clean request, 2.10 µs → 1.35 µs (−36 %) on an SQL injection. Same rules, same
+    normalised text (checked against the previous implementation on 800,000
+    generated inputs), same verdicts.
+  - `SecurityHeaders`: the built-in header names and values are static (cloned
+    without a reference count), the CSP without nonce is built once instead of on
+    every response, and the header map grows once. 0.99 µs → **0.68 µs** (−31 %) per
+    response; same headers and values.
+  - `RequestId`: the UUID v4 is written on the stack instead of through two
+    `String`s, 283 ns → **140 ns** (−51 %); same format and generator.
 - Minimum supported Rust version raised from 1.85 to **1.88**, like Paquets and Memoire:
   current versions of `time` (used by `jsonwebtoken`) and `redis` need it, so dependencies
   can be kept up to date again.

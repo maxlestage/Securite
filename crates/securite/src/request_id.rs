@@ -4,7 +4,7 @@ use http::header::{HeaderName, HeaderValue};
 use http::{request, response};
 
 use crate::guard::impl_layer;
-use crate::util::{fast_u64, hex_encode};
+use crate::util::fast_u64;
 use crate::{Context, Guard, Rejection, priority};
 
 /// The request id, inserted in the request extensions.
@@ -60,20 +60,29 @@ impl RequestId {
 
     /// Generates a random UUID v4 string.
     pub fn generate() -> String {
+        let id = Self::generate_bytes();
+        std::str::from_utf8(&id).expect("ASCII").to_owned()
+    }
+
+    /// The UUID v4 of [`generate`](Self::generate), written on the stack.
+    fn generate_bytes() -> [u8; 36] {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
         let mut b = [0u8; 16];
         b[..8].copy_from_slice(&fast_u64().to_le_bytes());
         b[8..].copy_from_slice(&fast_u64().to_le_bytes());
         b[6] = (b[6] & 0x0f) | 0x40;
         b[8] = (b[8] & 0x3f) | 0x80;
-        let h = hex_encode(&b);
-        format!(
-            "{}-{}-{}-{}-{}",
-            &h[..8],
-            &h[8..12],
-            &h[12..16],
-            &h[16..20],
-            &h[20..]
-        )
+        let mut out = [b'-'; 36];
+        let mut o = 0;
+        for (i, byte) in b.iter().enumerate() {
+            if matches!(i, 4 | 6 | 8 | 10) {
+                o += 1; // the dash left in place
+            }
+            out[o] = HEX[usize::from(byte >> 4)];
+            out[o + 1] = HEX[usize::from(byte & 0xf)];
+            o += 2;
+        }
+        out
     }
 
     fn valid(v: &HeaderValue) -> bool {
@@ -97,7 +106,7 @@ impl Guard for RequestId {
     fn on_request(&self, req: &mut request::Parts, ctx: &mut Context) -> Result<(), Rejection> {
         let id = match req.headers.get(&self.header) {
             Some(v) if self.trust_incoming && Self::valid(v) => v.clone(),
-            _ => HeaderValue::from_str(&Self::generate()).expect("uuid is a valid header"),
+            _ => HeaderValue::from_bytes(&Self::generate_bytes()).expect("uuid is a valid header"),
         };
         req.headers.insert(self.header.clone(), id.clone());
         req.extensions.insert(RequestIdValue(id.clone()));
@@ -124,6 +133,20 @@ mod tests {
         assert_eq!(id.len(), 36);
         assert_eq!(&id[14..15], "4");
         assert_ne!(id, RequestId::generate());
+        for _ in 0..1000 {
+            let id = RequestId::generate();
+            for (i, c) in id.bytes().enumerate() {
+                if matches!(i, 8 | 13 | 18 | 23) {
+                    assert_eq!(c, b'-', "{id}");
+                } else {
+                    assert!(c.is_ascii_digit() || (b'a'..=b'f').contains(&c), "{id}");
+                }
+            }
+            assert!(
+                matches!(id.as_bytes()[19], b'8' | b'9' | b'a' | b'b'),
+                "{id}"
+            );
+        }
     }
 
     #[test]

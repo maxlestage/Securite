@@ -356,12 +356,16 @@ impl Default for Hsts {
 
 impl Hsts {
     fn value(&self) -> HeaderValue {
+        const DEFAULT: &str = "max-age=63072000; includeSubDomains";
         let mut v = format!("max-age={}", self.max_age.as_secs());
         if self.include_subdomains {
             v.push_str("; includeSubDomains");
         }
         if self.preload {
             v.push_str("; preload");
+        }
+        if v == DEFAULT {
+            return HeaderValue::from_static(DEFAULT);
         }
         HeaderValue::from_str(&v).expect("valid hsts")
     }
@@ -402,8 +406,9 @@ const REMOVED: [&str; 5] = [
 #[derive(Debug, Clone)]
 pub struct SecurityHeaders {
     csp: Option<ContentSecurityPolicy>,
-    /// (before nonce, after nonce, report-only, policy without nonce)
-    csp_parts: Option<(String, String, bool, HeaderValue)>,
+    /// (before nonce, after nonce, report-only, policy without nonce,
+    /// `before` as a header value when there is nothing after the nonce)
+    csp_parts: Option<(String, String, bool, HeaderValue, Option<HeaderValue>)>,
     static_headers: Vec<(HeaderName, HeaderValue)>,
     remove: Vec<HeaderName>,
     overwrite: bool,
@@ -428,17 +433,17 @@ impl SecurityHeaders {
         s = s
             .content_security_policy(ContentSecurityPolicy::strict())
             .hsts(Some(Hsts::default()))
-            .set("x-content-type-options", "nosniff")
-            .set("x-frame-options", "DENY")
-            .set("referrer-policy", "strict-origin-when-cross-origin")
-            .set("permissions-policy", DEFAULT_PERMISSIONS_POLICY)
-            .set("cross-origin-opener-policy", "same-origin")
-            .set("cross-origin-resource-policy", "same-origin")
-            .set("origin-agent-cluster", "?1")
-            .set("x-dns-prefetch-control", "off")
-            .set("x-download-options", "noopen")
-            .set("x-permitted-cross-domain-policies", "none")
-            .set("x-xss-protection", "0");
+            .set_static("x-content-type-options", "nosniff")
+            .set_static("x-frame-options", "DENY")
+            .set_static("referrer-policy", "strict-origin-when-cross-origin")
+            .set_static("permissions-policy", DEFAULT_PERMISSIONS_POLICY)
+            .set_static("cross-origin-opener-policy", "same-origin")
+            .set_static("cross-origin-resource-policy", "same-origin")
+            .set_static("origin-agent-cluster", "?1")
+            .set_static("x-dns-prefetch-control", "off")
+            .set_static("x-download-options", "noopen")
+            .set_static("x-permitted-cross-domain-policies", "none")
+            .set_static("x-xss-protection", "0");
         s
     }
 
@@ -451,16 +456,16 @@ impl SecurityHeaders {
     /// whole domain (and every sub-domain) is HTTPS only.
     pub fn strict() -> Self {
         Self::new()
-            .set("cross-origin-embedder-policy", "require-corp")
-            .set("referrer-policy", "no-referrer")
+            .set_static("cross-origin-embedder-policy", "require-corp")
+            .set_static("referrer-policy", "no-referrer")
     }
 
     /// For JSON APIs: locked CSP, `Cache-Control: no-store`, `no-referrer`.
     pub fn api() -> Self {
         Self::new()
             .content_security_policy(ContentSecurityPolicy::api())
-            .set("referrer-policy", "no-referrer")
-            .set("cache-control", "no-store")
+            .set_static("referrer-policy", "no-referrer")
+            .set_static("cache-control", "no-store")
     }
 
     /// Sets (or replaces) a header. Use it for any header not covered by a
@@ -469,9 +474,22 @@ impl SecurityHeaders {
     /// # Panics
     ///
     /// On an invalid header name or value.
-    pub fn set(mut self, name: &str, value: &str) -> Self {
+    pub fn set(self, name: &str, value: &str) -> Self {
         let name = HeaderName::from_bytes(name.as_bytes()).expect("invalid header name");
         let value = HeaderValue::from_str(value).expect("invalid header value");
+        self.set_header(name, value)
+    }
+
+    /// [`set`](Self::set) for the built-in defaults: a static name and value
+    /// are cloned into every response without touching a reference count.
+    fn set_static(self, name: &'static str, value: &'static str) -> Self {
+        self.set_header(
+            HeaderName::from_static(name),
+            HeaderValue::from_static(value),
+        )
+    }
+
+    fn set_header(mut self, name: HeaderName, value: HeaderValue) -> Self {
         self.static_headers.retain(|(n, _)| *n != name);
         self.static_headers.push((name, value));
         self
@@ -545,9 +563,15 @@ impl SecurityHeaders {
             // Used when no nonce was generated (request rejected before the
             // headers guard ran): never send a truncated policy.
             let plain = HeaderValue::from_str(&csp.render_with(false)).expect("invalid CSP");
-            (before, after, csp.report_only, plain)
+            // Built once here rather than on every response.
+            let whole = if after.is_empty() {
+                HeaderValue::from_str(&before).ok()
+            } else {
+                None
+            };
+            (before, after, csp.report_only, plain, whole)
         });
-        if let Some((b, a, _, _)) = &self.csp_parts {
+        if let Some((b, a, _, _, _)) = &self.csp_parts {
             // Validate eagerly so a bad policy panics at startup, not per request.
             HeaderValue::from_str(&format!("{b}{a}")).expect("invalid CSP");
         }
@@ -562,10 +586,7 @@ impl SecurityHeaders {
     /// Configures HSTS (`None` disables it, e.g. for plain-HTTP local dev).
     pub fn hsts(self, hsts: Option<Hsts>) -> Self {
         match hsts {
-            Some(h) => {
-                let v = h.value();
-                self.set("strict-transport-security", v.to_str().unwrap_or_default())
-            }
+            Some(h) => self.set_header(header::STRICT_TRANSPORT_SECURITY, h.value()),
             None => self.unset("strict-transport-security"),
         }
     }
@@ -657,10 +678,14 @@ impl Guard for SecurityHeaders {
         for name in &self.remove {
             res.headers.remove(name);
         }
+        // Room for the headers below in one go (a full map is left to `put`).
+        let _ = res
+            .headers
+            .try_reserve(self.static_headers.len() + usize::from(self.csp_parts.is_some()));
         for (name, value) in &self.static_headers {
             self.put(&mut res.headers, name.clone(), value.clone());
         }
-        if let Some((before, after, report_only, plain)) = &self.csp_parts {
+        if let Some((before, after, report_only, plain, whole)) = &self.csp_parts {
             let name = if *report_only {
                 HeaderName::from_static("content-security-policy-report-only")
             } else {
@@ -671,7 +696,7 @@ impl Guard for SecurityHeaders {
                     let full = format!("{before}{nonce}{}", after.replace("{nonce}", nonce));
                     HeaderValue::from_str(&full).ok()
                 }
-                (_, true) => HeaderValue::from_str(before).ok(),
+                (_, true) => whole.clone(),
                 (None, false) => Some(plain.clone()),
             };
             if let Some(v) = value {
@@ -745,6 +770,47 @@ mod tests {
             .remove_directive("Upgrade-Insecure-Requests")
             .to_string();
         assert!(!s.contains("upgrade"));
+    }
+
+    #[test]
+    fn default_response_headers() {
+        let ctx = Context::new(http::Method::GET, http::Uri::from_static("/"), None);
+        let (mut res, ()) = http::Response::new(()).into_parts();
+        res.headers.insert("server", HeaderValue::from_static("x"));
+        res.headers
+            .insert("x-frame-options", HeaderValue::from_static("SAMEORIGIN"));
+        SecurityHeaders::new().on_response(&mut res, &ctx);
+        let h = |n: &str| res.headers[n].to_str().unwrap();
+        assert!(!res.headers.contains_key("server"));
+        assert_eq!(h("x-frame-options"), "SAMEORIGIN", "kept from the handler");
+        assert_eq!(
+            h("strict-transport-security"),
+            "max-age=63072000; includeSubDomains"
+        );
+        assert_eq!(h("x-content-type-options"), "nosniff");
+        assert_eq!(h("referrer-policy"), "strict-origin-when-cross-origin");
+        assert_eq!(h("permissions-policy"), DEFAULT_PERMISSIONS_POLICY);
+        assert_eq!(h("cross-origin-opener-policy"), "same-origin");
+        assert_eq!(h("origin-agent-cluster"), "?1");
+        assert_eq!(h("x-xss-protection"), "0");
+        assert_eq!(h("content-security-policy"), Csp::strict().to_string());
+        assert_eq!(res.headers.len(), 13);
+
+        let (mut res, ()) = http::Response::new(()).into_parts();
+        let hsts = Hsts {
+            preload: true,
+            ..Hsts::default()
+        };
+        SecurityHeaders::strict()
+            .hsts(Some(hsts))
+            .on_response(&mut res, &ctx);
+        let h = |n: &str| res.headers[n].to_str().unwrap();
+        assert_eq!(
+            h("strict-transport-security"),
+            "max-age=63072000; includeSubDomains; preload"
+        );
+        assert_eq!(h("referrer-policy"), "no-referrer");
+        assert_eq!(h("cross-origin-embedder-policy"), "require-corp");
     }
 
     #[test]

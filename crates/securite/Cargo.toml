@@ -1,6 +1,6 @@
 [package]
 name = "securite"
-version = "0.2.0"
+version = "0.2.1"
 description = "Fast, easy, batteries-included security middlewares for Vitesse (and any tower / hyper service): security headers & CSP, rate limiting, WAF, CSRF, CORS, IP filtering, auto-ban, auth, HMAC webhooks and more."
 edition.workspace = true
 rust-version.workspace = true

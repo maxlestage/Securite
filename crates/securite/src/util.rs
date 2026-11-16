@@ -114,7 +114,10 @@ pub(crate) fn percent_decode(input: &str, plus_as_space: bool) -> Cow<'_, str> {
         }
         i += 1;
     }
-    Cow::Owned(String::from_utf8_lossy(&out).into_owned())
+    Cow::Owned(match String::from_utf8(out) {
+        Ok(s) => s,
+        Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+    })
 }
 
 /// Returns true if `input` contains a malformed percent escape.

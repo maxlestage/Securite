@@ -745,7 +745,10 @@ impl Waf {
                 {
                     continue;
                 }
-                let value = String::from_utf8_lossy(value.as_bytes());
+                let value = match std::str::from_utf8(value.as_bytes()) {
+                    Ok(value) => Cow::Borrowed(value),
+                    Err(_) => String::from_utf8_lossy(value.as_bytes()),
+                };
                 self.scan(&value, target::HEADERS, false, &mut buf, &mut v);
             }
         }
@@ -774,6 +777,7 @@ pub fn normalize(input: &str, is_query: bool) -> String {
 
 fn normalize_into(input: &str, is_query: bool, out: &mut String) {
     out.clear();
+    out.reserve(input.len());
     let once = percent_decode(input, is_query);
     let twice = if once.contains('%') {
         Cow::Owned(percent_decode(&once, false).into_owned())
@@ -827,7 +831,20 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
         }
         pending_space = false;
         skip_after = false;
-        // Push the (possibly multi-byte) char lower-cased.
+        if c.is_ascii() {
+            // A run of plain ASCII bytes (none of the separators, spaces or
+            // comment markers handled above) is copied in one go, lower-cased.
+            let start = i;
+            i += 1;
+            while i < s.len() && is_plain_ascii(s[i]) {
+                i += 1;
+            }
+            let from = out.len();
+            out.push_str(&decoded[start..i]);
+            out[from..].make_ascii_lowercase();
+            continue;
+        }
+        // Push the multi-byte char lower-cased.
         let ch_len = utf8_len(c);
         let end = (i + ch_len).min(s.len());
         match std::str::from_utf8(&s[i..end]) {
@@ -842,6 +859,40 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
         i = end;
     }
 }
+
+/// ASCII bytes [`normalize_into`] copies as they are (lower-cased): not a
+/// whitespace, a separator, nor the `/` and `*` of a SQL comment.
+#[inline]
+fn is_plain_ascii(c: u8) -> bool {
+    PLAIN_ASCII[usize::from(c)]
+}
+
+/// Lookup table of [`is_plain_ascii`] (one load instead of a jump table).
+static PLAIN_ASCII: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut c = 0;
+    while c < 128 {
+        table[c] = !matches!(
+            c as u8,
+            b'/' | b'*'
+                | b' '
+                | b'\t'
+                | b'\n'
+                | b'\r'
+                | 0x0b
+                | 0x0c
+                | b';'
+                | b'|'
+                | b'&'
+                | b'('
+                | b')'
+                | b'='
+                | b','
+        );
+        c += 1;
+    }
+    table
+};
 
 #[inline]
 fn utf8_len(first: u8) -> usize {
@@ -917,23 +968,7 @@ fn decode_entities(s: &str) -> Cow<'_, str> {
             Some(e) => (&tail[1..e], e + usize::from(tail[e..].starts_with(';'))),
             None => (&tail[1..], tail.len()),
         };
-        let decoded = match entity.to_ascii_lowercase().as_str() {
-            "lt" => Some('<'),
-            "gt" => Some('>'),
-            "quot" => Some('"'),
-            "apos" => Some('\''),
-            "amp" => Some('&'),
-            "colon" => Some(':'),
-            "lpar" => Some('('),
-            "rpar" => Some(')'),
-            "sol" => Some('/'),
-            "tab" | "newline" => Some(' '),
-            e if e.starts_with("#x") => u32::from_str_radix(&e[2..], 16)
-                .ok()
-                .and_then(char::from_u32),
-            e if e.starts_with('#') => e[1..].parse::<u32>().ok().and_then(char::from_u32),
-            _ => None,
-        };
+        let decoded = decode_entity(entity);
         match decoded {
             Some(c) => {
                 out.push(c);
@@ -947,6 +982,37 @@ fn decode_entities(s: &str) -> Cow<'_, str> {
     }
     out.push_str(rest);
     Cow::Owned(out)
+}
+
+/// One entity name (`lt`, `#x3c`, `#60` …, any case; ASCII only), without
+/// lower-casing it into a new string.
+fn decode_entity(entity: &str) -> Option<char> {
+    const NAMED: [(&str, char); 11] = [
+        ("lt", '<'),
+        ("gt", '>'),
+        ("quot", '"'),
+        ("apos", '\''),
+        ("amp", '&'),
+        ("colon", ':'),
+        ("lpar", '('),
+        ("rpar", ')'),
+        ("sol", '/'),
+        ("tab", ' '),
+        ("newline", ' '),
+    ];
+    if let Some(&(_, c)) = NAMED.iter().find(|(n, _)| entity.eq_ignore_ascii_case(n)) {
+        return Some(c);
+    }
+    let b = entity.as_bytes();
+    if b.len() >= 2 && b[0] == b'#' && b[1].eq_ignore_ascii_case(&b'x') {
+        u32::from_str_radix(&entity[2..], 16)
+            .ok()
+            .and_then(char::from_u32)
+    } else if let Some(num) = entity.strip_prefix('#') {
+        num.parse::<u32>().ok().and_then(char::from_u32)
+    } else {
+        None
+    }
 }
 
 /// `" onerror=`, `/onload=`, `'onmouseover=` … in normalised text.
@@ -1064,6 +1130,17 @@ mod tests {
         assert_eq!(normalize("&#x3c;svg", false), "<svg");
         assert_eq!(normalize("%253Cscript", false), "<script");
         assert_eq!(normalize("ÉCOLE", false), "école");
+        assert_eq!(normalize("&LT;ScRiPt&GT;", false), "<script>");
+        assert_eq!(
+            normalize("&#X3C;svg &#60;img &Colon;&NEWLINE;x", false),
+            "<svg <img : x"
+        );
+        assert_eq!(normalize("&unknown;&amp", false), "&unknown;&");
+        assert_eq!(
+            normalize("Ab/Cd*Ef */ Gh;Ij  (Kl) ,Mn", false),
+            "ab/cd*ef gh;ij(kl),mn"
+        );
+        assert_eq!(normalize("A%C3%89b İx", false), "aéb i̇x");
     }
 
     #[test]
