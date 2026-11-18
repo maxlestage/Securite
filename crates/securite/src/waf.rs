@@ -701,14 +701,21 @@ impl Waf {
                 add(verdict, 1001, Category::Protocol, 5);
             }
         }
-        normalize_into(raw, is_query, buf);
-        for m in self.engine.ac.find_overlapping_iter(buf.as_bytes()) {
+        // Most paths and many header values are already normalised: they are
+        // scanned as they are instead of being copied first.
+        let text = if is_normalised(raw) {
+            raw
+        } else {
+            normalize_into(raw, is_query, buf);
+            buf.as_str()
+        };
+        for m in self.engine.ac.find_overlapping_iter(text.as_bytes()) {
             let rule = &self.engine.rules[m.pattern().as_usize()];
             if rule.targets & tgt != 0 {
                 add(verdict, rule.id, rule.category, rule.score);
             }
         }
-        if self.enabled(245) && tgt != target::PATH && has_event_handler(buf) {
+        if self.enabled(245) && tgt != target::PATH && has_event_handler(text) {
             add(verdict, 245, Category::Xss, 5);
         }
     }
@@ -833,15 +840,14 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
         skip_after = false;
         if c.is_ascii() {
             // A run of plain ASCII bytes (none of the separators, spaces or
-            // comment markers handled above) is copied in one go, lower-cased.
+            // comment markers handled above) is copied in one go (lower-cased
+            // at the end).
             let start = i;
             i += 1;
             while i < s.len() && is_plain_ascii(s[i]) {
                 i += 1;
             }
-            let from = out.len();
             out.push_str(&decoded[start..i]);
-            out[from..].make_ascii_lowercase();
             continue;
         }
         // Push the multi-byte char lower-cased.
@@ -858,7 +864,44 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
         }
         i = end;
     }
+    // ASCII letters are lower-cased in one pass over the whole output: the
+    // other chars were pushed lower-cased, and the lower case of a char is
+    // never an ASCII upper-case letter.
+    out.make_ascii_lowercase();
 }
+
+/// Whether [`normalize_into`] leaves `input` unchanged, checked byte by byte:
+/// ASCII only, no upper-case letter, no whitespace, nothing to decode (`%`,
+/// `+`, `\`, `&`) and no `*` (so no SQL comment marker).
+#[inline]
+fn is_normalised(input: &str) -> bool {
+    input.bytes().all(|c| UNCHANGED[usize::from(c)])
+}
+
+/// Lookup table of [`is_normalised`].
+static UNCHANGED: [bool; 256] = {
+    let mut table = [false; 256];
+    let mut c = 0;
+    while c < 128 {
+        table[c] = !matches!(
+            c as u8,
+            b'A'..=b'Z'
+                | b' '
+                | b'\t'
+                | b'\n'
+                | b'\r'
+                | 0x0b
+                | 0x0c
+                | b'%'
+                | b'+'
+                | b'\\'
+                | b'&'
+                | b'*'
+        );
+        c += 1;
+    }
+    table
+};
 
 /// ASCII bytes [`normalize_into`] copies as they are (lower-cased): not a
 /// whitespace, a separator, nor the `/` and `*` of a SQL comment.
@@ -1244,5 +1287,43 @@ mod tests {
             !waf.inspect_body(r#"{"msg":"line\nbreak \"quoted\""}"#)
                 .blocked
         );
+    }
+
+    #[test]
+    fn already_normalised_inputs_are_left_as_they_are() {
+        // Every input `scan` takes as it is must be its own normalised form:
+        // all ASCII strings of up to 2 bytes, then the tricky bytes up to 4.
+        let check = |s: &str| {
+            if is_normalised(s) {
+                assert_eq!(normalize(s, false), s, "{s:?}");
+                assert_eq!(normalize(s, true), s, "{s:?}");
+            }
+        };
+        for a in 0..128u8 {
+            check(&(a as char).to_string());
+            for b in 0..128u8 {
+                check(&String::from_iter([a as char, b as char]));
+            }
+        }
+        let tricky = [
+            '/', '*', '!', '%', '2', 'f', '+', '&', '#', 'x', 'l', 't', ';', '\\', 'u', ' ', '\t',
+            '=', '(', 'a', 'A', 'é',
+        ];
+        for a in tricky {
+            for b in tricky {
+                for c in tricky {
+                    for d in tricky {
+                        check(&String::from_iter([a, b, c, d]));
+                    }
+                }
+            }
+        }
+        assert!(is_normalised("/api/users/42"));
+        assert!(is_normalised("https://example.com/products?a=1;b=(2)"));
+        for s in [
+            "/Api", "a b", "a%20", "a+b", "a&b", "a\\x", "a*b", "é", "a\tb",
+        ] {
+            assert!(!is_normalised(s), "{s:?}");
+        }
     }
 }
