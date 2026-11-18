@@ -1,6 +1,6 @@
 [package]
 name = "pratique"
-version = "0.2.1"
+version = "0.2.2"
 description = "Everyday middlewares for Vitesse that have nothing to do with security: ETag & 304, Cache-Control, response cache, response time, trailing slash, redirects, maintenance mode, health checks, Prometheus metrics, access logs, default headers, locale negotiation and API deprecation."
 edition.workspace = true
 rust-version.workspace = true

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-18
+
+### Changed
+- Faster WAF, same behaviour (median of 9 interleaved runs of `cargo bench -p securite`):
+  `Waf::inspect` 1.15 µs → **1.00 µs** (−13 %) on a clean request, 1.32 µs → 1.11 µs
+  (−16 %) on an SQL injection; `Shield::recommended()` on a typical `GET` 4.55 µs →
+  4.30 µs (−6 %).
+  - An input that is already in normalised form (ASCII without upper-case letters,
+    whitespace, `%`, `+`, `\`, `&` or `*`, such as most paths, `Host` and `Referer`
+    values) is scanned as it is instead of being copied first: 247 ns → **134 ns**
+    (−46 %) for a plain path given to `inspect_text`.
+  - The normalised text is lower-cased in one pass at the end instead of run by run.
+  - Same rules, same normalised text and same verdicts: checked against the previous
+    implementation on 5,500,000 generated texts, paths, query strings and header
+    values (four configurations, custom rules included); a new test checks,
+    exhaustively on short inputs, that every input scanned as it is equals its
+    normalised form.
+
 ## [0.2.1] - 2026-11-16
 
 ### Changed

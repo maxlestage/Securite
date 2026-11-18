@@ -95,6 +95,18 @@ fn bench(c: &mut Criterion) {
             .0;
         b.iter(|| black_box(waf.inspect(black_box(&parts))))
     });
+    c.bench_function("waf text (query-like)", |b| {
+        b.iter(|| {
+            black_box(waf.inspect_text(black_box(
+                "q=rust+web+security&page=2&sort=price&order=desc",
+            )))
+        })
+    });
+    c.bench_function("waf text (plain path)", |b| {
+        b.iter(|| {
+            black_box(waf.inspect_text(black_box("/api/v1/users/42/orders/2024-10-07/items")))
+        })
+    });
     let headers = SecurityHeaders::new();
     c.bench_function("security headers (response)", |b| {
         let ctx = Context::new(http::Method::GET, "/".parse().unwrap(), None);
