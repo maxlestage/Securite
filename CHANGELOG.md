@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-19
+
+### Changed
+- Faster WAF, same behaviour (median of 9 interleaved runs of `cargo bench -p securite`):
+  `Waf::inspect` 1.02 µs → **0.86 µs** (−16 %) on a clean request, 1.17 µs → 1.04 µs
+  (−11 %) on an SQL injection, `inspect_text` on a plain path 130 ns → 103 ns (−20 %);
+  `Shield::recommended()` on a typical `GET` 4.38 µs → 4.10 µs (−6 %). The figures for
+  single inputs below come from a separate timing harness (median of 9 interleaved runs).
+  - One pass over the input notes which bytes need work (upper case, whitespace, `%`,
+    `+` in a query string, `\`, `&`): the decoding steps that cannot apply are skipped
+    instead of each scanning the input again. A user agent or cookie value is
+    checked about 30 % faster (387 → 276 ns, 198 → 137 ns).
+  - An input that only differs from its normalised form by ASCII upper-case letters
+    (a token, a path such as `/Products/ABC-123`, a `Host` in capitals) is copied and
+    lower-cased without the full normalisation: −47 % for such a request head
+    (607 → 320 ns). A `+` outside a query string no longer forces a copy.
+  - A `/` that does not open an SQL comment no longer ends a run of copied bytes.
+  - Event handlers (`onerror=` …) are looked for 16 bytes at a time instead of byte
+    by byte (41 → 10 ns on a user agent).
+  - All together, `inspect_text` on a 165-byte JSON body: 786 → 545 ns (−31 %).
+  - Same rules, same normalised text and same verdicts: checked against the previous
+    implementation on 4,000,000 generated texts (both modes), 4,000,000 header-like
+    tokens and 4,000,000 request heads (four configurations, custom rules included);
+    new tests check, exhaustively on short inputs, that the skipped steps change
+    nothing and that the event-handler search finds the same handlers as before.
+
 ## [0.2.2] - 2026-11-18
 
 ### Changed

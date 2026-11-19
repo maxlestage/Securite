@@ -32,7 +32,7 @@ vitesse = { git = "https://github.com/maxlestage/Vitesse" }
 
 | Élément | Valeur |
 |---|---|
-| Version actuelle | 0.2.2 |
+| Version actuelle | 0.2.3 |
 | Version minimale de Rust prise en charge | 1.90 (édition 2024) |
 | Licence | Propriétaire (© Maxime Nathan Lestage, tous droits réservés) : utilisation libre comme dépendance, voir [LICENSE](https://securite-2db4c1994be7.herokuapp.com/static/LICENSE.txt) |
 | Code unsafe | Aucun, la crate est en `#![forbid(unsafe_code)]` |

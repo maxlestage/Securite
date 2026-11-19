@@ -694,19 +694,27 @@ impl Waf {
 
     /// Scores one normalised input against the rules for `tgt`.
     fn scan(&self, raw: &str, tgt: u8, is_query: bool, buf: &mut String, verdict: &mut Verdict) {
+        let flags = byte_flags(raw, is_query);
         // CRLF injection must be checked before whitespace normalisation.
-        if self.enabled(1001) && tgt & (target::PATH | target::QUERY) != 0 && raw.contains('%') {
+        if self.enabled(1001) && tgt & (target::PATH | target::QUERY) != 0 && flags & PERCENT != 0 {
             let decoded = percent_decode(raw, is_query);
             if has_header_injection(&decoded, tgt == target::PATH) {
                 add(verdict, 1001, Category::Protocol, 5);
             }
         }
         // Most paths and many header values are already normalised: they are
-        // scanned as they are instead of being copied first.
-        let text = if is_normalised(raw) {
+        // scanned as they are instead of being copied first. Those that only
+        // differ from their normalised form by ASCII upper-case letters are
+        // copied and lower-cased without the full normalisation.
+        let text = if flags == 0 {
             raw
+        } else if flags == UPPER {
+            buf.clear();
+            buf.push_str(raw);
+            buf.make_ascii_lowercase();
+            buf.as_str()
         } else {
-            normalize_into(raw, is_query, buf);
+            normalize_flagged(raw, is_query, flags, buf);
             buf.as_str()
         };
         for m in self.engine.ac.find_overlapping_iter(text.as_bytes()) {
@@ -783,16 +791,36 @@ pub fn normalize(input: &str, is_query: bool) -> String {
 }
 
 fn normalize_into(input: &str, is_query: bool, out: &mut String) {
+    normalize_flagged(input, is_query, byte_flags(input, is_query), out);
+}
+
+/// [`normalize_into`] given the [`byte_flags`] of `input` (or a superset of
+/// them): the decoding steps that cannot apply are skipped. Without `%` in
+/// the input, percent-decoding only turns `+` into a space, so no `%`, `\`
+/// or `&` can appear that was not already there.
+fn normalize_flagged(input: &str, is_query: bool, flags: u8, out: &mut String) {
     out.clear();
     out.reserve(input.len());
-    let once = percent_decode(input, is_query);
-    let twice = if once.contains('%') {
+    let once = if flags & (PERCENT | PLUS) != 0 {
+        percent_decode(input, is_query)
+    } else {
+        Cow::Borrowed(input)
+    };
+    let twice = if flags & PERCENT != 0 && once.contains('%') {
         Cow::Owned(percent_decode(&once, false).into_owned())
     } else {
         once
     };
-    let unescaped = decode_js_escapes(&twice);
-    let decoded = decode_entities(&unescaped);
+    let unescaped = if flags & (PERCENT | BACKSLASH) != 0 {
+        decode_js_escapes(&twice)
+    } else {
+        Cow::Borrowed(&*twice)
+    };
+    let decoded = if flags & (PERCENT | BACKSLASH | AMP) != 0 {
+        decode_entities(&unescaped)
+    } else {
+        Cow::Borrowed(&*unescaped)
+    };
     let s = decoded.as_bytes();
 
     let mut pending_space = false;
@@ -841,10 +869,13 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
         if c.is_ascii() {
             // A run of plain ASCII bytes (none of the separators, spaces or
             // comment markers handled above) is copied in one go (lower-cased
-            // at the end).
+            // at the end). A `/` that does not open a comment goes on with
+            // the run: the loop would only start a new run with it.
             let start = i;
             i += 1;
-            while i < s.len() && is_plain_ascii(s[i]) {
+            while i < s.len()
+                && (is_plain_ascii(s[i]) || (s[i] == b'/' && s.get(i + 1) != Some(&b'*')))
+            {
                 i += 1;
             }
             out.push_str(&decoded[start..i]);
@@ -870,37 +901,53 @@ fn normalize_into(input: &str, is_query: bool, out: &mut String) {
     out.make_ascii_lowercase();
 }
 
-/// Whether [`normalize_into`] leaves `input` unchanged, checked byte by byte:
-/// ASCII only, no upper-case letter, no whitespace, nothing to decode (`%`,
-/// `+`, `\`, `&`) and no `*` (so no SQL comment marker).
+/// Bits of [`byte_flags`]. An input without any is its own normalised
+/// form (ASCII only, no upper-case letter, no whitespace, nothing to decode
+/// and no `*`, so no SQL comment marker); with [`UPPER`] alone, its
+/// normalised form is the input lower-cased.
+const UPPER: u8 = 1;
+/// Whitespace, `*` or a non-ASCII byte.
+const REWRITE: u8 = 2;
+const PERCENT: u8 = 4;
+/// `+`, in a query string only (where it is a space).
+const PLUS: u8 = 8;
+const BACKSLASH: u8 = 16;
+const AMP: u8 = 32;
+/// Every bit: nothing is skipped.
+#[cfg(test)]
+const ALL_FLAGS: u8 = UPPER | REWRITE | PERCENT | PLUS | BACKSLASH | AMP;
+
+/// The bits of every byte of `input` that [`normalize_into`] may change or
+/// decode.
 #[inline]
-fn is_normalised(input: &str) -> bool {
-    input.bytes().all(|c| UNCHANGED[usize::from(c)])
+fn byte_flags(input: &str, is_query: bool) -> u8 {
+    let table = &BYTE_FLAGS[usize::from(is_query)];
+    input
+        .bytes()
+        .fold(0, |flags, c| flags | table[usize::from(c)])
 }
 
-/// Lookup table of [`is_normalised`].
-static UNCHANGED: [bool; 256] = {
-    let mut table = [false; 256];
-    let mut c = 0;
-    while c < 128 {
-        table[c] = !matches!(
-            c as u8,
-            b'A'..=b'Z'
-                | b' '
-                | b'\t'
-                | b'\n'
-                | b'\r'
-                | 0x0b
-                | 0x0c
-                | b'%'
-                | b'+'
-                | b'\\'
-                | b'&'
-                | b'*'
-        );
-        c += 1;
+/// Lookup tables of [`byte_flags`], indexed by `is_query`.
+static BYTE_FLAGS: [[u8; 256]; 2] = {
+    let mut tables = [[REWRITE; 256]; 2];
+    let mut q = 0;
+    while q < 2 {
+        let mut c = 0;
+        while c < 128 {
+            tables[q][c] = match c as u8 {
+                b'A'..=b'Z' => UPPER,
+                b' ' | b'\t' | b'\n' | b'\r' | 0x0b | 0x0c | b'*' => REWRITE,
+                b'%' => PERCENT,
+                b'+' if q == 1 => PLUS,
+                b'\\' => BACKSLASH,
+                b'&' => AMP,
+                _ => 0,
+            };
+            c += 1;
+        }
+        q += 1;
     }
-    table
+    tables
 };
 
 /// ASCII bytes [`normalize_into`] copies as they are (lower-cased): not a
@@ -1059,24 +1106,52 @@ fn decode_entity(entity: &str) -> Option<char> {
 }
 
 /// `" onerror=`, `/onload=`, `'onmouseover=` … in normalised text.
+///
+/// The `o`s are found 16 bytes at a time (a bit mask the compiler builds
+/// with vector instructions), then each one is checked in place.
 fn has_event_handler(s: &str) -> bool {
     let b = s.as_bytes();
-    let mut i = 1;
-    while i + 1 < b.len() {
-        if b[i] == b'o' && b[i + 1] == b'n' && matches!(b[i - 1], b' ' | b'"' | b'\'' | b'/' | b'`')
-        {
-            let mut j = i + 2;
-            while j < b.len() && b[j].is_ascii_lowercase() {
-                j += 1;
-            }
-            let n = j - (i + 2);
-            if (3..=25).contains(&n) && b.get(j) == Some(&b'=') {
+    let (chunks, rest) = b.as_chunks::<16>();
+    let mut base = 0;
+    for chunk in chunks {
+        let mut mask = 0u32;
+        for (k, &c) in chunk.iter().enumerate() {
+            mask |= u32::from(c == b'o') << k;
+        }
+        while mask != 0 {
+            let i = base + mask.trailing_zeros() as usize;
+            mask &= mask - 1;
+            if event_handler_at(b, i) {
                 return true;
             }
         }
-        i += 1;
+        base += 16;
+    }
+    for (k, &c) in rest.iter().enumerate() {
+        if c == b'o' && event_handler_at(b, base + k) {
+            return true;
+        }
     }
     false
+}
+
+/// Whether the `o` at `i` starts `on` + 3 to 25 lower-case letters + `=`,
+/// right after a space, a quote, a backquote or a `/`.
+#[inline]
+fn event_handler_at(b: &[u8], i: usize) -> bool {
+    if i == 0
+        || i + 1 >= b.len()
+        || b[i + 1] != b'n'
+        || !matches!(b[i - 1], b' ' | b'"' | b'\'' | b'/' | b'`')
+    {
+        return false;
+    }
+    let mut j = i + 2;
+    while j < b.len() && b[j].is_ascii_lowercase() {
+        j += 1;
+    }
+    let n = j - (i + 2);
+    (3..=25).contains(&n) && b.get(j) == Some(&b'=')
 }
 
 /// CR/LF followed by something that looks like a header (`\r\nSet-Cookie:`).
@@ -1291,12 +1366,20 @@ mod tests {
 
     #[test]
     fn already_normalised_inputs_are_left_as_they_are() {
-        // Every input `scan` takes as it is must be its own normalised form:
-        // all ASCII strings of up to 2 bytes, then the tricky bytes up to 4.
+        // The decoding steps skipped for lack of a byte change nothing, every
+        // input `scan` takes as it is is its own normalised form and every
+        // input it only lower-cases normalises to its lower case: all ASCII
+        // strings of up to 2 bytes, then the tricky bytes up to 4.
         let check = |s: &str| {
-            if is_normalised(s) {
-                assert_eq!(normalize(s, false), s, "{s:?}");
-                assert_eq!(normalize(s, true), s, "{s:?}");
+            for q in [false, true] {
+                let mut full = String::new();
+                normalize_flagged(s, q, ALL_FLAGS, &mut full);
+                assert_eq!(normalize(s, q), full, "{s:?} {q}");
+                match byte_flags(s, q) {
+                    0 => assert_eq!(full, s, "{s:?} {q}"),
+                    UPPER => assert_eq!(full, s.to_ascii_lowercase(), "{s:?} {q}"),
+                    _ => {}
+                }
             }
         };
         for a in 0..128u8 {
@@ -1306,8 +1389,8 @@ mod tests {
             }
         }
         let tricky = [
-            '/', '*', '!', '%', '2', 'f', '+', '&', '#', 'x', 'l', 't', ';', '\\', 'u', ' ', '\t',
-            '=', '(', 'a', 'A', 'é',
+            '/', '*', '!', '%', '2', '5', 'c', 'f', '+', '&', '#', 'x', 'l', 't', ';', '\\', 'u',
+            ' ', '\t', '=', '(', 'a', 'A', 'X', 'é', 'É',
         ];
         for a in tricky {
             for b in tricky {
@@ -1318,12 +1401,96 @@ mod tests {
                 }
             }
         }
-        assert!(is_normalised("/api/users/42"));
-        assert!(is_normalised("https://example.com/products?a=1;b=(2)"));
         for s in [
-            "/Api", "a b", "a%20", "a+b", "a&b", "a\\x", "a*b", "é", "a\tb",
+            "/api/users/42",
+            "https://example.com/products?a=1;b=(2)",
+            "",
         ] {
-            assert!(!is_normalised(s), "{s:?}");
+            assert_eq!(byte_flags(s, false), 0, "{s:?}");
+            assert_eq!(byte_flags(s, true), 0, "{s:?}");
         }
+        // `+` is a space in a query string only.
+        assert_eq!(byte_flags("text/html,application/xhtml+xml", false), 0);
+        assert_eq!(byte_flags("text/html,application/xhtml+xml", true), PLUS);
+        assert_eq!(byte_flags("fr-FR,fr;q=0.9", false), UPPER);
+        assert_eq!(byte_flags("/Api", true), UPPER);
+        assert_eq!(byte_flags("A+B", false), UPPER);
+        assert_eq!(byte_flags("A+B", true), UPPER | PLUS);
+        for s in [
+            "a b", "A b", "a%20", "A%20", "a&b", "a\\x", "a*b", "A*B", "é", "É", "Aé", "a\tb",
+        ] {
+            assert!(byte_flags(s, false) & !UPPER != 0, "{s:?}");
+            assert!(byte_flags(s, true) & !UPPER != 0, "{s:?}");
+        }
+        // Decoded escapes and entities are still decoded and lower-cased
+        // (`%5C` is `\`, `%26` is `&`, `%41` is `A`).
+        for (s, q) in [
+            ("%5Cu003C", true),
+            ("%26lt;", false),
+            ("%41", false),
+            ("a+%2B", true),
+        ] {
+            let mut full = String::new();
+            normalize_flagged(s, q, ALL_FLAGS, &mut full);
+            assert_eq!(normalize(s, q), full, "{s:?}");
+        }
+    }
+
+    #[test]
+    fn event_handlers_are_found_wherever_they_are() {
+        // The byte-by-byte scan `has_event_handler` replaced.
+        fn reference(s: &str) -> bool {
+            let b = s.as_bytes();
+            let mut i = 1;
+            while i + 1 < b.len() {
+                if b[i] == b'o'
+                    && b[i + 1] == b'n'
+                    && matches!(b[i - 1], b' ' | b'"' | b'\'' | b'/' | b'`')
+                {
+                    let mut j = i + 2;
+                    while j < b.len() && b[j].is_ascii_lowercase() {
+                        j += 1;
+                    }
+                    let n = j - (i + 2);
+                    if (3..=25).contains(&n) && b.get(j) == Some(&b'=') {
+                        return true;
+                    }
+                }
+                i += 1;
+            }
+            false
+        }
+        // Every string of up to 7 of these bytes.
+        let alphabet = b"on=e \"/x";
+        let mut s = Vec::new();
+        for len in 0..=7u32 {
+            for mut k in 0..alphabet.len().pow(len) {
+                s.clear();
+                for _ in 0..len {
+                    s.push(alphabet[k % alphabet.len()]);
+                    k /= alphabet.len();
+                }
+                let s = std::str::from_utf8(&s).unwrap();
+                assert_eq!(has_event_handler(s), reference(s), "{s:?}");
+            }
+        }
+        // A handler at every offset around the 16-byte blocks, cut short or
+        // not, with names of every length.
+        for pad in 0..40 {
+            for name in 0..30 {
+                for cut in [0, 1, 2] {
+                    for prefix in ["", " ", "x", "/", "o"] {
+                        let full = format!("{}{prefix}on{}=", "a".repeat(pad), "z".repeat(name));
+                        let s = &full[..full.len() - cut.min(full.len())];
+                        assert_eq!(has_event_handler(s), reference(s), "{s:?}");
+                    }
+                }
+            }
+        }
+        assert!(has_event_handler("<img src=x onerror=alert(1)>"));
+        assert!(has_event_handler(&format!("{} onload=", "a".repeat(15))));
+        assert!(!has_event_handler(
+            "mozilla/5.0 (x11;linux x86_64) gecko/20100101 firefox/131.0"
+        ));
     }
 }
