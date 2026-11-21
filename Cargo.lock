@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "active"
 version = "0.3.4"
-source = "git+https://github.com/maxlestage/Active#eef18b4aab0a3be7f600e054a8a990fdeaea64cb"
+source = "git+https://github.com/maxlestage/Active#7d3ae3a51e19603e4a0e9937a03c092c77d17124"
 dependencies = [
  "approx",
  "arrayvec",
@@ -697,7 +697,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2729,7 +2729,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
